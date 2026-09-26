@@ -2,8 +2,8 @@ import { buildRoster, type ActivityItem, type Dashboard, type Group, type GroupP
 import type { Db } from "./db/client.ts";
 import { currentSessionStart } from "./schedule.ts";
 
-const groupColumns = `id, slug, name, activity, location, weekday, start_time AS "startTime",
-  duration_minutes AS "durationMinutes", timezone, cap`;
+export const groupColumns = `id, slug, name, activity, location, weekday, start_time AS "startTime",
+  duration_minutes AS "durationMinutes", timezone, cap, reminders`;
 
 export type GroupRow = Group & { organizerId: string };
 
@@ -27,7 +27,7 @@ export async function currentSession(db: Db, group: Group, now = new Date()): Pr
   const [session] = await db.query<Session>(
     `INSERT INTO sessions (group_id, starts_at) VALUES ($1, $2)
      ON CONFLICT (group_id, starts_at) DO UPDATE SET group_id = EXCLUDED.group_id
-     RETURNING id, group_id AS "groupId", starts_at AS "startsAt", cancelled`,
+     RETURNING id, group_id AS "groupId", starts_at AS "startsAt", cancelled, teams`,
     [group.id, startsAt.toISOString()],
   );
   return { ...session!, startsAt: new Date(session!.startsAt).toISOString() };
@@ -45,7 +45,20 @@ export async function sessionRsvps(db: Db, sessionId: string): Promise<Rsvp[]> {
 export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: string | null): Promise<GroupPage> {
   const session = await currentSession(db, group);
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
-  return { group: publicGroup(group), session, roster, viewer: { isOrganizer: viewerOrganizerId === group.organizerId } };
+  const isOrganizer = viewerOrganizerId === group.organizerId;
+  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: { isOrganizer } };
+  if (isOrganizer) page.organizer = await organizerDetails(db, group.id, session.id);
+  return page;
+}
+
+/** Payment status and skill ratings: visible to the organizer only. */
+async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<NonNullable<GroupPage["organizer"]>> {
+  const paid = await db.query<{ memberId: string }>(
+    `SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND paid_at IS NOT NULL`,
+    [sessionId],
+  );
+  const skills = await db.query<{ id: string; skill: number }>(`SELECT id, skill FROM members WHERE group_id = $1 AND skill IS NOT NULL`, [groupId]);
+  return { paid: paid.map((p) => p.memberId), skills: Object.fromEntries(skills.map((m) => [m.id, m.skill])) };
 }
 
 /** Everything the organizer's home screen shows, in one request. */

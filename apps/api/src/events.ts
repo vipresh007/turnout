@@ -1,5 +1,4 @@
 import { WebPubSubServiceClient } from "@azure/web-pubsub";
-import type { Rsvp } from "@turnout/shared";
 
 const HUB = "turnout";
 const connectionString = process.env.WEB_PUBSUB_CONNECTION_STRING;
@@ -22,9 +21,5 @@ export const events = {
   async rosterChanged(groupSlug: string) {
     // The message carries no roster data. Clients re-fetch, so names never go out on the public channel.
     await pubsub?.group(channel(groupSlug)).sendToAll({ type: "changed" }).catch((err) => console.warn("Web PubSub send failed", err));
-  },
-  promoted(groupSlug: string, members: Rsvp[]) {
-    // TODO(V2): push notification "You're in!" (Expo push, registered alongside reminders).
-    for (const m of members) console.info(`[promoted] ${m.name} is now in for ${groupSlug}`);
   },
 };

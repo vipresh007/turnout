@@ -5,6 +5,23 @@ import { Card, Field, Muted } from "./ui";
 
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={{
+        alignSelf: "flex-start", paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1,
+        borderColor: selected ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
+      }}
+    >
+      <Text style={{ color: selected ? t.accent : t.text, fontWeight: "600" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function GroupFields({ value, onChange, timezone }: { value: GroupFormValues; onChange: (v: GroupFormValues) => void; timezone: string }) {
   const t = useTheme();
   const set = <K extends keyof GroupFormValues>(key: K) => (v: GroupFormValues[K]) => onChange({ ...value, [key]: v });
@@ -41,6 +58,21 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
       </View>
       <Field label="Start time (24h)" placeholder="19:30" value={value.startTime} onChangeText={set("startTime")} />
       <Muted>Timezone: {timezone}</Muted>
+
+      <View style={{ gap: 8, marginTop: 4 }}>
+        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Reminders for players who turn them on</Text>
+        <Chip
+          label="🌙 Evening before (6pm)"
+          selected={value.reminders.dayBefore}
+          onPress={() => set("reminders")({ ...value.reminders, dayBefore: !value.reminders.dayBefore })}
+        />
+        <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <Text style={{ color: t.text, marginRight: 4 }}>⏰ Before the game:</Text>
+          {[null, 1, 2, 3, 6].map((h) => (
+            <Chip key={String(h)} label={h ? `${h}h` : "Off"} selected={value.reminders.hoursBefore === h} onPress={() => set("reminders")({ ...value.reminders, hoursBefore: h })} />
+          ))}
+        </View>
+      </View>
     </Card>
   );
 }

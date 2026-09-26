@@ -20,11 +20,18 @@ if [ -z "${POSTGRES_PASSWORD:-}" ]; then
   echo "Generated a Postgres password and saved it to infra/.env.infra"
 fi
 
+if [ -z "${VAPID_PUBLIC_KEY:-}" ]; then
+  KEYS="$(cd "$HERE/../apps/api" && node -e 'const w=require("web-push").generateVAPIDKeys(); console.log(w.publicKey + " " + w.privateKey)')"
+  VAPID_PUBLIC_KEY="${KEYS% *}"; VAPID_PRIVATE_KEY="${KEYS#* }"
+  printf 'VAPID_PUBLIC_KEY=%s\nVAPID_PRIVATE_KEY=%s\n' "$VAPID_PUBLIC_KEY" "$VAPID_PRIVATE_KEY" >> "$ENV_FILE"
+  echo "Generated browser push (VAPID) keys and saved them to infra/.env.infra"
+fi
+
 say "Subscription"
 az account show --query '{name:name, id:id}' -o table
 
 say "Resource providers"
-for p in Microsoft.App Microsoft.ContainerRegistry Microsoft.DBforPostgreSQL Microsoft.CognitiveServices \
+for p in Microsoft.Communication Microsoft.App Microsoft.ContainerRegistry Microsoft.DBforPostgreSQL Microsoft.CognitiveServices \
          Microsoft.SignalRService Microsoft.Web Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity; do
   [ "$(az provider show -n "$p" --query registrationState -o tsv 2>/dev/null)" = "Registered" ] || az provider register -n "$p" --wait -o none
 done
@@ -43,6 +50,7 @@ az deployment group create -g "$RESOURCE_GROUP" -n "turnout-$(date +%Y%m%d%H%M%S
                apiImages="{\"test\":\"$TEST_IMAGE\",\"live\":\"$LIVE_IMAGE\"}" \
                entra="{\"authority\":\"${ENTRA_AUTHORITY:-}\",\"apiClientId\":\"${ENTRA_API_CLIENT_ID:-}\"}" \
                webDomains="{\"test\":\"${TEST_WEB_DOMAIN:-}\",\"live\":\"${LIVE_WEB_DOMAIN:-}\"}" \
+               vapidPublicKey="$VAPID_PUBLIC_KEY" vapidPrivateKey="$VAPID_PRIVATE_KEY" \
                createAiAccount="${CREATE_AI_ACCOUNT:-false}" \
                externalAi="{\"endpoint\":\"${AI_ENDPOINT:-}\",\"deployment\":\"${AI_DEPLOYMENT:-}\"}" \
                externalAiKey="${AI_KEY:-}" \

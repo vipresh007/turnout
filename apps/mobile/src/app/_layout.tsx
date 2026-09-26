@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { AuthProvider } from "@/lib/auth";
@@ -8,6 +9,14 @@ export default function RootLayout() {
   const t = useTheme();
   return (
     <AuthProvider>
+      {Platform.OS === "web" && (
+        <Head>
+          {/* Lets people add Turnout to their Home Screen, which iPhone requires for notifications. */}
+          <link rel="manifest" href="/manifest.json" />
+          <link rel="apple-touch-icon" href="/icon.png" />
+          <meta name="theme-color" content="#16A34A" />
+        </Head>
+      )}
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -25,6 +34,8 @@ export default function RootLayout() {
         <Stack.Screen name="edit/[slug]" options={{ title: "Edit group", presentation: "modal" }} />
         <Stack.Screen name="g/[slug]" options={{ title: "" }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="email" options={{ title: "Email reminders" }} />
+        <Stack.Screen name="teams/[slug]" options={{ title: "Make teams", presentation: "modal" }} />
       </Stack>
     </AuthProvider>
   );

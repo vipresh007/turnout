@@ -6,19 +6,28 @@ import {
   buildRoster,
   cancelSessionSchema,
   createGroupSchema,
+  emailSchema,
   joinGroupSchema,
+  paidSchema,
   parseGroupSchema,
   promotedMembers,
+  pushSubscriptionSchema,
   rsvpSchema,
+  saveTeamsSchema,
+  skillSchema,
+  tokenSchema,
   updateGroupSchema,
   type Group,
+  type MemberSelf,
 } from "@turnout/shared";
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
-import { currentSession, findGroupBySlug, groupPage, listOrganizerGroups, organizerDashboard, sessionRsvps, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, sessionRsvps, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
+import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
+import { notifyPromoted, remindNow } from "./reminders.ts";
 import { isValidTimezone } from "./schedule.ts";
 
 type SlugParams = { Params: { slug: string } };
@@ -61,7 +70,7 @@ export async function buildApp(db: Db) {
     await events.rosterChanged(group.slug);
     if (before) {
       const promoted = promotedMembers(before, page.roster);
-      if (promoted.length) events.promoted(group.slug, promoted);
+      if (promoted.length) await notifyPromoted(db, group, page.session.startsAt, promoted.map((p) => p.memberId));
     }
     return page;
   };
@@ -80,12 +89,11 @@ export async function buildApp(db: Db) {
     const input = createGroupSchema.parse(req.body);
     if (!isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const [group] = await db.query<Group>(
-      `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, start_time, duration_minutes, timezone, cap)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING id, slug, name, activity, location, weekday, start_time AS "startTime",
-                 duration_minutes AS "durationMinutes", timezone, cap`,
+      `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, start_time, duration_minutes, timezone, cap, reminders)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING ${groupColumns}`,
       [randomSlug(), organizer.id, input.name, input.activity ?? null, input.location ?? null, input.weekday,
-       input.startTime, input.durationMinutes, input.timezone, input.cap],
+       input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders)],
     );
     return reply.status(201).send({ group });
   });
@@ -107,6 +115,7 @@ export async function buildApp(db: Db) {
     const columns: Record<string, unknown> = {
       name: input.name, activity: input.activity, location: input.location, weekday: input.weekday,
       start_time: input.startTime, duration_minutes: input.durationMinutes, timezone: input.timezone, cap: input.cap,
+      reminders: input.reminders && JSON.stringify(input.reminders),
     };
     const entries = Object.entries(columns).filter(([, v]) => v !== undefined);
     await db.query(
@@ -175,6 +184,136 @@ export async function buildApp(db: Db) {
       [session.id, member.id, status],
     );
     return changed(group, before);
+  });
+
+  // ── Organizer: payments, skills, teams, reminders ─────────
+  const ownedMember = async (group: GroupRow, memberId: string) => {
+    const [m] = await db.query<{ id: string }>(`SELECT id FROM members WHERE id = $1 AND group_id = $2`, [memberId, group.id]);
+    if (!m) throw new HttpError(404, "Member not found");
+  };
+
+  app.put<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/paid", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    await ownedMember(group, req.params.memberId);
+    const { paid } = paidSchema.parse(req.body);
+    const session = await currentSession(db, group);
+    const [row] = await db.query(
+      `UPDATE rsvps SET paid_at = ${paid ? "now()" : "NULL"} WHERE session_id = $1 AND member_id = $2 RETURNING 1`,
+      [session.id, req.params.memberId],
+    );
+    if (!row) throw new HttpError(409, "They haven't responded this week");
+    return groupPage(db, group, organizer.id);
+  });
+
+  app.put<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/skill", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    await ownedMember(group, req.params.memberId);
+    const { skill } = skillSchema.parse(req.body);
+    await db.query(`UPDATE members SET skill = $2 WHERE id = $1`, [req.params.memberId, skill]);
+    return groupPage(db, group, organizer.id);
+  });
+
+  app.put<SlugParams>("/groups/:slug/session/teams", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    const { teams } = saveTeamsSchema.parse(req.body);
+    const session = await currentSession(db, group);
+    if (teams) {
+      const ids = teams.flat();
+      if (new Set(ids).size !== ids.length) throw new HttpError(400, "A player is on two teams");
+      const members = await db.query<{ id: string }>(`SELECT id FROM members WHERE group_id = $1 AND id = ANY($2::uuid[])`, [group.id, ids]);
+      if (members.length !== ids.length) throw new HttpError(400, "Unknown player");
+    }
+    await db.query(`UPDATE sessions SET teams = $2 WHERE id = $1`, [session.id, teams ? JSON.stringify({ teams, savedAt: new Date().toISOString() }) : null]);
+    return changed(group, undefined, organizer.id);
+  });
+
+  app.post<SlugParams>("/groups/:slug/remind", strict(10), async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    return remindNow(db, group);
+  });
+
+  // ── Members: reminder channels ────────────────────────────
+  app.get("/push/key", async () => ({ publicKey: pushPublicKey(), email: emailEnabled() }));
+
+  const memberSelf = async (memberId: string): Promise<MemberSelf> => {
+    const [row] = await db.query<{ id: string; name: string; email: string | null; confirmed: boolean; push: number }>(
+      `SELECT m.id, m.name, m.email, m.email_confirmed_at IS NOT NULL AS confirmed,
+              (SELECT count(*)::int FROM push_subscriptions p WHERE p.member_id = m.id) AS push
+       FROM members m WHERE m.id = $1`,
+      [memberId],
+    );
+    return { member: { id: row!.id, name: row!.name }, channels: { push: row!.push, email: row!.email, emailConfirmed: row!.confirmed } };
+  };
+
+  app.get<SlugParams>("/groups/:slug/me", async (req) => {
+    const group = await groupOr404(req.params.slug);
+    return memberSelf((await requireMember(db, req, group.id)).id);
+  });
+
+  app.put<SlugParams>("/groups/:slug/me/push", strict(20), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    const sub = pushSubscriptionSchema.parse(req.body);
+    await db.query(
+      `INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (member_id, endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
+      [member.id, sub.endpoint, sub.keys.p256dh, sub.keys.auth],
+    );
+    return memberSelf(member.id);
+  });
+
+  app.delete<SlugParams>("/groups/:slug/me/push", async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    await db.query(`DELETE FROM push_subscriptions WHERE member_id = $1`, [member.id]);
+    return memberSelf(member.id);
+  });
+
+  app.put<SlugParams>("/groups/:slug/me/email", strict(5), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    const { email } = emailSchema.parse(req.body);
+    const token = newMemberToken();
+    await db.query(`UPDATE members SET email = $2, email_confirmed_at = NULL, email_token = $3 WHERE id = $1`, [member.id, email, token]);
+    // Double opt-in: nothing else is sent until they click this, so nobody can sign up someone else.
+    const confirmUrl = `${webUrl()}/email?confirm=${token}`;
+    await sendEmail(
+      email,
+      `Confirm reminders for ${group.name}`,
+      emailHtml({ title: `Get reminders for ${group.name}?`, body: `Tap below to confirm. We'll only email you about this group's games, and you can stop any time.`, url: confirmUrl }, undefined, "Yes, send me reminders"),
+      `Confirm reminders for ${group.name}: ${confirmUrl}`,
+    );
+    return memberSelf(member.id);
+  });
+
+  app.delete<SlugParams>("/groups/:slug/me/email", async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    await db.query(`UPDATE members SET email = NULL, email_confirmed_at = NULL, email_token = NULL WHERE id = $1`, [member.id]);
+    return memberSelf(member.id);
+  });
+
+  const byEmailToken = async (token: string) => {
+    const [row] = await db.query<{ id: string; groupName: string; slug: string }>(
+      `SELECT m.id, g.name AS "groupName", g.slug FROM members m JOIN groups g ON g.id = m.group_id WHERE m.email_token = $1`,
+      [token],
+    );
+    if (!row) throw new HttpError(404, "This link has expired");
+    return row;
+  };
+
+  app.post("/email/confirm", strict(20), async (req) => {
+    const { token } = tokenSchema.parse(req.body);
+    const row = await byEmailToken(token);
+    await db.query(`UPDATE members SET email_confirmed_at = COALESCE(email_confirmed_at, now()) WHERE id = $1`, [row.id]);
+    return { groupName: row.groupName, slug: row.slug };
+  });
+
+  app.post("/email/unsubscribe", strict(20), async (req) => {
+    const { token } = tokenSchema.parse(req.body);
+    const row = await byEmailToken(token);
+    await db.query(`UPDATE members SET email = NULL, email_confirmed_at = NULL, email_token = NULL WHERE id = $1`, [row.id]);
+    return { groupName: row.groupName, slug: row.slug };
   });
 
   return app;

@@ -108,7 +108,8 @@ test("migrations are idempotent across restarts", async () => {
     await (await createDb("")).close();
     const again = await createDb("");
     const [row] = await again.query<{ n: number }>(`SELECT count(*)::int AS n FROM schema_migrations`);
-    assert.equal(row?.n, 1);
+    const { migrations } = await import("./db/migrations.ts");
+    assert.equal(row?.n, migrations.length);
     await again.close();
   } finally {
     delete process.env.PGLITE_DIR;
@@ -152,4 +153,83 @@ test("organizer dashboard: groups with this week's counts and recent activity", 
   // Other organizers' activity never shows up.
   const other = (await app.inject({ url: "/me/dashboard", headers: { "x-dev-user": "someone-new" } })).json();
   assert.deepEqual(other.activity, []);
+});
+
+test("V2: paid tracking, skills and teams are organizer-only", async () => {
+  const org = { "x-dev-user": "v2-org" };
+  const other = { "x-dev-user": "v2-other" };
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "V2 Soccer", weekday: 2, startTime: "19:00", timezone: "America/Toronto", cap: 10 },
+  })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json();
+  const [a, b] = [await join("Ana"), await join("Ben")];
+  for (const m of [a, b]) await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": m.token }, payload: { status: "in" } });
+
+  let page = (await app.inject({ method: "PUT", url: `/groups/${slug}/members/${a.member.id}/paid`, headers: org, payload: { paid: true } })).json() as GroupPage;
+  assert.deepEqual(page.organizer?.paid, [a.member.id]);
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/members/${a.member.id}/paid`, headers: other, payload: { paid: false } })).statusCode, 403);
+  assert.equal(((await app.inject({ url: `/groups/${slug}` })).json() as GroupPage).organizer, undefined); // never public
+
+  page = (await app.inject({ method: "PUT", url: `/groups/${slug}/members/${b.member.id}/skill`, headers: org, payload: { skill: 5 } })).json() as GroupPage;
+  assert.equal(page.organizer?.skills[b.member.id], 5);
+
+  page = (await app.inject({ method: "PUT", url: `/groups/${slug}/session/teams`, headers: org, payload: { teams: [[a.member.id], [b.member.id]] } })).json() as GroupPage;
+  assert.deepEqual(page.session.teams?.teams, [[a.member.id], [b.member.id]]);
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/session/teams`, headers: org, payload: { teams: [[a.member.id], [a.member.id]] } })).statusCode, 400);
+  page = (await app.inject({ method: "PUT", url: `/groups/${slug}/session/teams`, headers: org, payload: { teams: null } })).json() as GroupPage;
+  assert.equal(page.session.teams, null);
+});
+
+test("V2: reminder channels, double opt-in email, and the reminder job never double-sends", async () => {
+  const { currentSessionStart } = await import("./schedule.ts");
+  const { reminderTimes } = await import("@turnout/shared");
+  const { runReminders, remindNow } = await import("./reminders.ts");
+  const { findGroupBySlug } = await import("./groups.ts");
+
+  const org = { "x-dev-user": "v2-remind" };
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "V2 Hoops", weekday: 4, startTime: "20:00", timezone: "America/Toronto", cap: 8 },
+  })).json().group;
+  const a = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Ana" } })).json();
+  const me = { "x-member-token": a.token };
+
+  // Push subscription
+  let self = (await app.inject({ method: "PUT", url: `/groups/${slug}/me/push`, headers: me, payload: { endpoint: "https://push.example.com/abc", keys: { p256dh: "k", auth: "a" } } })).json();
+  assert.equal(self.channels.push, 1);
+
+  // Email: pending until confirmed through the emailed token
+  self = (await app.inject({ method: "PUT", url: `/groups/${slug}/me/email`, headers: me, payload: { email: "Ana@Example.com" } })).json();
+  assert.deepEqual([self.channels.email, self.channels.emailConfirmed], ["ana@example.com", false]);
+  const [row] = await db.query<{ token: string }>(`SELECT email_token AS token FROM members WHERE id = $1`, [a.member.id]);
+  const token = row!.token;
+  assert.equal((await app.inject({ method: "POST", url: "/email/confirm", payload: { token } })).json().slug, slug);
+  self = (await app.inject({ url: `/groups/${slug}/me`, headers: me })).json();
+  assert.equal(self.channels.emailConfirmed, true);
+
+  // Reminder job at the day-before time: Ana hasn't answered, so she gets one nudge, once.
+  const group = (await findGroupBySlug(db, slug))!;
+  const start = currentSessionStart(group);
+  const due = reminderTimes(start, group.timezone, group.reminders).dayBefore!;
+  const at = new Date(due.getTime() + 60_000);
+  if (at < start) {
+    await runReminders(db, at);
+    await runReminders(db, at);
+    const rows = await db.query(`SELECT kind FROM notifications_sent n JOIN members m ON m.id = n.member_id WHERE m.id = $1`, [a.member.id]);
+    assert.deepEqual(rows.map((r) => r.kind), ["dayBefore"]);
+  }
+
+  // Organizer "remind now": works once an hour, always returns the group-chat text.
+  const first = await remindNow(db, group);
+  assert.equal(first.reachable, 1);
+  assert.match(first.message, /V2 Hoops/);
+  const second = await remindNow(db, group);
+  assert.equal(second.notified, 0);
+
+  // Unsubscribe clears the email; the token stops working.
+  await app.inject({ method: "POST", url: "/email/unsubscribe", payload: { token } });
+  self = (await app.inject({ url: `/groups/${slug}/me`, headers: me })).json();
+  assert.equal(self.channels.email, null);
+  assert.equal((await app.inject({ method: "POST", url: "/email/confirm", payload: { token } })).statusCode, 404);
 });

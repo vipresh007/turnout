@@ -50,4 +50,37 @@ export const migrations: string[] = [
     PRIMARY KEY (session_id, member_id)
   );
   `,
+  // V2: reminders, notification channels, teams, payments
+  `
+  ALTER TABLE groups ADD COLUMN reminders jsonb NOT NULL DEFAULT '{"dayBefore": true, "hoursBefore": 2}';
+
+  ALTER TABLE members ADD COLUMN skill smallint CHECK (skill BETWEEN 1 AND 5);
+  ALTER TABLE members ADD COLUMN email text;
+  ALTER TABLE members ADD COLUMN email_confirmed_at timestamptz;
+  -- Capability token for the confirm and unsubscribe links in reminder emails.
+  ALTER TABLE members ADD COLUMN email_token text UNIQUE;
+
+  ALTER TABLE rsvps ADD COLUMN paid_at timestamptz;
+
+  ALTER TABLE sessions ADD COLUMN teams jsonb;
+  ALTER TABLE sessions ADD COLUMN last_reminded_at timestamptz;
+
+  CREATE TABLE push_subscriptions (
+    member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    endpoint text NOT NULL,
+    p256dh text NOT NULL,
+    auth text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (member_id, endpoint)
+  );
+
+  -- One row per reminder actually sent, so the scheduled job never sends the same one twice.
+  CREATE TABLE notifications_sent (
+    session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    kind text NOT NULL,
+    sent_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, member_id, kind)
+  );
+  `,
 ];

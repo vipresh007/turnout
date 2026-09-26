@@ -1,4 +1,4 @@
-import { createGroupSchema, type CreateGroupInput, type Group, type GroupDraft } from "@turnout/shared";
+import { createGroupSchema, defaultReminderSettings, type CreateGroupInput, type Group, type GroupDraft, type ReminderSettings } from "@turnout/shared";
 
 /** Form state as the inputs hold it: strings, plus the weekday chip. */
 export interface GroupFormValues {
@@ -8,9 +8,10 @@ export interface GroupFormValues {
   weekday: number | null;
   startTime: string;
   cap: string;
+  reminders: ReminderSettings;
 }
 
-export const emptyGroupForm: GroupFormValues = { name: "", activity: "", location: "", weekday: null, startTime: "", cap: "" };
+export const emptyGroupForm: GroupFormValues = { name: "", activity: "", location: "", weekday: null, startTime: "", cap: "", reminders: defaultReminderSettings };
 
 export const fromGroup = (g: Group): GroupFormValues => ({
   name: g.name,
@@ -19,6 +20,7 @@ export const fromGroup = (g: Group): GroupFormValues => ({
   weekday: g.weekday,
   startTime: g.startTime,
   cap: g.cap ? String(g.cap) : "",
+  reminders: g.reminders,
 });
 
 /** Fills in what the draft found and keeps what the organizer already typed for the rest. */
@@ -29,6 +31,7 @@ export const applyDraft = (v: GroupFormValues, d: GroupDraft): GroupFormValues =
   weekday: d.weekday ?? v.weekday,
   startTime: d.startTime ?? v.startTime,
   cap: d.cap ? String(d.cap) : v.cap,
+  reminders: v.reminders,
 });
 
 const labels: Record<string, string> = { name: "Group name", weekday: "Day", startTime: "Start time", cap: "Max players" };
@@ -42,6 +45,7 @@ export function toGroupInput(v: GroupFormValues, timezone: string): { ok: true; 
     startTime: v.startTime,
     timezone,
     cap: v.cap ? Number(v.cap) : null,
+    reminders: v.reminders,
   });
   if (parsed.success) return { ok: true, input: parsed.data };
   const issue = parsed.error.issues[0]!;

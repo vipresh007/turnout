@@ -21,6 +21,12 @@ param aiKey string
 param aiDeployment string
 param entraAuthority string
 param entraApiClientId string
+param vapidPublicKey string = ''
+@secure()
+param vapidPrivateKey string = ''
+@secure()
+param acsConnectionString string = ''
+param emailSender string = ''
 
 var placeholderImage = 'mcr.microsoft.com/k8se/quickstart:latest'
 var usePlaceholder = empty(apiImage)
@@ -91,6 +97,46 @@ resource webCustomDomain 'Microsoft.Web/staticSites/customDomains@2023-12-01' = 
 var defaultOrigin = 'https://${web.properties.defaultHostname}'
 var webOrigin = empty(webDomain) ? defaultOrigin : 'https://${webDomain}'
 var hasAi = !empty(aiKey)
+var hasPush = !empty(vapidPrivateKey)
+var hasEmail = !empty(acsConnectionString)
+
+// Shared by the API and the reminder job. Container Apps rejects empty secrets, so optional ones
+// are only added when configured.
+var appSecrets = concat(
+  [
+    { name: 'database-url', value: databaseUrl }
+    { name: 'web-pubsub', value: pubsub.listKeys().primaryConnectionString }
+    { name: 'appi', value: appi.properties.ConnectionString }
+  ],
+  hasAi ? [{ name: 'ai-key', value: aiKey }] : [],
+  hasPush ? [{ name: 'vapid-private', value: vapidPrivateKey }] : [],
+  hasEmail ? [{ name: 'acs', value: acsConnectionString }] : []
+)
+var appEnv = concat(
+  [
+    { name: 'NODE_ENV', value: 'production' }
+    { name: 'TURNOUT_ENV', value: env }
+    { name: 'WEB_URL', value: webOrigin }
+    { name: 'DATABASE_URL', secretRef: 'database-url' }
+    { name: 'WEB_PUBSUB_CONNECTION_STRING', secretRef: 'web-pubsub' }
+    { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appi' }
+    { name: 'ENTRA_AUTHORITY', value: entraAuthority }
+    { name: 'ENTRA_API_CLIENT_ID', value: entraApiClientId }
+  ],
+  hasAi ? [
+    { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
+    { name: 'AZURE_AI_API_KEY', secretRef: 'ai-key' }
+    { name: 'AZURE_AI_DEPLOYMENT', value: aiDeployment }
+  ] : [],
+  hasPush ? [
+    { name: 'VAPID_PUBLIC_KEY', value: vapidPublicKey }
+    { name: 'VAPID_PRIVATE_KEY', secretRef: 'vapid-private' }
+  ] : [],
+  hasEmail ? [
+    { name: 'ACS_CONNECTION_STRING', secretRef: 'acs' }
+    { name: 'EMAIL_SENDER', value: emailSender }
+  ] : []
+)
 
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-turnout-api-${env}'
@@ -104,12 +150,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: usePlaceholder ? 80 : 8080, transport: 'auto', allowInsecure: false }
       registries: [{ server: acr.properties.loginServer, identity: identity.id }]
-      // Container Apps rejects empty secrets, so the AI key is only added when there is one.
-      secrets: concat([
-        { name: 'database-url', value: databaseUrl }
-        { name: 'web-pubsub', value: pubsub.listKeys().primaryConnectionString }
-        { name: 'appi', value: appi.properties.ConnectionString }
-      ], hasAi ? [{ name: 'ai-key', value: aiKey }] : [])
+      secrets: appSecrets
     }
     template: {
       containers: [
@@ -117,23 +158,12 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'api'
           image: usePlaceholder ? placeholderImage : apiImage
           resources: { cpu: json('0.5'), memory: '1Gi' }
-          env: concat([
-            { name: 'NODE_ENV', value: 'production' }
+          env: concat(appEnv, [
             { name: 'PORT', value: '8080' }
-            { name: 'TURNOUT_ENV', value: env }
-            { name: 'DATABASE_URL', secretRef: 'database-url' }
-            { name: 'WEB_PUBSUB_CONNECTION_STRING', secretRef: 'web-pubsub' }
-            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appi' }
-            { name: 'ENTRA_AUTHORITY', value: entraAuthority }
-            { name: 'ENTRA_API_CLIENT_ID', value: entraApiClientId }
-            // The test environment also accepts the local Expo dev server.
             // The default hostname keeps working after a custom domain is added, so allow both.
+            // The test environment also accepts the local Expo dev server.
             { name: 'CORS_ORIGIN', value: join(union([webOrigin, defaultOrigin], env == 'test' ? ['http://localhost:8081'] : []), ',') }
-          ], hasAi ? [
-            { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
-            { name: 'AZURE_AI_API_KEY', secretRef: 'ai-key' }
-            { name: 'AZURE_AI_DEPLOYMENT', value: aiDeployment }
-          ] : [])
+          ])
           probes: usePlaceholder ? [] : [
             { type: 'Liveness', httpGet: { path: '/health', port: 8080 }, periodSeconds: 30 }
             { type: 'Readiness', httpGet: { path: '/health', port: 8080 }, periodSeconds: 10 }
@@ -146,8 +176,41 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
   }
 }
 
+// Every 15 minutes: send reminders that are due. Same image as the API, different entry point.
+// Skipped until a real image exists (the placeholder is a web server that never exits).
+resource reminderJob 'Microsoft.App/jobs@2024-03-01' = if (!usePlaceholder) {
+  name: 'caj-turnout-reminders-${env}'
+  location: location
+  tags: envTags
+  identity: { type: 'UserAssigned', userAssignedIdentities: { '${identity.id}': {} } }
+  dependsOn: [acrPull]
+  properties: {
+    environmentId: caeId
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 300
+      replicaRetryLimit: 0
+      scheduleTriggerConfig: { cronExpression: '*/15 * * * *', parallelism: 1, replicaCompletionCount: 1 }
+      registries: [{ server: acr.properties.loginServer, identity: identity.id }]
+      secrets: appSecrets
+    }
+    template: {
+      containers: [
+        {
+          name: 'reminders'
+          image: apiImage
+          command: ['node', '--import', './src/telemetry.ts', 'src/jobs/reminders.ts']
+          resources: { cpu: json('0.25'), memory: '0.5Gi' }
+          env: appEnv
+        }
+      ]
+    }
+  }
+}
+
 output info object = {
   apiName: api.name
+  jobName: usePlaceholder ? '' : 'caj-turnout-reminders-${env}'
   apiUrl: 'https://${api.properties.configuration.ingress.fqdn}'
   webName: web.name
   webUrl: webOrigin

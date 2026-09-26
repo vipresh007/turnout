@@ -1,3 +1,4 @@
+import type { ReminderSettings } from "./reminders.ts";
 import type { Roster, RsvpStatus } from "./roster.ts";
 
 export interface Group {
@@ -11,6 +12,13 @@ export interface Group {
   durationMinutes: number;
   timezone: string;
   cap: number | null;
+  reminders: ReminderSettings;
+}
+
+/** Teams the organizer saved for a session, by member ID. */
+export interface SavedTeams {
+  teams: string[][];
+  savedAt: string;
 }
 
 export interface Session {
@@ -18,6 +26,7 @@ export interface Session {
   groupId: string;
   startsAt: string;
   cancelled: boolean;
+  teams: SavedTeams | null;
 }
 
 /** Payload behind a group's public page (/g/:slug). */
@@ -27,6 +36,14 @@ export interface GroupPage {
   roster: Roster;
   /** What the requester may do. Only set from a verified organizer identity. */
   viewer: { isOrganizer: boolean };
+  /** Organizer-only details: who has paid this week and each member's skill rating. */
+  organizer?: { paid: string[]; skills: Record<string, number> };
+}
+
+/** A member's own settings, seen only with their member token. */
+export interface MemberSelf {
+  member: { id: string; name: string };
+  channels: { push: number; email: string | null; emailConfirmed: boolean };
 }
 
 /** One group as the organizer's dashboard shows it: this week's session and counts. */

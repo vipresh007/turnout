@@ -1,7 +1,13 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/_expo/*", "/assets/*", "*.{png,jpg,jpeg,gif,svg,ico,webp,js,css,json,ttf,woff,woff2,map}"]
+    "exclude": [
+      "/_expo/*",
+      "/assets/*",
+      "*.{png,jpg,jpeg,gif,svg,ico,webp,js,css,json,ttf,woff,woff2,map}",
+      "/sw.js",
+      "/manifest.json"
+    ]
   },
   "globalHeaders": {
     "X-Content-Type-Options": "nosniff",
@@ -10,6 +16,18 @@
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
   },
   "routes": [
-    { "route": "/_expo/*", "headers": { "Cache-Control": "public, max-age=31536000, immutable" } }
+    {
+      "route": "/_expo/*",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "Service-Worker-Allowed": "/"
+      }
+    }
   ]
 }

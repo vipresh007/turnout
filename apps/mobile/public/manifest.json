@@ -1,0 +1,10 @@
+{
+  "name": "Turnout",
+  "short_name": "Turnout",
+  "description": "Who's in this week? One link for your weekly game.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0E1113",
+  "theme_color": "#16A34A",
+  "icons": [{ "src": "/icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}

@@ -66,6 +66,10 @@ jobs:
           az containerapp ingress update -g $RG -n ca-turnout-api-$TARGET --target-port 8080 -o none
           az containerapp update -g $RG -n ca-turnout-api-$TARGET --image $IMAGE \
             --set-env-vars APP_VERSION=$IMAGE_TAG -o none
+          # The reminder job runs the same image with a different entry point.
+          if az containerapp job show -g $RG -n caj-turnout-reminders-$TARGET -o none 2>/dev/null; then
+            az containerapp job update -g $RG -n caj-turnout-reminders-$TARGET --image $IMAGE -o none
+          fi
           for i in $(seq 1 30); do
             curl -fsS "$API_URL/health" && exit 0
             sleep 10

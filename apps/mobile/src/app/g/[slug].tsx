@@ -1,8 +1,9 @@
-import { needPlayersMessage, placeOf, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { needPlayersMessage, placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Bump, Pop } from "@/components/motion";
+import { RemindMe } from "@/components/RemindMe";
 import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
 import { ApiError, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
@@ -14,7 +15,7 @@ import { useTheme } from "@/lib/theme";
 export default function GroupScreen() {
   const t = useTheme();
   const api = useApi();
-  const { slug, created } = useLocalSearchParams<{ slug: string; created?: string }>();
+  const { slug, created, rsvp } = useLocalSearchParams<{ slug: string; created?: string; rsvp?: string }>();
   const [page, setPage] = useState<GroupPage | null>(null);
   const [me, setMe] = useState<Membership | null>(null);
   const [name, setName] = useState("");
@@ -22,6 +23,7 @@ export default function GroupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const [reminder, setReminder] = useState<{ notified: number; reachable: number; message: string } | null>(null);
 
   const load = useCallback(() => {
     api.groupPage(slug).then(setPage, (e: Error) => setError(e.message));
@@ -66,6 +68,16 @@ export default function GroupScreen() {
       }
     });
 
+  // "I'm in" / "I'm out" tapped on a notification opens the page with ?rsvp=in|out.
+  const applied = useRef(false);
+  useEffect(() => {
+    if (applied.current || !me || (rsvp !== "in" && rsvp !== "out")) return;
+    applied.current = true;
+    respond(rsvp);
+    router.setParams({ rsvp: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when the membership is known
+  }, [me, rsvp]);
+
   const share = async (message: string) => {
     if (await shareText(message)) {
       setNotice("Copied to clipboard");
@@ -82,6 +94,10 @@ export default function GroupScreen() {
   const place = me ? placeOf(roster, me.memberId) : { kind: "none" as const };
   const needMessage = session.cancelled ? null : needPlayersMessage(group.name, roster, link);
   const needsName = !me && name.trim().length === 0;
+  const paidSet = viewer.isOrganizer ? new Set(page.organizer?.paid ?? []) : undefined;
+  const onTogglePaid = viewer.isOrganizer
+    ? (p: Rsvp) => run(`paid:${p.memberId}`, () => api.setPaid(slug, p.memberId, !paidSet!.has(p.memberId)))
+    : undefined;
   const onRemove = viewer.isOrganizer
     ? async (p: Rsvp) => {
         if (await confirm(`Remove ${p.name}?`, "They'll be taken off this week's list and will need the link to join again.")) {
@@ -144,7 +160,11 @@ export default function GroupScreen() {
       )}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
 
-      <PeopleList title="In" people={roster.confirmed} numbered onRemove={onRemove} />
+      {me && !session.cancelled && place.kind !== "out" && <RemindMe slug={slug} me={me} />}
+
+      {session.teams && <TeamsCard teams={session.teams.teams} roster={[...roster.confirmed, ...roster.waitlist, ...roster.out]} onShare={share} groupName={group.name} />}
+
+      <PeopleList title="In" people={roster.confirmed} numbered onRemove={onRemove} paid={paidSet} onTogglePaid={onTogglePaid} />
       {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} />}
       {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} />}
 
@@ -170,6 +190,48 @@ export default function GroupScreen() {
               }}
             />
           </View>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Button
+              label="⏰ Send reminder"
+              variant="secondary"
+              loading={pending === "remind"}
+              disabled={session.cancelled}
+              onPress={async () => {
+                setPending("remind");
+                setError(null);
+                try {
+                  setReminder(await api.remind(slug));
+                } catch (e) {
+                  setError((e as Error).message);
+                } finally {
+                  setPending(null);
+                }
+              }}
+            />
+            <Button label="🏁 Make teams" variant="secondary" disabled={roster.confirmed.length < 2} onPress={() => router.push({ pathname: "/teams/[slug]", params: { slug } })} />
+          </View>
+          {reminder && (
+            <Pop style={{ gap: 8 }}>
+              <Text style={{ color: t.text, fontWeight: "700" }}>
+                {reminder.reachable === 0
+                  ? "Nobody has turned on reminders yet, so post this in your group chat:"
+                  : reminder.notified > 0
+                    ? `Notified ${reminder.notified} of ${reminder.reachable} players with reminders on. Post this for everyone else:`
+                    : "Reminders already went out in the last hour. You can still post this:"}
+              </Text>
+              <View style={{ backgroundColor: t.bg, borderRadius: 10, padding: 12 }}>
+                <Text style={{ color: t.muted }}>{reminder.message}</Text>
+              </View>
+              <View style={{ flexDirection: "row" }}>
+                <Button label="Share to group chat" onPress={() => share(reminder.message)} />
+              </View>
+            </Pop>
+          )}
+          {paidSet && roster.confirmed.length > 0 && (
+            <Text style={{ color: t.muted }}>
+              💵 {roster.confirmed.filter((r) => paidSet.has(r.memberId)).length} of {roster.confirmed.length} paid · tap “Paid” next to a name to mark it
+            </Text>
+          )}
           <Muted>Tap × next to a name to remove someone from the group.</Muted>
         </Card>
       )}
@@ -197,7 +259,14 @@ function StatusLine({ place, name }: { place: ReturnType<typeof placeOf>; name?:
   return <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{text}</Text>;
 }
 
-function PeopleList({ title, people, numbered, onRemove }: { title: string; people: Rsvp[]; numbered?: boolean; onRemove?: (p: Rsvp) => void }) {
+function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid }: {
+  title: string;
+  people: Rsvp[];
+  numbered?: boolean;
+  onRemove?: (p: Rsvp) => void;
+  paid?: Set<string>;
+  onTogglePaid?: (p: Rsvp) => void;
+}) {
   const t = useTheme();
   return (
     <Card>
@@ -207,10 +276,25 @@ function PeopleList({ title, people, numbered, onRemove }: { title: string; peop
       {people.length === 0 && <Muted>Nobody yet. Be the first!</Muted>}
       {people.map((p, i) => (
         <Pop key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Text style={{ color: t.text, fontSize: 16 }}>
+          <Text style={{ color: t.text, fontSize: 16, flex: 1 }}>
             {numbered ? `${i + 1}. ` : ""}
             {p.name}
           </Text>
+          {onTogglePaid && paid && (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: paid.has(p.memberId) }}
+              accessibilityLabel={`${p.name} paid`}
+              onPress={() => onTogglePaid(p)}
+              hitSlop={8}
+              style={{
+                paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, marginRight: 12,
+                borderColor: paid.has(p.memberId) ? t.accent : t.border, backgroundColor: paid.has(p.memberId) ? t.soft : "transparent",
+              }}
+            >
+              <Text style={{ color: paid.has(p.memberId) ? t.accent : t.muted, fontSize: 12, fontWeight: "800" }}>{paid.has(p.memberId) ? "✓ Paid" : "Paid?"}</Text>
+            </Pressable>
+          )}
           {onRemove && (
             <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`} onPress={() => onRemove(p)} hitSlop={12}>
               <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
@@ -218,6 +302,35 @@ function PeopleList({ title, people, numbered, onRemove }: { title: string; peop
           )}
         </Pop>
       ))}
+    </Card>
+  );
+}
+
+function TeamsCard({ teams, roster, groupName, onShare }: { teams: string[][]; roster: Rsvp[]; groupName: string; onShare: (text: string) => void }) {
+  const t = useTheme();
+  const names = new Map(roster.map((r) => [r.memberId, r.name]));
+  const named = teams.map((ids) => ids.map((id) => names.get(id)).filter((n): n is string => !!n));
+  const text = teamsText(groupName, named);
+  return (
+    <Card>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>🏁 Teams</Text>
+        <Pressable accessibilityRole="button" onPress={() => onShare(text)} hitSlop={8}>
+          <Text style={{ color: t.accent, fontWeight: "700" }}>Share</Text>
+        </Pressable>
+      </View>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {named.map((ns, i) => (
+          <View key={i} style={{ flexGrow: 1, flexBasis: "45%", backgroundColor: t.bg, borderRadius: 12, padding: 12, gap: 4 }}>
+            <Text style={{ color: t.accent, fontWeight: "900" }}>{teamNames[i]}</Text>
+            {ns.map((n) => (
+              <Text key={n} style={{ color: t.text }}>
+                {n}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </View>
     </Card>
   );
 }

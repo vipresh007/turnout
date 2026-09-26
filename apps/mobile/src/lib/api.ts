@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, RsvpStatus, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, RsvpStatus, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -59,6 +59,14 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<GroupPage>(`/groups/${slug}/session/cancelled`, await asOrganizer({ method: "PUT", body: { cancelled } })),
     removeMember: async (slug: string, memberId: string) =>
       request<GroupPage>(`/groups/${slug}/members/${memberId}`, await asOrganizer({ method: "DELETE" })),
+    setPaid: async (slug: string, memberId: string, paid: boolean) =>
+      request<GroupPage>(`/groups/${slug}/members/${memberId}/paid`, await asOrganizer({ method: "PUT", body: { paid } })),
+    setSkill: async (slug: string, memberId: string, skill: number) =>
+      request<GroupPage>(`/groups/${slug}/members/${memberId}/skill`, await asOrganizer({ method: "PUT", body: { skill } })),
+    saveTeams: async (slug: string, teams: string[][] | null) =>
+      request<GroupPage>(`/groups/${slug}/session/teams`, await asOrganizer({ method: "PUT", body: { teams } })),
+    remind: async (slug: string) =>
+      request<{ notified: number; reachable: number; message: string }>(`/groups/${slug}/remind`, await asOrganizer({ method: "POST", body: {} })),
 
     // Anyone (the organizer's identity is attached so the page knows to show controls)
     groupPage: async (slug: string) => request<GroupPage>(`/groups/${slug}`, { headers: await authHeaders() }),
@@ -76,6 +84,20 @@ function createApi(authHeaders: () => Promise<Headers>) {
     },
     rsvp: (slug: string, token: string, status: RsvpStatus) =>
       request<GroupPage>(`/groups/${slug}/rsvp`, { method: "PUT", body: { status }, headers: { "x-member-token": token } }),
+
+    // Reminder channels (member token)
+    reminderOptions: () => request<{ publicKey: string | null; email: boolean }>("/push/key"),
+    memberSelf: (slug: string, token: string) => request<MemberSelf>(`/groups/${slug}/me`, { headers: { "x-member-token": token } }),
+    subscribePush: (slug: string, token: string, subscription: PushSubscriptionJSON) =>
+      request<MemberSelf>(`/groups/${slug}/me/push`, { method: "PUT", body: subscription, headers: { "x-member-token": token } }),
+    unsubscribePush: (slug: string, token: string) =>
+      request<MemberSelf>(`/groups/${slug}/me/push`, { method: "DELETE", headers: { "x-member-token": token } }),
+    setEmail: (slug: string, token: string, email: string) =>
+      request<MemberSelf>(`/groups/${slug}/me/email`, { method: "PUT", body: { email }, headers: { "x-member-token": token } }),
+    removeEmail: (slug: string, token: string) =>
+      request<MemberSelf>(`/groups/${slug}/me/email`, { method: "DELETE", headers: { "x-member-token": token } }),
+    confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),
+    unsubscribeEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/unsubscribe", { method: "POST", body: { token } }),
   };
 }
 

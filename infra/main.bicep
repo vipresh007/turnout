@@ -31,6 +31,11 @@ param externalAi object = { endpoint: '', deployment: '' }
 param externalAiKey string = ''
 @description('GlobalStandard model deployments are not offered in every region; requests are processed globally either way.')
 param aiLocation string = 'eastus2'
+@description('Browser push (VAPID) keys, generated once by provision.sh.')
+param vapidPublicKey string = ''
+@secure()
+param vapidPrivateKey string = ''
+
 param aiModel string = 'gpt-4.1-mini'
 param aiModelVersion string = '2025-04-14'
 
@@ -103,6 +108,30 @@ resource aiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-
   properties: { model: { format: 'OpenAI', name: aiModel, version: aiModelVersion } }
 }
 
+// Email through Azure Communication Services, from an Azure-managed sender domain for now.
+// TODO: send from a dataeaver.ca address (needs SPF/DKIM DNS records).
+resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
+  name: 'ecs-turnout-${suffix}'
+  location: 'global'
+  tags: tags
+  properties: { dataLocation: 'Canada' }
+}
+
+resource emailDomain 'Microsoft.Communication/emailServices/domains@2023-04-01' = {
+  parent: emailService
+  name: 'AzureManagedDomain'
+  location: 'global'
+  tags: tags
+  properties: { domainManagement: 'AzureManaged', userEngagementTracking: 'Disabled' }
+}
+
+resource acs 'Microsoft.Communication/communicationServices@2023-04-01' = {
+  name: 'acs-turnout-${suffix}'
+  location: 'global'
+  tags: tags
+  properties: { dataLocation: 'Canada', linkedDomains: [emailDomain.id] }
+}
+
 module environments 'environment.bicep' = [for env in ['test', 'live']: {
   name: 'turnout-${env}'
   params: {
@@ -124,6 +153,10 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     aiDeployment: createAiAccount ? aiModel : externalAi.deployment
     entraAuthority: entra.authority
     entraApiClientId: entra.apiClientId
+    vapidPublicKey: vapidPublicKey
+    vapidPrivateKey: vapidPrivateKey
+    acsConnectionString: acs.listKeys().primaryConnectionString
+    emailSender: 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'
   }
 }]
 
