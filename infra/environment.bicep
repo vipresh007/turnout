@@ -80,6 +80,7 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 var webOrigin = 'https://${web.properties.defaultHostname}'
+var hasAi = !empty(aiKey)
 
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'ca-turnout-api-${env}'
@@ -93,12 +94,12 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
       activeRevisionsMode: 'Single'
       ingress: { external: true, targetPort: usePlaceholder ? 80 : 8080, transport: 'auto', allowInsecure: false }
       registries: [{ server: acr.properties.loginServer, identity: identity.id }]
-      secrets: [
+      // Container Apps rejects empty secrets, so the AI key is only added when there is one.
+      secrets: concat([
         { name: 'database-url', value: databaseUrl }
         { name: 'web-pubsub', value: pubsub.listKeys().primaryConnectionString }
-        { name: 'ai-key', value: aiKey }
         { name: 'appi', value: appi.properties.ConnectionString }
-      ]
+      ], hasAi ? [{ name: 'ai-key', value: aiKey }] : [])
     }
     template: {
       containers: [
@@ -106,21 +107,22 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'api'
           image: usePlaceholder ? placeholderImage : apiImage
           resources: { cpu: json('0.5'), memory: '1Gi' }
-          env: [
+          env: concat([
             { name: 'NODE_ENV', value: 'production' }
             { name: 'PORT', value: '8080' }
             { name: 'TURNOUT_ENV', value: env }
             { name: 'DATABASE_URL', secretRef: 'database-url' }
             { name: 'WEB_PUBSUB_CONNECTION_STRING', secretRef: 'web-pubsub' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appi' }
-            { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
-            { name: 'AZURE_AI_API_KEY', secretRef: 'ai-key' }
-            { name: 'AZURE_AI_DEPLOYMENT', value: aiDeployment }
             { name: 'ENTRA_AUTHORITY', value: entraAuthority }
             { name: 'ENTRA_API_CLIENT_ID', value: entraApiClientId }
             // The test environment also accepts the local Expo dev server.
             { name: 'CORS_ORIGIN', value: env == 'test' ? '${webOrigin},http://localhost:8081' : webOrigin }
-          ]
+          ], hasAi ? [
+            { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
+            { name: 'AZURE_AI_API_KEY', secretRef: 'ai-key' }
+            { name: 'AZURE_AI_DEPLOYMENT', value: aiDeployment }
+          ] : [])
           probes: usePlaceholder ? [] : [
             { type: 'Liveness', httpGet: { path: '/health', port: 8080 }, periodSeconds: 30 }
             { type: 'Readiness', httpGet: { path: '/health', port: 8080 }, periodSeconds: 10 }
