@@ -9,6 +9,8 @@ Replace the messy group chat for any recurring gathering with limited spots. The
 | `apps/mobile` | Expo (React Native) app for iPhone, Android, and web, using Expo Router |
 | `apps/api` | Node.js API (Fastify), deployed to Azure Container Apps |
 | `packages/shared` | Domain logic and schemas shared by both: roster/waitlist, zod validation |
+| `infra` | Bicep + scripts for Azure (see [infra/README.md](infra/README.md)) |
+| `.github/workflows` | CI on pull requests; deploy to **test** on push to `main`, to **live** on a `v*` tag |
 
 ## Run locally
 
@@ -30,17 +32,23 @@ npm run dev:mobile   # press w for web, i for iOS simulator
 - **Database.** Set `DATABASE_URL` for Postgres (Azure Database for PostgreSQL). Without it, the API runs PGlite in-process. Migrations are append-only SQL in `apps/api/src/db/migrations.ts`.
 - **Node runs TypeScript directly** (type stripping), so there is no build step for the API or shared packages. Stick to erasable syntax: no `enum`, `namespace`, or parameter properties.
 
+## Web routes
+
+| Route | Who | What |
+| --- | --- | --- |
+| `/` | everyone | Landing page (web). The native app opens the dashboard instead. |
+| `/g/:slug` | members | The group page: I'm in / I'm out, live roster, share. Organizer controls when signed in as the owner. |
+| `/dashboard`, `/new`, `/edit/:slug` | organizers | Require sign-in (Entra External ID; a dev login locally). |
+
 ## Roadmap
 
-1. **V1**: groups, weekly in/out, cap, waitlist, share link, one-sentence AI setup ✅ (in progress, see TODOs below)
-2. **V2**: reminders, team maker, paid/not-paid tracking
+1. **V1**: groups, weekly in/out, cap, waitlist, share link, one-sentence setup, organizer sign-in and controls, live updates, landing page, Azure + CI/CD ✅
+2. **V2**: reminders + push notifications (including "you're in" when promoted), team maker, paid/not-paid tracking
 3. **V3**: Stripe payments, non-sports templates, paid organizer plan
 4. **V4**: venue pages
 
-### Open TODOs for V1
-- [ ] Organizer sign-in with Microsoft Entra External ID (the API currently accepts `x-dev-user` when `ALLOW_DEV_AUTH=true`)
-- [ ] Live updates via Azure Web PubSub (the app polls every 10s for now)
-- [ ] Push notification when promoted off the waitlist (`apps/api/src/events.ts`)
-- [ ] Organizer controls: edit group, cancel a week, remove a member
-- [ ] Rate limiting on public endpoints (join / RSVP)
-- [ ] Dockerfile, Azure infra (Bicep), and GitHub Actions for test and live environments
+### Open items
+- [ ] AI Services account (Azure's fraud check blocked creation; see infra/README.md). The rule-based parser runs meanwhile.
+- [ ] Google and Apple sign-in in the External ID tenant (needs OAuth clients from Google/Apple developer consoles)
+- [ ] Postgres on private networking before real traffic
+- [ ] Custom domain

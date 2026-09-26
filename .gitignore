@@ -10,3 +10,4 @@ dist/
 ios/
 android/
 web-build/
+infra/.env.infra

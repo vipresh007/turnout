@@ -25,4 +25,6 @@ export interface GroupPage {
   group: Group;
   session: Session;
   roster: Roster;
+  /** What the requester may do. Only set from a verified organizer identity. */
+  viewer: { isOrganizer: boolean };
 }

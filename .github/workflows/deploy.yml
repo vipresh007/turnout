@@ -1,0 +1,97 @@
+name: Deploy
+
+# main → test environment. A version tag (v1.2.3) → live, using the exact image that was tested.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Where to deploy
+        type: choice
+        options: [test, live]
+        default: test
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    name: Deploy to ${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/') && 'live' || 'test') }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/') && 'live' || 'test') }}
+    concurrency:
+      group: deploy-${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/') && 'live' || 'test') }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ github.event.inputs.environment || (startsWith(github.ref, 'refs/tags/') && 'live' || 'test') }}
+      RG: rg-turnout
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Look up resources
+        run: |
+          ACR=$(az acr list -g $RG --query '[0].name' -o tsv)
+          echo "ACR=$ACR" >> $GITHUB_ENV
+          echo "IMAGE=$(az acr show -n $ACR --query loginServer -o tsv)/turnout-api:$IMAGE_TAG" >> $GITHUB_ENV
+          echo "API_URL=https://$(az containerapp show -g $RG -n ca-turnout-api-$TARGET --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
+          echo "WEB_URL=https://$(az staticwebapp show -g $RG -n swa-turnout-$TARGET --query defaultHostname -o tsv)" >> $GITHUB_ENV
+
+      - name: Build API image (skipped if this commit was already built)
+        run: |
+          if az acr repository show -n $ACR --image turnout-api:$IMAGE_TAG -o none 2>/dev/null; then
+            echo "Reusing $IMAGE"
+          else
+            az acr build -r $ACR -t turnout-api:$IMAGE_TAG -f apps/api/Dockerfile . --no-logs
+          fi
+
+      - name: Deploy API
+        run: |
+          az containerapp ingress update -g $RG -n ca-turnout-api-$TARGET --target-port 8080 -o none
+          az containerapp update -g $RG -n ca-turnout-api-$TARGET --image $IMAGE \
+            --set-env-vars APP_VERSION=$IMAGE_TAG -o none
+          for i in $(seq 1 30); do
+            curl -fsS "$API_URL/health" && exit 0
+            sleep 10
+          done
+          echo "API did not become healthy"; exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Build web
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: ${{ env.API_URL }}
+          EXPO_PUBLIC_WEB_URL: ${{ env.WEB_URL }}
+          EXPO_PUBLIC_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
+          EXPO_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
+          EXPO_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
+        run: rm -f .env && npx expo export -p web
+
+      - name: Deploy web
+        run: |
+          TOKEN=$(az staticwebapp secrets list -g $RG -n swa-turnout-$TARGET --query properties.apiKey -o tsv)
+          npx --yes @azure/static-web-apps-cli@2 deploy apps/mobile/dist --deployment-token "$TOKEN" --env production
+
+      - name: Summary
+        run: |
+          echo "### Deployed to $TARGET" >> $GITHUB_STEP_SUMMARY
+          echo "- Web: $WEB_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- API: $API_URL (image \`$IMAGE_TAG\`)" >> $GITHUB_STEP_SUMMARY

@@ -60,3 +60,57 @@ test("CORS preflight allows PUT (RSVP from the web app)", async () => {
   });
   assert.match(String(res.headers["access-control-allow-methods"]), /PUT/);
 });
+
+test("organizer controls: edit, cancel the week, remove a member", async () => {
+  const other = { "x-dev-user": "someone-else" };
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: organizer,
+    payload: { name: "Pickup", weekday: 3, startTime: "18:00", timezone: "America/Toronto", cap: 3 },
+  })).json().group;
+
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json();
+  const rsvpStatus = async (token: string, status: "in" | "out") =>
+    (await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": token }, payload: { status } })).statusCode;
+  const a = await join("Ana");
+  const b = await join("Ben");
+  await rsvpStatus(a.token, "in");
+  await rsvpStatus(b.token, "in");
+
+  // Only the organizer sees organizer controls and can use them.
+  assert.equal(((await app.inject({ url: `/groups/${slug}`, headers: organizer })).json() as GroupPage).viewer.isOrganizer, true);
+  assert.equal(((await app.inject({ url: `/groups/${slug}`, headers: other })).json() as GroupPage).viewer.isOrganizer, false);
+  assert.equal((await app.inject({ method: "PATCH", url: `/groups/${slug}`, headers: other, payload: { cap: 1 } })).statusCode, 403);
+
+  // Lowering the cap moves the latest "in" to the waitlist.
+  let page = (await app.inject({ method: "PATCH", url: `/groups/${slug}`, headers: organizer, payload: { cap: 1, name: "Wed Pickup" } })).json() as GroupPage;
+  assert.equal(page.group.name, "Wed Pickup");
+  assert.deepEqual(page.roster.waitlist.map((r) => r.name), ["Ben"]);
+
+  // Removing a confirmed member promotes the waitlist; their token stops working.
+  page = (await app.inject({ method: "DELETE", url: `/groups/${slug}/members/${a.member.id}`, headers: organizer })).json() as GroupPage;
+  assert.deepEqual(page.roster.confirmed.map((r) => r.name), ["Ben"]);
+  assert.equal(await rsvpStatus(a.token, "in"), 401);
+
+  // A cancelled week rejects RSVPs until it's restored.
+  page = (await app.inject({ method: "PUT", url: `/groups/${slug}/session/cancelled`, headers: organizer, payload: { cancelled: true } })).json() as GroupPage;
+  assert.equal(page.session.cancelled, true);
+  assert.equal(await rsvpStatus(b.token, "out"), 409);
+  await app.inject({ method: "PUT", url: `/groups/${slug}/session/cancelled`, headers: organizer, payload: { cancelled: false } });
+  assert.equal(await rsvpStatus(b.token, "out"), 200);
+});
+
+test("migrations are idempotent across restarts", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const dir = mkdtempSync(`${tmpdir()}/turnout-`);
+  process.env.PGLITE_DIR = dir;
+  try {
+    await (await createDb("")).close();
+    const again = await createDb("");
+    const [row] = await again.query<{ n: number }>(`SELECT count(*)::int AS n FROM schema_migrations`);
+    assert.equal(row?.n, 1);
+    await again.close();
+  } finally {
+    delete process.env.PGLITE_DIR;
+  }
+});

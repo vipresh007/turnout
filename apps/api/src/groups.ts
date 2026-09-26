@@ -5,8 +5,15 @@ import { currentSessionStart } from "./schedule.ts";
 const groupColumns = `id, slug, name, activity, location, weekday, start_time AS "startTime",
   duration_minutes AS "durationMinutes", timezone, cap`;
 
-export async function findGroupBySlug(db: Db, slug: string): Promise<Group | undefined> {
-  const [group] = await db.query<Group>(`SELECT ${groupColumns} FROM groups WHERE slug = $1`, [slug]);
+export type GroupRow = Group & { organizerId: string };
+
+export async function findGroupBySlug(db: Db, slug: string): Promise<GroupRow | undefined> {
+  const [group] = await db.query<GroupRow>(`SELECT ${groupColumns}, organizer_id AS "organizerId" FROM groups WHERE slug = $1`, [slug]);
+  return group;
+}
+
+/** Strips internal columns before a group is sent to clients. */
+export function publicGroup({ organizerId: _, ...group }: GroupRow): Group {
   return group;
 }
 
@@ -35,8 +42,8 @@ export async function sessionRsvps(db: Db, sessionId: string): Promise<Rsvp[]> {
   return rows.map((r) => ({ ...r, respondedAt: new Date(r.respondedAt).toISOString() }));
 }
 
-export async function groupPage(db: Db, group: Group): Promise<GroupPage> {
+export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: string | null): Promise<GroupPage> {
   const session = await currentSession(db, group);
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
-  return { group, session, roster };
+  return { group: publicGroup(group), session, roster, viewer: { isOrganizer: viewerOrganizerId === group.organizerId } };
 }

@@ -15,6 +15,11 @@ export const createGroupSchema = z.object({
 });
 export type CreateGroupInput = z.infer<typeof createGroupSchema>;
 
+export const updateGroupSchema = createGroupSchema.partial().refine((v) => Object.keys(v).length > 0, "Nothing to update");
+export type UpdateGroupInput = z.infer<typeof updateGroupSchema>;
+
+export const cancelSessionSchema = z.object({ cancelled: z.boolean() });
+
 /** Draft returned by the one-sentence AI setup. Every field is optional so the organizer can fill in the gaps. */
 export const groupDraftSchema = createGroupSchema.partial().extend({
   timezone: z.string().optional(),
