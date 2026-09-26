@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Group, GroupDraft, GroupPage, RsvpStatus, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, RsvpStatus, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -52,6 +52,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<{ draft: GroupDraft; source: "ai" | "rules" }>("/ai/group-draft", await asOrganizer({ method: "POST", body: { sentence } })),
     createGroup: async (input: CreateGroupInput) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: input })),
     myGroups: async () => request<{ groups: Group[] }>("/me/groups", await asOrganizer()),
+    dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
     updateGroup: async (slug: string, input: UpdateGroupInput) =>
       request<GroupPage>(`/groups/${slug}`, await asOrganizer({ method: "PATCH", body: input })),
     setCancelled: async (slug: string, cancelled: boolean) =>

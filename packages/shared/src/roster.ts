@@ -61,7 +61,12 @@ export function placeOf(roster: Roster, memberId: string): MemberPlace {
 
 /** Builds the shareable "we need 2 more" message. */
 export function needPlayersMessage(groupName: string, roster: Roster, link: string): string | null {
-  if (roster.cap === null || roster.spotsLeft === 0) return null;
-  const n = roster.spotsLeft;
-  return `${groupName}: ${roster.confirmed.length}/${roster.cap} in, we need ${n} more ${n === 1 ? "player" : "players"}! Tap to join: ${link}`;
+  return needPlayersText(groupName, roster.confirmed.length, roster.cap, link);
+}
+
+/** The same message from plain counts, for places that don't have the full roster. */
+export function needPlayersText(groupName: string, confirmed: number, cap: number | null, link: string): string | null {
+  if (cap === null || confirmed >= cap) return null;
+  const n = cap - confirmed;
+  return `${groupName}: ${confirmed}/${cap} in, we need ${n} more ${n === 1 ? "player" : "players"}! Tap to join: ${link}`;
 }

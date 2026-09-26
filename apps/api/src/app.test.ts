@@ -114,3 +114,42 @@ test("migrations are idempotent across restarts", async () => {
     delete process.env.PGLITE_DIR;
   }
 });
+
+test("organizer dashboard: groups with this week's counts and recent activity", async () => {
+  const me = { "x-dev-user": "dash-organizer" };
+  assert.equal((await app.inject({ url: "/me/dashboard" })).statusCode, 401);
+
+  const empty = (await app.inject({ url: "/me/dashboard", headers: me })).json();
+  assert.deepEqual(empty.groups, []);
+  assert.deepEqual(empty.activity, []);
+
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: me,
+    payload: { name: "Dash Hoops", weekday: 1, startTime: "19:00", timezone: "America/Toronto", cap: 1 },
+  })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json();
+  const a = await join("Ana");
+  const b = await join("Ben");
+  for (const m of [a, b]) {
+    await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": m.token }, payload: { status: "in" } });
+  }
+
+  const dash = (await app.inject({ url: "/me/dashboard", headers: me })).json();
+  assert.equal(dash.groups.length, 1);
+  assert.equal(dash.groups[0].group.name, "Dash Hoops");
+  assert.equal(dash.groups[0].group.organizerId, undefined); // internal column never leaks
+  assert.deepEqual([dash.groups[0].confirmed, dash.groups[0].waitlist, dash.groups[0].spotsLeft], [1, 1, 0]);
+  assert.deepEqual(dash.activity.map((x: { name: string }) => x.name).sort(), ["Ana", "Ben"]);
+
+  // Stats: this week's session (one capped spot, filled, two responses) lands in one of the recent buckets.
+  assert.equal(dash.stats.weeks.length, 9);
+  const week = dash.stats.weeks.find((w: { responses: number }) => w.responses > 0);
+  assert.deepEqual([week.players, week.spots, week.responses], [1, 1, 2]);
+  assert.equal(dash.stats.responses, 2);
+  assert.equal(dash.stats.fillRate, null); // no past weeks yet
+  assert.deepEqual(dash.stats.regulars.map((r: { name: string }) => r.name), ["Ana", "Ben"]);
+
+  // Other organizers' activity never shows up.
+  const other = (await app.inject({ url: "/me/dashboard", headers: { "x-dev-user": "someone-new" } })).json();
+  assert.deepEqual(other.activity, []);
+});

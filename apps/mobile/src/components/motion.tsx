@@ -80,7 +80,14 @@ export function Reveal({ children, delay = 0, style, onReveal }: { children: Rea
         Animated.timing(progress, { toValue: 1, duration: 650, delay, easing: Easing.out(Easing.cubic), useNativeDriver: nativeDriver }).start();
       });
     };
-    const first = setTimeout(check, 50); // after layout
+    const showNow = () => {
+      shown.current = true;
+      onRevealRef.current?.();
+      if (reduced) return progress.setValue(1);
+      Animated.timing(progress, { toValue: 1, duration: 500, delay, useNativeDriver: nativeDriver }).start();
+    };
+    // Outside a RevealScrollView nothing reports scrolling, so show right away rather than never.
+    const first = setTimeout(scroll ? check : showNow, 50);
     const unsubscribe = scroll?.subscribe(check);
     return () => {
       clearTimeout(first);

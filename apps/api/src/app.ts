@@ -17,7 +17,7 @@ import { draftGroupFromSentence } from "./ai/parse-group.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
-import { currentSession, findGroupBySlug, groupPage, listOrganizerGroups, sessionRsvps, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupPage, listOrganizerGroups, organizerDashboard, sessionRsvps, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { isValidTimezone } from "./schedule.ts";
 
@@ -93,6 +93,11 @@ export async function buildApp(db: Db) {
   app.get("/me/groups", async (req) => {
     const organizer = await requireOrganizer(db, req);
     return { groups: await listOrganizerGroups(db, organizer.id) };
+  });
+
+  app.get("/me/dashboard", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    return organizerDashboard(db, organizer.id);
   });
 
   app.patch<SlugParams>("/groups/:slug", async (req) => {
