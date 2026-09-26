@@ -13,6 +13,8 @@ Azure resources for Turnout, all in resource group `rg-turnout` (`canadacentral`
 | Application Insights `appi-turnout-<env>` | per env | pay per GB | small |
 | Entra External ID tenant `turnoutapp` (organizer sign-in) | shared | first 50k MAU free | $0 |
 | AI Services (optional, `CREATE_AI_ACCOUNT=true`) | shared | S0, `gpt-4.1-mini` | per token |
+| Communication Services + Email (Azure-managed sender domain) | shared | pay per email | ~$0.25 / 1,000 |
+| Reminder job `caj-turnout-reminders-<env>` (every 15 min, same image as the API) | per env | Consumption | cents/mo |
 
 ## Scripts (all idempotent)
 
@@ -22,7 +24,7 @@ Azure resources for Turnout, all in resource group `rg-turnout` (`canadacentral`
 | `./setup-cd.sh` | once | GitHub → Azure OIDC: deploy app, federated credentials for the `test`/`live` GitHub environments, Contributor on the RG, repo secrets. |
 | `./setup-entra.sh` | once (and when web URLs change) | Configures the External ID tenant: app registrations, admin consent, email one-time-code sign-in flow. Saves settings to `.env.infra` and GitHub environment variables. |
 
-Settings and the generated Postgres password live in `infra/.env.infra` (gitignored). Losing it is harmless: `provision.sh` generates a new password and updates the server and apps together.
+Settings, the generated Postgres password and the browser-push (VAPID) keys live in `infra/.env.infra` (gitignored). Don't lose the VAPID keys: new ones invalidate every existing notification subscription. Losing it is harmless: `provision.sh` generates a new password and updates the server and apps together.
 
 ## Deploying
 

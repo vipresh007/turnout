@@ -38,12 +38,17 @@ npm run dev:mobile   # press w for web, i for iOS simulator
 | --- | --- | --- |
 | `/` | everyone | Landing page (web). The native app opens the dashboard instead. |
 | `/g/:slug` | members | The group page: I'm in / I'm out, live roster, share. Organizer controls when signed in as the owner. |
-| `/dashboard`, `/new`, `/edit/:slug` | organizers | Require sign-in (Entra External ID; a dev login locally). |
+| `/dashboard`, `/new`, `/edit/:slug`, `/teams/:slug` | organizers | Require sign-in (Entra External ID; a dev login locally). |
+| `/email?confirm=…` / `?unsubscribe=…` | members | Links in reminder emails (double opt-in, one-tap unsubscribe). |
+
+## Reminders
+
+Members opt in on the group page, with no account: **browser notifications** (web push via `public/sw.js`; on iPhone only after "Add to Home Screen") and/or **email** (double opt-in, sent through Azure Communication Services). A Container Apps Job runs `apps/api/src/jobs/reminders.ts` every 15 minutes. It sends the evening-before and hours-before reminders (per-group settings) and a one-time nudge to people who haven't answered. `notifications_sent` makes every send happen at most once. Moving up off the waitlist triggers an immediate "You're in!". Organizers can also "Send reminder" now, which notifies subscribed players and gives ready-to-paste text for the group chat.
 
 ## Roadmap
 
 1. **V1**: groups, weekly in/out, cap, waitlist, share link, one-sentence setup, organizer sign-in and controls, live updates, landing page, Azure + CI/CD ✅
-2. **V2**: reminders + push notifications (including "you're in" when promoted), team maker, paid/not-paid tracking
+2. **V2**: reminders (browser push + email, no account needed), "you're in" when promoted, team maker, paid/not-paid tracking ✅
 3. **V3**: Stripe payments, non-sports templates, paid organizer plan
 4. **V4**: venue pages
 
@@ -51,4 +56,6 @@ npm run dev:mobile   # press w for web, i for iOS simulator
 - [ ] AI Services account (Azure's fraud check blocked creation; see infra/README.md). The rule-based parser runs meanwhile.
 - [ ] Google and Apple sign-in in the External ID tenant (needs OAuth clients from Google/Apple developer consoles)
 - [ ] Postgres on private networking before real traffic
-- [ ] Custom domain
+- [x] Custom domain (turnout.dataeaver.ca, turnout-test.dataeaver.ca)
+- [ ] Send email from a dataeaver.ca address (needs SPF/DKIM DNS records) instead of the Azure-managed sender
+- [ ] Native app push notifications (Expo) for members who install the app
