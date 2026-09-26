@@ -1,5 +1,6 @@
 import * as AuthSession from "expo-auth-session";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Platform } from "react-native";
 import { config } from "./config";
 import { storage } from "./storage";
 
@@ -26,6 +27,11 @@ interface AuthState {
   /** Sign-in buttons to show, in order. */
   providers: Provider[];
   signIn: (provider?: Provider) => Promise<void>;
+  /**
+   * Web only: finishes a full-page sign-in on the /auth page. Resolves to the path to go back to,
+   * or throws with a message to show.
+   */
+  completeRedirect: () => Promise<string>;
   signOut: () => Promise<void>;
   /** Headers that identify the organizer to the API, or {} when signed out. */
   authHeaders: () => Promise<Record<string, string>>;
@@ -33,6 +39,13 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 const STORAGE_KEY = "auth";
+// What a full-page sign-in needs to remember while the tab is away at the sign-in page.
+const REDIRECT_KEY = "auth.redirect";
+interface PendingRedirect {
+  codeVerifier: string;
+  state: string;
+  returnTo: string;
+}
 const redirectUri = AuthSession.makeRedirectUri({ scheme: "turnout", path: "auth" });
 
 const toTokens = (r: AuthSession.TokenResponse): Tokens => ({
@@ -49,8 +62,8 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
   const discovery = AuthSession.useAutoDiscovery(entra.authority);
   const [tokens, setTokens] = useState<Tokens | null | undefined>(undefined);
   const refreshing = useRef<Promise<Tokens | null> | null>(null);
-  // One prepared request per provider, so the sign-in popup opens straight from the tap (browsers
-  // block popups opened after an await). The number of hooks is fixed, as the rules of hooks require.
+  // One prepared request per provider, so sign-in starts straight from the tap with no await first.
+  // The number of hooks is fixed, as the rules of hooks require.
   const base = { clientId: entra.clientId, redirectUri, scopes: ["openid", "profile", "offline_access", entra.apiScope], usePKCE: true };
   const requests = {
     email: AuthSession.useAuthRequest(base, discovery),
@@ -69,16 +82,51 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
     await (t ? storage.set(STORAGE_KEY, JSON.stringify(t)) : storage.remove(STORAGE_KEY));
   }, []);
 
-  const signIn = async (provider: Provider = "email") => {
-    const [request, , promptAsync] = requests[provider];
-    if (!request || !discovery) return;
-    const result = await promptAsync();
-    if (result.type !== "success") return;
+  const exchange = async (code: string, codeVerifier: string) => {
+    if (!discovery) throw new Error("Sign-in isn't ready yet. Try again.");
     const response = await AuthSession.exchangeCodeAsync(
-      { clientId: entra.clientId, code: result.params.code!, redirectUri, extraParams: { code_verifier: request.codeVerifier! } },
+      { clientId: entra.clientId, code, redirectUri, extraParams: { code_verifier: codeVerifier } },
       discovery,
     );
     await save(toTokens(response));
+  };
+
+  const signIn = async (provider: Provider = "email") => {
+    const [request, , promptAsync] = requests[provider];
+    if (!request || !discovery) return;
+    if (Platform.OS === "web") {
+      // Full-page redirect instead of a popup: nothing to block, and it works the same on phones.
+      if (!request.url || !request.codeVerifier) return;
+      const pending: PendingRedirect = {
+        codeVerifier: request.codeVerifier,
+        state: request.state,
+        returnTo: window.location.pathname + window.location.search,
+      };
+      sessionStorage.setItem(REDIRECT_KEY, JSON.stringify(pending));
+      window.location.assign(request.url);
+      return;
+    }
+    // Native: the system's in-app browser sheet.
+    const result = await promptAsync();
+    if (result.type !== "success") return;
+    await exchange(result.params.code!, request.codeVerifier!);
+  };
+
+  const completeRedirect = async (): Promise<string> => {
+    const params = new URLSearchParams(window.location.search);
+    const raw = sessionStorage.getItem(REDIRECT_KEY);
+    sessionStorage.removeItem(REDIRECT_KEY); // one use only
+    const pending = raw ? (JSON.parse(raw) as PendingRedirect) : null;
+    if (params.get("error")) {
+      // The user cancelled, or the provider refused. Send them back where they were.
+      if (params.get("error") === "access_denied") return pending?.returnTo ?? "/dashboard";
+      throw new Error(params.get("error_description")?.split("\n")[0] ?? "Sign-in failed. Please try again.");
+    }
+    const code = params.get("code");
+    if (!code || !pending) throw new Error("This sign-in link has expired. Please try again.");
+    if (params.get("state") !== pending.state) throw new Error("Sign-in couldn't be verified. Please try again.");
+    await exchange(code, pending.codeVerifier);
+    return pending.returnTo;
   };
 
   const validTokens = useCallback(async (): Promise<Tokens | null> => {
@@ -111,6 +159,7 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
     ready: !!requests.email[0] && !!discovery,
     providers,
     signIn,
+    completeRedirect,
     signOut: () => save(null),
     authHeaders, // stable, so useApi() doesn't rebuild on every render
   };
@@ -128,6 +177,7 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
       status: id === undefined ? "loading" : id ? "signedIn" : "signedOut",
       ready: true,
       providers: ["email"],
+      completeRedirect: async () => "/dashboard",
       signIn: async () => {
         const next = Math.random().toString(36).slice(2);
         await storage.set("devOrganizerId", next);
