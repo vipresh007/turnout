@@ -25,6 +25,9 @@ TENANT_ID="$(az rest --method get --url "https://management.azure.com/subscripti
 web_url() { echo "https://$(az staticwebapp show -g "$RESOURCE_GROUP" -n "swa-turnout-$1" --query defaultHostname -o tsv)"; }
 TEST_WEB="$(web_url test)"
 LIVE_WEB="$(web_url live)"
+# Custom domains (infra/.env.infra) get their own redirect URIs; the Azure hostnames keep working too.
+EXTRA_REDIRECTS=""
+for d in ${TEST_WEB_DOMAIN:-} ${LIVE_WEB_DOMAIN:-}; do EXTRA_REDIRECTS="$EXTRA_REDIRECTS, \"https://$d/auth\""; done
 echo "tenant=$TENANT_ID  test=$TEST_WEB  live=$LIVE_WEB"
 
 # Everything below runs as you, inside the external tenant.
@@ -70,7 +73,7 @@ CLIENT_APP_ID="$(app_id_by_name "Turnout App")"
 GRAPH_SP_APP="00000003-0000-0000-c000-000000000000"
 graph patch "$GRAPH/applications(appId='$CLIENT_APP_ID')" "{
   \"isFallbackPublicClient\": true,
-  \"spa\": { \"redirectUris\": [\"http://localhost:8081/auth\", \"$TEST_WEB/auth\", \"$LIVE_WEB/auth\"] },
+  \"spa\": { \"redirectUris\": [\"http://localhost:8081/auth\", \"$TEST_WEB/auth\", \"$LIVE_WEB/auth\"$EXTRA_REDIRECTS] },
   \"publicClient\": { \"redirectUris\": [\"turnout://auth\"] },
   \"requiredResourceAccess\": [
     { \"resourceAppId\": \"$API_APP_ID\", \"resourceAccess\": [{ \"id\": \"$SCOPE_ID\", \"type\": \"Scope\" }] },

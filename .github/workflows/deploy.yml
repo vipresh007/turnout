@@ -48,7 +48,10 @@ jobs:
           echo "ACR=$ACR" >> $GITHUB_ENV
           echo "IMAGE=$(az acr show -n $ACR --query loginServer -o tsv)/turnout-api:$IMAGE_TAG" >> $GITHUB_ENV
           echo "API_URL=https://$(az containerapp show -g $RG -n ca-turnout-api-$TARGET --query properties.configuration.ingress.fqdn -o tsv)" >> $GITHUB_ENV
-          echo "WEB_URL=https://$(az staticwebapp show -g $RG -n swa-turnout-$TARGET --query defaultHostname -o tsv)" >> $GITHUB_ENV
+          # Share links use the environment's custom domain (GitHub variable WEB_URL) when set.
+          WEB_URL="${{ vars.WEB_URL }}"
+          [ -n "$WEB_URL" ] || WEB_URL="https://$(az staticwebapp show -g $RG -n swa-turnout-$TARGET --query defaultHostname -o tsv)"
+          echo "WEB_URL=$WEB_URL" >> $GITHUB_ENV
 
       - name: Build API image (skipped if this commit was already built)
         run: |

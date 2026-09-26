@@ -42,6 +42,7 @@ az deployment group create -g "$RESOURCE_GROUP" -n "turnout-$(date +%Y%m%d%H%M%S
   --parameters location="$LOCATION" postgresPassword="$POSTGRES_PASSWORD" \
                apiImages="{\"test\":\"$TEST_IMAGE\",\"live\":\"$LIVE_IMAGE\"}" \
                entra="{\"authority\":\"${ENTRA_AUTHORITY:-}\",\"apiClientId\":\"${ENTRA_API_CLIENT_ID:-}\"}" \
+               webDomains="{\"test\":\"${TEST_WEB_DOMAIN:-}\",\"live\":\"${LIVE_WEB_DOMAIN:-}\"}" \
                createAiAccount="${CREATE_AI_ACCOUNT:-false}" \
                externalAi="{\"endpoint\":\"${AI_ENDPOINT:-}\",\"deployment\":\"${AI_DEPLOYMENT:-}\"}" \
                externalAiKey="${AI_KEY:-}" \

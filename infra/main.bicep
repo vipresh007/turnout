@@ -14,6 +14,9 @@ param postgresAdmin string = 'turnoutadmin'
 @description('Current API image per environment, so re-provisioning never rolls back a deploy.')
 param apiImages object = { test: '', live: '' }
 
+@description('Custom web domains per environment (CNAME to the static web app must exist first). Empty = Azure default hostname.')
+param webDomains object = { test: '', live: '' }
+
 @description('Entra External ID settings per environment (empty until the tenant exists).')
 param entra object = {
   authority: ''
@@ -112,6 +115,7 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     caeId: cae.id
     acrName: acr.name
     apiImage: apiImages[env]
+    webDomain: webDomains[env]
     databaseUrl: 'postgres://${postgresAdmin}:${postgresPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/turnout_${env}?sslmode=require'
     databaseName: 'turnout_${env}'
     postgresName: postgres.name

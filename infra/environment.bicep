@@ -7,6 +7,8 @@ param tags object
 param logsId string
 param caeId string
 param acrName string
+@description('Custom domain for the web app, e.g. turnout.dataeaver.ca. Its CNAME must already point at the static web app.')
+param webDomain string = ''
 @description('Leave empty on first deploy to use a public placeholder image.')
 param apiImage string
 @secure()
@@ -79,7 +81,15 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-var webOrigin = 'https://${web.properties.defaultHostname}'
+// Free managed certificate; Azure validates by the CNAME, so add the DNS record before setting webDomain.
+resource webCustomDomain 'Microsoft.Web/staticSites/customDomains@2023-12-01' = if (!empty(webDomain)) {
+  parent: web
+  name: empty(webDomain) ? 'unused' : webDomain
+  properties: { validationMethod: 'cname-delegation' }
+}
+
+var defaultOrigin = 'https://${web.properties.defaultHostname}'
+var webOrigin = empty(webDomain) ? defaultOrigin : 'https://${webDomain}'
 var hasAi = !empty(aiKey)
 
 resource api 'Microsoft.App/containerApps@2024-03-01' = {
@@ -117,7 +127,8 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ENTRA_AUTHORITY', value: entraAuthority }
             { name: 'ENTRA_API_CLIENT_ID', value: entraApiClientId }
             // The test environment also accepts the local Expo dev server.
-            { name: 'CORS_ORIGIN', value: env == 'test' ? '${webOrigin},http://localhost:8081' : webOrigin }
+            // The default hostname keeps working after a custom domain is added, so allow both.
+            { name: 'CORS_ORIGIN', value: join(union([webOrigin, defaultOrigin], env == 'test' ? ['http://localhost:8081'] : []), ',') }
           ], hasAi ? [
             { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
             { name: 'AZURE_AI_API_KEY', secretRef: 'ai-key' }
@@ -140,4 +151,5 @@ output info object = {
   apiUrl: 'https://${api.properties.configuration.ingress.fqdn}'
   webName: web.name
   webUrl: webOrigin
+  defaultWebUrl: defaultOrigin
 }
