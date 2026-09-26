@@ -40,7 +40,11 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
       disabled={disabled || loading}
       style={({ pressed }) => [
         styles.button, big && styles.bigButton,
-        { backgroundColor: bg, borderColor: variant === "secondary" ? t.border : bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
+        {
+          backgroundColor: bg, borderColor: variant === "secondary" ? t.border : bg, opacity: disabled ? 0.5 : 1,
+          transform: [{ scale: pressed ? 0.96 : 1 }],
+          boxShadow: variant === "primary" && !disabled ? `0 6px 16px ${t.accentShadow}` : undefined,
+        },
       ]}
     >
       {loading ? <ActivityIndicator color={fg} /> : <Text style={[styles.buttonText, big && styles.bigButtonText, { color: fg }]}>{label}</Text>}

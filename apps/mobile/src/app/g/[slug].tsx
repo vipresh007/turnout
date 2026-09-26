@@ -2,6 +2,7 @@ import { needPlayersMessage, placeOf, type GroupPage, type Rsvp, type RsvpStatus
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Bump, Pop } from "@/components/motion";
 import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
 import { ApiError, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
@@ -119,9 +120,16 @@ export default function GroupScreen() {
       ) : (
         <Card>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-            <Text style={{ color: t.text, fontSize: 56, fontWeight: "800", letterSpacing: -2 }}>{roster.confirmed.length}</Text>
+            <Bump value={roster.confirmed.length}>
+              <Text style={{ color: t.text, fontSize: 56, fontWeight: "800", letterSpacing: -2 }}>{roster.confirmed.length}</Text>
+            </Bump>
             <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : "in"}</Text>
           </View>
+          {group.cap && (
+            <View style={{ height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
+              <View style={{ height: "100%", borderRadius: 4, backgroundColor: t.accent, width: `${Math.min(100, (roster.confirmed.length / group.cap) * 100)}%` }} />
+            </View>
+          )}
           {roster.waitlist.length > 0 && <Text style={{ color: t.waitlist, fontWeight: "600" }}>{roster.waitlist.length} on the waitlist</Text>}
           {roster.spotsLeft > 0 && <Muted>{roster.spotsLeft} {roster.spotsLeft === 1 ? "spot" : "spots"} left</Muted>}
 
@@ -198,7 +206,7 @@ function PeopleList({ title, people, numbered, onRemove }: { title: string; peop
       </Text>
       {people.length === 0 && <Muted>Nobody yet. Be the first!</Muted>}
       {people.map((p, i) => (
-        <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Pop key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={{ color: t.text, fontSize: 16 }}>
             {numbered ? `${i + 1}. ` : ""}
             {p.name}
@@ -208,7 +216,7 @@ function PeopleList({ title, people, numbered, onRemove }: { title: string; peop
               <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
             </Pressable>
           )}
-        </View>
+        </Pop>
       ))}
     </Card>
   );

@@ -1,27 +1,40 @@
 import { buildRoster, type Rsvp } from "@turnout/shared";
 import { router } from "expo-router";
 import Head from "expo-router/head";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useAuth } from "@/lib/auth";
 import { useTheme, type Theme } from "@/lib/theme";
+import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView, RotatingWord } from "./motion";
+
+const activities = ["pickup soccer?", "Tuesday hoops?", "poker night?", "the 6am run?", "volleyball?", "yoga class?"];
+
+const chat: { who: string; text: string; own?: boolean }[] = [
+  { who: "Maya", text: "in" },
+  { who: "Jordan", text: "+1" },
+  { who: "Sam", text: "maybe? depends on work" },
+  { who: "Priya", text: "wait how many do we have" },
+  { who: "Luis", text: "who's bringing the ball 😅" },
+  { who: "Jordan", text: "actually can't make it sorry" },
+  { who: "You", text: "ok so that's… 9? 10?", own: true },
+];
 
 const steps = [
-  { n: "1", title: "Describe your game", body: "“Tuesday soccer at Riverside, 7:30pm, 14 players.” Turnout sets up the group from that one sentence." },
-  { n: "2", title: "Share one link", body: "Drop it in the group chat once. Players open it, type their name, and never need an account." },
-  { n: "3", title: "Everyone taps in or out", body: "The headcount updates live. When it's full, a waitlist forms and moves people up automatically." },
+  { n: "1", title: "Describe your game", body: "“Tuesday soccer at Riverside, 7:30pm, 14 players.” One sentence and Turnout sets up the group." },
+  { n: "2", title: "Share one link", body: "Drop it in the group chat once. Players tap it, type their name, done. No app, no account." },
+  { n: "3", title: "Watch it fill up", body: "The headcount updates live. When it's full a waitlist forms, and people move up automatically." },
 ];
 
 const features = [
-  { title: "Live headcount", body: "Everyone sees who's in the moment it changes. No more scrolling a chat to count names." },
-  { title: "Waitlist that runs itself", body: "Set a cap. When someone drops, the next person moves up without anyone doing a thing." },
-  { title: "No app for players", body: "Players tap a link in any browser. Only the organizer signs in." },
-  { title: "“We need 2 more”", body: "Short a few players? Share a ready-made message with the live count and a link to join." },
-  { title: "Organizer controls", body: "Cancel a week, change the cap, remove someone. Everyone's page updates instantly." },
-  { title: "Reminders & teams", body: "Coming soon: game-day reminders, balanced teams, and tracking who's paid." },
+  { icon: "⚡️", title: "Live headcount", body: "Everyone sees who's in the second it changes. No more counting thumbs-up emojis." },
+  { icon: "🔁", title: "Self-running waitlist", body: "Set a cap. When someone drops, the next person moves up without you lifting a finger." },
+  { icon: "🔗", title: "No app for players", body: "Players tap a link in any browser. Only the organizer signs in." },
+  { icon: "📣", title: "“We need 2 more”", body: "Short on players? Share a ready-made message with the live count and a join link." },
+  { icon: "🛠️", title: "You stay in control", body: "Cancel a week, change the cap, remove someone. Everyone's page updates instantly." },
+  { icon: "✨", title: "Coming soon", body: "Game-day reminders, balanced teams, and tracking who's paid." },
 ];
 
-const uses = ["Pickup soccer", "Basketball runs", "Volleyball", "Run clubs", "Poker nights", "Yoga classes", "Volunteer shifts", "Board game nights"];
+const uses = ["⚽️ Pickup soccer", "🏀 Basketball runs", "🏐 Volleyball", "🏃 Run clubs", "🃏 Poker nights", "🧘 Yoga classes", "🤝 Volunteer shifts", "🎲 Board game nights", "🏸 Badminton", "🥏 Ultimate", "🎾 Pickleball", "🏒 Shinny"];
 
 const demoNames = ["Maya", "Jordan", "Priya", "Sam", "Luis", "Aisha", "Chen"];
 
@@ -31,200 +44,392 @@ export function Landing() {
   const wide = width >= 900;
   const s = styles(t);
   const { status } = useAuth();
+  const scrollRef = useRef<ScrollView>(null);
+  const howY = useRef(0);
   const start = () => router.push(status === "signedIn" ? "/new" : "/dashboard");
 
   return (
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ alignItems: "center" }}>
+    <RevealScrollView ref={scrollRef} style={{ backgroundColor: t.bg }} contentContainerStyle={{ alignItems: "center" }}>
       <Head>
         <title>Turnout: who's in this week?</title>
         <meta name="description" content="One link for your weekly game. Players tap in or out, the headcount updates live, and the waitlist runs itself. Free for organizers." />
       </Head>
 
-      {/* Nav */}
-      <View style={[s.section, s.nav]}>
-        <Text style={s.logo}>
-          turnout<Text style={{ color: t.accent }}>.</Text>
-        </Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={s.navLink}>
+      {/* ── Hero ── */}
+      <View style={s.heroWrap}>
+        <Glow color={t.glowA} size={wide ? 720 : 460} style={{ top: -220, left: wide ? -120 : -200 }} />
+        <Glow color={t.glowB} size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
+        <Glow color={t.glowC} size={wide ? 480 : 300} style={{ bottom: 0, left: "35%" }} duration={13000} drift={30} />
+
+        <View style={[s.section, s.nav]}>
+          <Text style={s.logo}>
+            turnout<Text style={{ color: t.accent }}>.</Text>
+          </Text>
+          <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, hovered && { backgroundColor: t.card }]}>
             <Text style={{ color: t.text, fontWeight: "600" }}>{status === "signedIn" ? "Your groups" : "Sign in"}</Text>
           </Pressable>
         </View>
-      </View>
 
-      {/* Hero */}
-      <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: 48, alignItems: "center", paddingTop: wide ? 56 : 24, paddingBottom: 56 }]}>
-        <View style={{ flex: wide ? 1.1 : undefined, gap: 20 }}>
-          <Text style={[s.eyebrow]}>For pickup games, clubs & anything weekly</Text>
-          <Text style={[s.h1, { fontSize: wide ? 64 : 42, lineHeight: wide ? 68 : 46 }]}>Who's in{"\n"}this week?</Text>
-          <Text style={s.lead}>
-            Turnout replaces the group-chat headcount. Share one link, everyone taps <Text style={{ fontWeight: "700", color: t.text }}>I'm in</Text> or{" "}
-            <Text style={{ fontWeight: "700", color: t.text }}>I'm out</Text>, and the waitlist runs itself.
-          </Text>
-          <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-            <CTA label="Start a group, it's free" onPress={start} />
+        <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
+          <View style={{ flex: wide ? 1.15 : undefined, gap: 22, width: wide ? undefined : "100%" }}>
+            <Pop>
+              <View style={s.pill}>
+                <View style={s.pillDot} />
+                <Text style={{ color: t.text, fontWeight: "600", fontSize: 13 }}>Free for organizers · No app for players</Text>
+              </View>
+            </Pop>
+            <View>
+              <Text style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>Who's in for</Text>
+              <RotatingWord
+                words={activities}
+                render={(w) => <Text style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 78 : 54, color: t.accent }]}>{w}</Text>}
+              />
+            </View>
+            <Text style={s.lead}>
+              Turnout replaces the group-chat headcount. Share one link, everyone taps <Text style={s.leadStrong}>I'm in</Text> or{" "}
+              <Text style={s.leadStrong}>I'm out</Text>, and the waitlist runs itself.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+              <CTA label="Start a group, it's free" onPress={start} />
+              <CTA label="See how it works" secondary onPress={() => scrollRef.current?.scrollTo({ y: howY.current - 24, animated: true })} />
+            </View>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
+              {["Set up in 60 seconds", "Works in any group chat", "Live updates"].map((x) => (
+                <Text key={x} style={{ color: t.muted, fontSize: 14 }}>
+                  <Text style={{ color: t.accent, fontWeight: "800" }}>✓ </Text>
+                  {x}
+                </Text>
+              ))}
+            </View>
           </View>
-          <Text style={{ color: t.muted, fontSize: 14 }}>Set up in under a minute. Players don't need an account.</Text>
-        </View>
-        <View style={{ flex: wide ? 0.9 : undefined, width: wide ? undefined : "100%", alignItems: "center" }}>
-          <DemoCard />
+          <View style={{ flex: wide ? 0.85 : undefined, width: wide ? undefined : "100%", alignItems: "center" }}>
+            <DemoCard />
+          </View>
         </View>
       </View>
 
-      {/* How it works */}
-      <View style={[s.band, { backgroundColor: t.card, borderColor: t.border }]}>
-        <View style={[s.section, { gap: 32, paddingVertical: 64 }]}>
-          <Text style={s.h2}>How it works</Text>
-          <View style={{ flexDirection: wide ? "row" : "column", gap: 24 }}>
-            {steps.map((step) => (
-              <View key={step.n} style={{ flex: 1, gap: 10 }}>
-                <View style={s.stepBadge}>
-                  <Text style={{ color: t.accentText, fontWeight: "800" }}>{step.n}</Text>
-                </View>
+      {/* ── Before / after ── */}
+      <View style={[s.section, { gap: 36, paddingVertical: 80 }]}>
+        <Reveal style={{ gap: 12, alignItems: "center" }}>
+          <Text style={s.kicker}>The problem</Text>
+          <Text style={[s.h2, { textAlign: "center" }]}>Your group chat wasn't built for headcounts</Text>
+        </Reveal>
+        <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: wide ? "stretch" : "center" }}>
+          <ChatMess />
+          <Reveal delay={200} style={{ flex: 1, width: "100%", maxWidth: wide ? undefined : 520 }}>
+            <View style={[s.panel, { borderColor: t.accent, gap: 14, flex: 1 }]}>
+              <Text style={s.panelLabel}>With Turnout</Text>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
+                <Text style={{ color: t.text, fontSize: 64, fontWeight: "900", letterSpacing: -3 }}>12</Text>
+                <Text style={{ color: t.muted, fontSize: 24, fontWeight: "700" }}>/ 14 in</Text>
+              </View>
+              <Text style={{ color: t.accent, fontWeight: "700", fontSize: 16 }}>2 spots left · updated just now</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                {["Maya", "Priya", "Luis", "Aisha", "Chen", "Sam", "Noor", "Ben", "Kai", "Ivy", "Omar", "Zoe"].map((n) => (
+                  <View key={n} style={[s.chip, { paddingVertical: 5, paddingHorizontal: 11 }]}>
+                    <Text style={{ color: t.text, fontSize: 13, fontWeight: "600" }}>{n}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={{ color: t.muted, fontSize: 15 }}>Always accurate. Nobody has to count.</Text>
+            </View>
+          </Reveal>
+        </View>
+      </View>
+
+      {/* ── How it works ── */}
+      <View onLayout={(e) => (howY.current = e.nativeEvent.layout.y)} style={[s.band, { backgroundColor: t.card, borderColor: t.border }]}>
+        <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
+          <Reveal style={{ gap: 12 }}>
+            <Text style={s.kicker}>How it works</Text>
+            <Text style={s.h2}>Set up once. Runs every week.</Text>
+          </Reveal>
+          <View style={{ flexDirection: wide ? "row" : "column", gap: 28 }}>
+            {steps.map((step, i) => (
+              <Reveal key={step.n} delay={i * 140} style={{ flex: 1, gap: 12 }}>
+                <Text style={s.stepNumber}>{step.n}</Text>
                 <Text style={s.h3}>{step.title}</Text>
                 <Text style={s.body}>{step.body}</Text>
-              </View>
+              </Reveal>
             ))}
           </View>
         </View>
       </View>
 
-      {/* Features */}
-      <View style={[s.section, { gap: 32, paddingVertical: 64 }]}>
-        <Text style={s.h2}>Everything the group chat can't do</Text>
+      {/* ── Features ── */}
+      <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
+        <Reveal style={{ gap: 12 }}>
+          <Text style={s.kicker}>Features</Text>
+          <Text style={s.h2}>Everything the group chat can't do</Text>
+        </Reveal>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
-          {features.map((f) => (
-            <View key={f.title} style={[s.feature, { flexBasis: wide ? "31%" : "100%" }]}>
-              <Text style={s.h3}>{f.title}</Text>
-              <Text style={s.body}>{f.body}</Text>
-            </View>
+          {features.map((f, i) => (
+            <Reveal key={f.title} delay={(i % 3) * 110} style={{ flexBasis: wide ? "31%" : "100%", flexGrow: 1 }}>
+              <HoverCard>
+                <View style={s.iconBubble}>
+                  <Text style={{ fontSize: 22 }}>{f.icon}</Text>
+                </View>
+                <Text style={s.h3}>{f.title}</Text>
+                <Text style={s.body}>{f.body}</Text>
+              </HoverCard>
+            </Reveal>
           ))}
         </View>
       </View>
 
-      {/* Uses */}
-      <View style={[s.section, { gap: 20, paddingBottom: 64 }]}>
-        <Text style={s.h2}>Not just sports</Text>
-        <Text style={s.lead}>If it happens every week and has limited spots, Turnout keeps the count.</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      {/* ── Uses ── */}
+      <View style={{ width: "100%", gap: 24, paddingBottom: 80, alignItems: "center" }}>
+        <Reveal style={[s.section, { gap: 12 }]}>
+          <Text style={s.kicker}>Not just sports</Text>
+          <Text style={s.h2}>If it's weekly and has limited spots</Text>
+        </Reveal>
+        <Marquee speed={36}>
           {uses.map((u) => (
-            <View key={u} style={s.chip}>
-              <Text style={{ color: t.text, fontWeight: "600" }}>{u}</Text>
+            <View key={u} style={[s.chip, { marginRight: 10, paddingVertical: 12, paddingHorizontal: 18 }]}>
+              <Text style={{ color: t.text, fontWeight: "700", fontSize: 16 }}>{u}</Text>
             </View>
           ))}
-        </View>
+        </Marquee>
       </View>
 
-      {/* Final CTA */}
-      <View style={[s.band, { backgroundColor: t.soft, borderColor: t.border }]}>
-        <View style={[s.section, { alignItems: "center", gap: 16, paddingVertical: 72 }]}>
-          <Text style={[s.h2, { textAlign: "center" }]}>Your next game, sorted in one link.</Text>
-          <Text style={[s.lead, { textAlign: "center" }]}>Free for organizers. No app needed for players.</Text>
-          <CTA label="Start a group" onPress={start} />
-        </View>
+      {/* ── Final CTA ── */}
+      <View style={[s.section, { paddingBottom: 80 }]}>
+        <Reveal>
+          <View style={s.ctaBand}>
+            <Glow color="rgba(255,255,255,0.18)" size={420} style={{ top: -160, right: -80 }} duration={8000} />
+            <Text style={[s.h2, { color: "#fff", textAlign: "center", fontSize: wide ? 44 : 32 }]}>Your next game, sorted in one link.</Text>
+            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 18, textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
+            <Pulse>
+              <Pressable accessibilityRole="button" onPress={start} style={({ pressed }) => [s.ctaInverse, pressed && { opacity: 0.9 }]}>
+                <Text style={{ color: "#0B3D1E", fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
+              </Pressable>
+            </Pulse>
+          </View>
+        </Reveal>
       </View>
 
-      <View style={[s.section, { paddingVertical: 32, flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }]}>
-        <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout</Text>
-        <Text style={{ color: t.muted }}>Made for people who organize the game.</Text>
+      <View style={[s.section, { paddingVertical: 32, flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 12, borderTopWidth: 1, borderColor: t.border }]}>
+        <Text style={s.logoSmall}>
+          turnout<Text style={{ color: t.accent }}>.</Text>
+        </Text>
+        <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout · Made for people who organize the game.</Text>
       </View>
-    </ScrollView>
+    </RevealScrollView>
   );
 }
 
-function CTA({ label, onPress }: { label: string; onPress: () => void }) {
+function CTA({ label, onPress, secondary }: { label: string; onPress: () => void; secondary?: boolean }) {
   const t = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-        backgroundColor: t.accent, paddingVertical: 16, paddingHorizontal: 24, borderRadius: 14,
-        opacity: pressed ? 0.85 : 1, transform: [{ translateY: hovered ? -1 : 0 }],
+        backgroundColor: secondary ? (hovered ? t.card : "transparent") : t.accent,
+        borderWidth: 1,
+        borderColor: secondary ? t.border : t.accent,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 14,
+        transform: [{ translateY: hovered && !pressed ? -2 : 0 }, { scale: pressed ? 0.97 : 1 }],
+        boxShadow: secondary ? undefined : hovered ? `0 12px 30px ${t.accentShadow}` : `0 6px 18px ${t.accentShadow}`,
       })}
     >
-      <Text style={{ color: t.accentText, fontSize: 17, fontWeight: "800" }}>{label} →</Text>
+      <Text style={{ color: secondary ? t.text : t.accentText, fontSize: 17, fontWeight: "800" }}>
+        {label}
+        {secondary ? "" : " →"}
+      </Text>
     </Pressable>
   );
 }
 
-/** A working mini group page, so visitors can feel the product before signing up. */
+function HoverCard({ children }: { children: ReactNode }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessible={false}
+      focusable={false}
+      style={({ hovered }: { hovered?: boolean }) => ({
+        backgroundColor: t.card,
+        borderColor: hovered ? t.accent : t.border,
+        borderWidth: 1,
+        borderRadius: 20,
+        padding: 22,
+        gap: 10,
+        height: "100%",
+        transform: [{ translateY: hovered ? -4 : 0 }],
+        boxShadow: hovered ? "0 18px 40px rgba(0,0,0,0.18)" : "0 1px 2px rgba(0,0,0,0.04)",
+      })}
+    >
+      {children}
+    </Pressable>
+  );
+}
+
+/** The messy group chat: bubbles pop in one by one once it scrolls into view. */
+function ChatMess() {
+  const t = useTheme();
+  const s = styles(t);
+  const { width } = useWindowDimensions();
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    if (!started || count >= chat.length) return;
+    const timer = setTimeout(() => setCount((c) => c + 1), count === 0 ? 150 : 520);
+    return () => clearTimeout(timer);
+  }, [started, count]);
+
+  return (
+    <Reveal onReveal={() => setStarted(true)} style={{ flex: 1, width: "100%", maxWidth: width >= 900 ? undefined : 520 }}>
+      <View style={[s.panel, { gap: 8, minHeight: 420, flex: 1 }]}>
+        <Text style={s.panelLabel}>The group chat</Text>
+        {chat.slice(0, count).map((m, i) => (
+          <Pop key={i} style={{ alignSelf: m.own ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+            <View style={[s.bubble, m.own ? { backgroundColor: t.accent, borderBottomRightRadius: 4 } : { borderBottomLeftRadius: 4 }]}>
+              {!m.own && <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700" }}>{m.who}</Text>}
+              <Text style={{ color: m.own ? t.accentText : t.text, fontSize: 15 }}>{m.text}</Text>
+            </View>
+          </Pop>
+        ))}
+      </View>
+    </Reveal>
+  );
+}
+
+/** A working mini group page: names fill in on load, then the visitor can take the last spot. */
 function DemoCard() {
   const t = useTheme();
   const s = styles(t);
   const cap = 8;
+  const [shown, setShown] = useState(0);
   const [youIn, setYouIn] = useState<boolean | null>(null);
-  const base: Rsvp[] = demoNames.map((name, i) => ({
+
+  useEffect(() => {
+    if (shown >= demoNames.length) return;
+    const timer = setTimeout(() => setShown((n) => n + 1), shown === 0 ? 600 : 280);
+    return () => clearTimeout(timer);
+  }, [shown]);
+
+  const base: Rsvp[] = demoNames.slice(0, shown).map((name, i) => ({
     memberId: name, name, status: "in", respondedAt: new Date(Date.UTC(2026, 0, 1, 12, i)).toISOString(),
   }));
-  const rsvps = youIn === null ? base : [...base, { memberId: "you", name: "You", status: youIn ? "in" : "out", respondedAt: new Date(Date.UTC(2026, 0, 1, 13)).toISOString() } as Rsvp];
+  const rsvps: Rsvp[] = youIn === null ? base : [...base, { memberId: "you", name: "You", status: youIn ? "in" : "out", respondedAt: new Date(Date.UTC(2026, 0, 1, 13)).toISOString() }];
   const roster = buildRoster(rsvps, cap);
+  const ready = shown >= demoNames.length;
+  const status = !ready
+    ? "Filling up…"
+    : youIn
+      ? "You got the last spot 🎉"
+      : youIn === false
+        ? "No worries, see you next week"
+        : `${roster.spotsLeft} spot left. Grab it!`;
 
   return (
-    <View style={[s.demo]}>
-      <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.5, textTransform: "uppercase" }}>Try it</Text>
-      <Text style={{ color: t.text, fontSize: 22, fontWeight: "800" }}>Tuesday Soccer</Text>
-      <Text style={{ color: t.muted }}>Tue 7:30 PM · Riverside Park</Text>
-      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 8 }}>
-        <Text style={{ color: t.text, fontSize: 48, fontWeight: "800", letterSpacing: -2 }}>{roster.confirmed.length}</Text>
-        <Text style={{ color: t.muted, fontSize: 20, fontWeight: "600" }}>/ {cap} in</Text>
-      </View>
-      <Text style={{ color: roster.spotsLeft ? t.muted : t.accent, fontWeight: "600" }}>
-        {roster.spotsLeft ? `${roster.spotsLeft} spot left` : youIn ? "You got the last spot 🎉" : "Full"}
-      </Text>
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-        <DemoButton label="I'm in" primary active={youIn === true} onPress={() => setYouIn(true)} />
-        <DemoButton label="I'm out" active={youIn === false} onPress={() => setYouIn(false)} />
-      </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-        {roster.confirmed.map((r) => (
-          <View key={r.memberId} style={[s.chip, r.memberId === "you" && { borderColor: t.accent, backgroundColor: t.soft }, { paddingVertical: 4, paddingHorizontal: 10 }]}>
-            <Text style={{ color: r.memberId === "you" ? t.accent : t.text, fontSize: 13, fontWeight: "600" }}>{r.name}</Text>
+    <Pop delay={250} style={{ width: "100%", maxWidth: 420 }}>
+      <View style={s.demo}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={s.panelLabel}>Try it</Text>
+          <View style={s.liveBadge}>
+            <View style={s.liveDot} />
+            <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800" }}>LIVE</Text>
           </View>
-        ))}
+        </View>
+        <Text style={{ color: t.text, fontSize: 24, fontWeight: "800", marginTop: 4 }}>Tuesday Soccer</Text>
+        <Text style={{ color: t.muted }}>Tue 7:30 PM · Riverside Park</Text>
+        <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 10 }}>
+          <Bump value={roster.confirmed.length}>
+            <Text style={{ color: t.text, fontSize: 56, fontWeight: "900", letterSpacing: -3 }}>{roster.confirmed.length}</Text>
+          </Bump>
+          <Text style={{ color: t.muted, fontSize: 22, fontWeight: "700" }}>/ {cap} in</Text>
+        </View>
+        <View style={s.progressTrack}>
+          <View style={[s.progressFill, { width: `${(roster.confirmed.length / cap) * 100}%` }]} />
+        </View>
+        <Text style={{ color: youIn ? t.accent : t.muted, fontWeight: "700", marginTop: 4 }}>{status}</Text>
+        <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+          <Pulse active={ready && youIn === null} style={{ flex: 1 }}>
+            <DemoButton label="I'm in" primary active={youIn === true} onPress={() => setYouIn(true)} />
+          </Pulse>
+          <View style={{ flex: 1 }}>
+            <DemoButton label="I'm out" active={youIn === false} onPress={() => setYouIn(false)} />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 12, minHeight: 64 }}>
+          {roster.confirmed.map((r) => (
+            <Pop key={r.memberId}>
+              <View style={[s.chip, { paddingVertical: 5, paddingHorizontal: 11 }, r.memberId === "you" && { borderColor: t.accent, backgroundColor: t.soft }]}>
+                <Text style={{ color: r.memberId === "you" ? t.accent : t.text, fontSize: 13, fontWeight: "700" }}>{r.name}</Text>
+              </View>
+            </Pop>
+          ))}
+        </View>
       </View>
-    </View>
+    </Pop>
   );
 }
 
 function DemoButton({ label, primary, active, onPress }: { label: string; primary?: boolean; active: boolean; onPress: () => void }) {
   const t = useTheme();
-  const filled = primary ? true : active;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={{
-        flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 12, borderWidth: 1,
-        backgroundColor: primary ? t.accent : filled ? t.text : t.card,
+      style={({ pressed }) => ({
+        alignItems: "center",
+        paddingVertical: 15,
+        borderRadius: 14,
+        borderWidth: 1,
+        backgroundColor: primary ? t.accent : active ? t.text : t.card,
         borderColor: primary ? t.accent : t.border,
-        opacity: primary && active ? 0.6 : 1,
-      }}
+        opacity: primary && active ? 0.65 : 1,
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+      })}
     >
-      <Text style={{ color: primary ? t.accentText : filled ? t.bg : t.text, fontWeight: "800", fontSize: 16 }}>{label}</Text>
+      <Text style={{ color: primary ? t.accentText : active ? t.bg : t.text, fontWeight: "800", fontSize: 16 }}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = (t: Theme) =>
   StyleSheet.create({
-    section: { width: "100%", maxWidth: 1120, paddingHorizontal: 20 },
+    heroWrap: { width: "100%", alignItems: "center", overflow: "hidden" },
+    section: { width: "100%", maxWidth: 1140, paddingHorizontal: 20 },
     band: { width: "100%", alignItems: "center", borderTopWidth: 1, borderBottomWidth: 1 },
     nav: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 20 },
-    logo: { color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 },
-    navLink: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: t.border },
-    eyebrow: { color: t.accent, fontWeight: "700", fontSize: 14, letterSpacing: 0.3, textTransform: "uppercase" },
-    h1: { color: t.text, fontWeight: "900", letterSpacing: -2 },
-    h2: { color: t.text, fontSize: 32, fontWeight: "800", letterSpacing: -1 },
-    h3: { color: t.text, fontSize: 18, fontWeight: "700" },
-    lead: { color: t.muted, fontSize: 19, lineHeight: 28, maxWidth: 560 },
-    body: { color: t.muted, fontSize: 16, lineHeight: 23 },
-    stepBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" },
-    feature: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 20, gap: 8, flexGrow: 1 },
-    chip: { borderWidth: 1, borderColor: t.border, backgroundColor: t.card, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
-    demo: {
-      width: "100%", maxWidth: 400, backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 24, padding: 24, gap: 4,
-      shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 30, shadowOffset: { width: 0, height: 12 },
+    logo: { color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1.2 },
+    logoSmall: { color: t.text, fontSize: 18, fontWeight: "900", letterSpacing: -0.8 },
+    navLink: { paddingVertical: 9, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: t.border },
+    pill: {
+      flexDirection: "row", alignItems: "center", gap: 8, alignSelf: "flex-start",
+      paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: t.border, backgroundColor: t.card,
     },
+    pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.accent },
+    kicker: { color: t.accent, fontWeight: "800", fontSize: 14, letterSpacing: 1, textTransform: "uppercase" },
+    h1: { color: t.text, fontWeight: "900", letterSpacing: -2.5 },
+    h2: { color: t.text, fontSize: 36, fontWeight: "900", letterSpacing: -1.4, lineHeight: 42 },
+    h3: { color: t.text, fontSize: 19, fontWeight: "800" },
+    lead: { color: t.muted, fontSize: 20, lineHeight: 30, maxWidth: 560 },
+    leadStrong: { color: t.text, fontWeight: "800" },
+    body: { color: t.muted, fontSize: 16, lineHeight: 24 },
+    stepNumber: { color: t.accent, fontSize: 56, fontWeight: "900", letterSpacing: -3, lineHeight: 60 },
+    iconBubble: { width: 48, height: 48, borderRadius: 14, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" },
+    chip: { borderWidth: 1, borderColor: t.border, backgroundColor: t.card, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+    panel: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 24, padding: 24 },
+    panelLabel: { color: t.muted, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" },
+    bubble: { backgroundColor: t.bg, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 14, gap: 2 },
+    demo: {
+      width: "100%", backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 28, padding: 24,
+      boxShadow: "0 30px 80px rgba(0,0,0,0.25)",
+    },
+    liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.soft },
+    liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: t.accent },
+    progressTrack: { height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden", marginTop: 4 },
+    progressFill: { height: "100%", borderRadius: 4, backgroundColor: t.accent },
+    ctaBand: {
+      borderRadius: 32, paddingVertical: 64, paddingHorizontal: 24, alignItems: "center", gap: 18, overflow: "hidden",
+      backgroundImage: "linear-gradient(135deg, #16A34A 0%, #0E7A5F 55%, #0B5E7A 100%)",
+    },
+    ctaInverse: { backgroundColor: "#fff", paddingVertical: 17, paddingHorizontal: 30, borderRadius: 16, marginTop: 8 },
   });
