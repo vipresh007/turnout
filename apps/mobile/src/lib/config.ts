@@ -7,6 +7,8 @@ export const config = {
         authority: process.env.EXPO_PUBLIC_ENTRA_AUTHORITY,
         clientId: process.env.EXPO_PUBLIC_ENTRA_CLIENT_ID ?? "",
         apiScope: process.env.EXPO_PUBLIC_ENTRA_API_SCOPE ?? "",
+        /** Social providers switched on in the tenant, e.g. "microsoft,google". Email is always available. */
+        providers: (process.env.EXPO_PUBLIC_ENTRA_PROVIDERS ?? "").split(",").map((p) => p.trim()).filter(Boolean),
       }
     : null,
 };

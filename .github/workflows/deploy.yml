@@ -86,6 +86,7 @@ jobs:
           EXPO_PUBLIC_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
           EXPO_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
           EXPO_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
+          EXPO_PUBLIC_ENTRA_PROVIDERS: ${{ vars.ENTRA_PROVIDERS }}
         run: rm -f .env && npx expo export -p web
 
       - name: Deploy web

@@ -9,11 +9,23 @@ interface Tokens {
   expiresAt: number; // epoch ms
 }
 
+export type Provider = "email" | "microsoft" | "google" | "apple";
+
+/** domain_hint values that send the user straight to a provider instead of the chooser page. */
+const domainHints: Record<Provider, string | undefined> = {
+  email: undefined,
+  microsoft: "login.microsoftonline.com", // custom OIDC: the issuer's domain
+  google: "google",
+  apple: "apple",
+};
+
 interface AuthState {
   status: "loading" | "signedOut" | "signedIn";
   /** False until the sign-in page can be opened (Entra discovery loaded). */
   ready: boolean;
-  signIn: () => Promise<void>;
+  /** Sign-in buttons to show, in order. */
+  providers: Provider[];
+  signIn: (provider?: Provider) => Promise<void>;
   signOut: () => Promise<void>;
   /** Headers that identify the organizer to the API, or {} when signed out. */
   authHeaders: () => Promise<Record<string, string>>;
@@ -37,10 +49,16 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
   const discovery = AuthSession.useAutoDiscovery(entra.authority);
   const [tokens, setTokens] = useState<Tokens | null | undefined>(undefined);
   const refreshing = useRef<Promise<Tokens | null> | null>(null);
-  const [request, , promptAsync] = AuthSession.useAuthRequest(
-    { clientId: entra.clientId, redirectUri, scopes: ["openid", "profile", "offline_access", entra.apiScope], usePKCE: true },
-    discovery,
-  );
+  // One prepared request per provider, so the sign-in popup opens straight from the tap (browsers
+  // block popups opened after an await). The number of hooks is fixed, as the rules of hooks require.
+  const base = { clientId: entra.clientId, redirectUri, scopes: ["openid", "profile", "offline_access", entra.apiScope], usePKCE: true };
+  const requests = {
+    email: AuthSession.useAuthRequest(base, discovery),
+    microsoft: AuthSession.useAuthRequest({ ...base, extraParams: { domain_hint: domainHints.microsoft! } }, discovery),
+    google: AuthSession.useAuthRequest({ ...base, extraParams: { domain_hint: domainHints.google! } }, discovery),
+    apple: AuthSession.useAuthRequest({ ...base, extraParams: { domain_hint: domainHints.apple! } }, discovery),
+  };
+  const providers: Provider[] = [...(["microsoft", "google", "apple"] as const).filter((p) => entra.providers.includes(p)), "email"];
 
   useEffect(() => {
     storage.get(STORAGE_KEY).then((raw) => setTokens(raw ? (JSON.parse(raw) as Tokens) : null));
@@ -51,9 +69,9 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
     await (t ? storage.set(STORAGE_KEY, JSON.stringify(t)) : storage.remove(STORAGE_KEY));
   }, []);
 
-  const signIn = useCallback(async () => {
+  const signIn = async (provider: Provider = "email") => {
+    const [request, , promptAsync] = requests[provider];
     if (!request || !discovery) return;
-    // promptAsync must run straight from the tap so web browsers don't block the popup.
     const result = await promptAsync();
     if (result.type !== "success") return;
     const response = await AuthSession.exchangeCodeAsync(
@@ -61,7 +79,7 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
       discovery,
     );
     await save(toTokens(response));
-  }, [request, discovery, promptAsync, entra.clientId, save]);
+  };
 
   const validTokens = useCallback(async (): Promise<Tokens | null> => {
     if (!tokens) return null;
@@ -83,19 +101,19 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
     return refreshing.current;
   }, [tokens, discovery, entra.clientId, save]);
 
-  const value = useMemo<AuthState>(
-    () => ({
-      status: tokens === undefined ? "loading" : tokens ? "signedIn" : "signedOut",
-      ready: !!request && !!discovery,
-      signIn,
-      signOut: () => save(null),
-      authHeaders: async () => {
-        const t = await validTokens();
-        return t ? { authorization: `Bearer ${t.accessToken}` } : ({} as Record<string, string>);
-      },
-    }),
-    [tokens, request, discovery, signIn, save, validTokens],
-  );
+  const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
+    const t = await validTokens();
+    return t ? { authorization: `Bearer ${t.accessToken}` } : {};
+  }, [validTokens]);
+
+  const value: AuthState = {
+    status: tokens === undefined ? "loading" : tokens ? "signedIn" : "signedOut",
+    ready: !!requests.email[0] && !!discovery,
+    providers,
+    signIn,
+    signOut: () => save(null),
+    authHeaders, // stable, so useApi() doesn't rebuild on every render
+  };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
@@ -109,6 +127,7 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
     () => ({
       status: id === undefined ? "loading" : id ? "signedIn" : "signedOut",
       ready: true,
+      providers: ["email"],
       signIn: async () => {
         const next = Math.random().toString(36).slice(2);
         await storage.set("devOrganizerId", next);
