@@ -257,3 +257,18 @@ test("calendar feed: weekly repeating event in the group's timezone", async () =
   assert.match(ics, /SUMMARY:Cal Soccer\\, Tuesdays/);
   assert.match(ics, /LOCATION:Riverside\\; Field 2/);
 });
+
+test("link preview image renders a PNG for a group", async () => {
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: { "x-dev-user": "og-org" },
+    payload: { name: "OG <Hoops> & Co", location: "Riverside", weekday: 2, startTime: "19:30", timezone: "America/Toronto", cap: 10 },
+  })).json().group;
+  const res = await app.inject({ url: `/og/${slug}.png` });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers["content-type"], "image/png");
+  assert.deepEqual([...res.rawPayload.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]); // PNG signature
+  const { groupCardSvg } = await import("./ogImage.ts");
+  const svg = groupCardSvg((await app.inject({ url: `/groups/${slug}` })).json());
+  assert.match(svg, /OG &lt;Hoops&gt; &amp; Co/); // user text is escaped
+  assert.match(svg, /Need 10 more/);
+});

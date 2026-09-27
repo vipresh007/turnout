@@ -1,4 +1,4 @@
-import { needPlayersText, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
+import { groupShareMessage, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -206,7 +206,11 @@ function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message:
   const { group, session, confirmed } = item;
   const chip = statusChip(t, item);
   const link = shareUrl(group.slug);
-  const need = session.cancelled ? null : needPlayersText(group.name, confirmed, group.cap, link);
+  const message = groupShareMessage({
+    name: group.name, activity: group.activity, location: group.location, timezone: group.timezone, cap: group.cap,
+    startsAt: session.startsAt, confirmed, cancelled: session.cancelled, link,
+  });
+  const need = !session.cancelled && group.cap && confirmed < group.cap;
   const fill = group.cap ? Math.min(1, confirmed / group.cap) : 0;
   const open = () => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } });
 
@@ -245,8 +249,7 @@ function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message:
       )}
 
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        <SmallButton label="Share link" onPress={() => onShare(`Join ${group.name} on Turnout: ${link}`)} />
-        {need && <SmallButton label={`Need ${item.spotsLeft} more`} onPress={() => onShare(need)} />}
+        <SmallButton label={need ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => onShare(message)} />
         <SmallButton label="Open →" onPress={open} primary />
       </View>
     </Pressable>

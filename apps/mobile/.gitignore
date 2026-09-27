@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# generated at build by scripts/add-meta.mjs
+api/og-page/index.html
+api/og-page/config.json

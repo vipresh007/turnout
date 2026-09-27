@@ -8,6 +8,8 @@ COPY packages/shared/package.json packages/shared/
 RUN npm ci --omit=dev --workspace @turnout/api --workspace @turnout/shared --include-workspace-root=false
 
 FROM node:24-slim
+# Fonts for the link-preview images (resvg renders text with system fonts).
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-inter fontconfig && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production PORT=8080
 WORKDIR /app
 COPY --from=deps /app/node_modules node_modules

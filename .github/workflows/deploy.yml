@@ -91,12 +91,15 @@ jobs:
           EXPO_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
           EXPO_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
           EXPO_PUBLIC_ENTRA_PROVIDERS: ${{ vars.ENTRA_PROVIDERS }}
-        run: rm -f .env && npx expo export -p web
+        run: |
+          rm -f .env && npx expo export -p web
+          node scripts/add-meta.mjs dist "$API_URL" "$WEB_URL"
 
       - name: Deploy web
         run: |
           TOKEN=$(az staticwebapp secrets list -g $RG -n swa-turnout-$TARGET --query properties.apiKey -o tsv)
-          npx --yes @azure/static-web-apps-cli@2 deploy apps/mobile/dist --deployment-token "$TOKEN" --env production
+          npx --yes @azure/static-web-apps-cli@2 deploy apps/mobile/dist --api-location apps/mobile/api \
+            --api-language node --api-version 20 --deployment-token "$TOKEN" --env production
 
       - name: Summary
         run: |

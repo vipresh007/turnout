@@ -1,10 +1,11 @@
-import { needPlayersMessage, placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
 import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
+import { ShareCard } from "@/components/ShareCard";
 import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
 import { ApiError, calendarUrl, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
@@ -93,7 +94,10 @@ export default function GroupScreen() {
   const { group, session, roster, viewer } = page;
   const link = shareUrl(slug);
   const place = me ? placeOf(roster, me.memberId) : { kind: "none" as const };
-  const needMessage = session.cancelled ? null : needPlayersMessage(group.name, roster, link);
+  const shareInput = {
+    name: group.name, activity: group.activity, location: group.location, timezone: group.timezone, cap: group.cap,
+    startsAt: session.startsAt, confirmed: roster.confirmed.length, cancelled: session.cancelled, link,
+  };
   const needsName = !me && name.trim().length === 0;
   const paidSet = viewer.isOrganizer ? new Set(page.organizer?.paid ?? []) : undefined;
   const onTogglePaid = viewer.isOrganizer
@@ -113,13 +117,7 @@ export default function GroupScreen() {
       {Platform.OS === "web" && <BrandBar />}
 
       {created && (
-        <Card>
-          <Text style={{ color: t.text, fontSize: 17, fontWeight: "700" }}>Your group is ready 🎉</Text>
-          <Muted>Drop this link in your group chat. People tap it, type their name once, and they're in.</Muted>
-          <View style={{ flexDirection: "row" }}>
-            <Button label="Share link" onPress={() => share(`Join ${group.name} on Turnout: ${link}`)} />
-          </View>
-        </Card>
+        <ShareCard input={shareInput} title="🎉 Your group is ready. Send it to your group chat" />
       )}
 
       <View style={{ gap: 4 }}>
@@ -187,10 +185,7 @@ export default function GroupScreen() {
       {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} />}
       {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} />}
 
-      <View style={{ flexDirection: "row", gap: 12 }}>
-        <Button label="Share link" variant="secondary" onPress={() => share(`Join ${group.name} on Turnout: ${link}`)} />
-        {needMessage && <Button label={`Need ${roster.spotsLeft} more`} variant="secondary" onPress={() => share(needMessage)} />}
-      </View>
+      <ShareCard input={shareInput} />
       {notice && <Muted>{notice}</Muted>}
 
       {viewer.isOrganizer && (

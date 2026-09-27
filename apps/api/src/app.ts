@@ -23,6 +23,7 @@ import {
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
 import { registerAuthEvents } from "./authEvents.ts";
 import { groupCalendar } from "./calendar.ts";
+import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
@@ -152,6 +153,14 @@ export async function buildApp(db: Db) {
     const group = await groupOr404(req.params.slug);
     const organizer = await currentOrganizer(db, req).catch(() => null); // an expired token shouldn't hide a public page
     return groupPage(db, group, organizer?.id ?? null);
+  });
+
+  // Link-preview image for chat apps (Open Graph). Short cache so the count stays fresh.
+  app.get<{ Params: { slug: string } }>("/og/:slug.png", async (req, reply) => {
+    const group = await groupOr404(req.params.slug);
+    const page = await groupPage(db, group, null);
+    reply.header("content-type", "image/png").header("cache-control", "public, max-age=300");
+    return renderPng(groupCardSvg(page));
   });
 
   // Subscribable calendar: the game as a weekly repeating event.

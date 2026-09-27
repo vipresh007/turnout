@@ -1,0 +1,5 @@
+{
+  "name": "turnout-web-api",
+  "private": true,
+  "description": "Static Web App managed functions. No dependencies on purpose (deployed as-is)."
+}
