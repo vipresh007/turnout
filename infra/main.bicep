@@ -11,6 +11,9 @@ param webLocation string = 'eastus2'
 param postgresPassword string
 param postgresAdmin string = 'turnoutadmin'
 
+@description('Always-on API replicas per environment (0 = scale to zero; cold starts take a while and Entra waits ~2s for the sign-in code endpoint).')
+param apiMinReplicas object = { test: 1, live: 0 }
+
 @description('Current API image per environment, so re-provisioning never rolls back a deploy.')
 param apiImages object = { test: '', live: '' }
 
@@ -152,6 +155,7 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     caeId: cae.id
     acrName: acr.name
     apiImage: apiImages[env]
+    minReplicas: apiMinReplicas[env]
     webDomain: webDomains[env]
     databaseUrl: 'postgres://${postgresAdmin}:${postgresPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/turnout_${env}?sslmode=require'
     databaseName: 'turnout_${env}'

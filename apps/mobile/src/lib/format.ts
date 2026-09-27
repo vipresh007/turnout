@@ -36,3 +36,16 @@ export function greeting(now = new Date()): string {
   const h = now.getHours();
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
+
+/** "Wed, Sep 30 · 8:00–9:30 PM" in the group's timezone. */
+export function sessionWhen(startsAt: string, durationMinutes: number, timezone: string): string {
+  const start = new Date(startsAt);
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
+  const day = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: timezone });
+  const t = (d: Date, withPeriod: boolean) =>
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: timezone }).replace(withPeriod ? /$^/ : /\s?[AP]M$/i, "");
+  const samePeriod = t(start, true).slice(-2) === t(end, true).slice(-2);
+  return `${day} · ${t(start, !samePeriod)}–${t(end, true)}`;
+}
+
+export const mapsUrl = (location: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;

@@ -1,13 +1,14 @@
 import { needPlayersMessage, placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
 import { Bump, Pop } from "@/components/motion";
+import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
 import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
-import { ApiError, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
+import { ApiError, calendarUrl, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
-import { formatSessionDate } from "@/lib/format";
+import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
 import { useLiveGroup } from "@/lib/live";
 import { shareText } from "@/lib/share";
 import { useTheme } from "@/lib/theme";
@@ -108,7 +109,8 @@ export default function GroupScreen() {
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: group.name }} />
+      <Stack.Screen options={{ title: group.name, headerShown: Platform.OS !== "web" }} />
+      {Platform.OS === "web" && <BrandBar />}
 
       {created && (
         <Card>
@@ -122,10 +124,20 @@ export default function GroupScreen() {
 
       <View style={{ gap: 4 }}>
         <Title>{group.name}</Title>
-        <Muted>
-          {formatSessionDate(session.startsAt, group.timezone)}
-          {group.location ? ` · ${group.location}` : ""}
-        </Muted>
+        <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>
+          {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
+          <Text style={{ color: t.accent }}> · {relativeDay(session.startsAt, group.timezone)}</Text>
+        </Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 2 }}>
+          {group.location && (
+            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(group.location!))} hitSlop={6}>
+              <Text style={{ color: t.muted }}>📍 <Text style={{ textDecorationLine: "underline" }}>{group.location}</Text></Text>
+            </Pressable>
+          )}
+          <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6}>
+            <Text style={{ color: t.muted }}>📅 <Text style={{ textDecorationLine: "underline" }}>Add to calendar</Text></Text>
+          </Pressable>
+        </View>
       </View>
 
       {session.cancelled ? (
@@ -153,8 +165,15 @@ export default function GroupScreen() {
 
           {!me && <Field label="Your name" placeholder="First name is fine" value={name} onChangeText={setName} autoComplete="given-name" />}
           <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button label="I'm in" big onPress={() => respond("in")} loading={pending === "in"} disabled={needsName || place.kind === "confirmed" || place.kind === "waitlist"} />
-            <Button label="I'm out" big variant="secondary" onPress={() => respond("out")} loading={pending === "out"} disabled={needsName || place.kind === "out"} />
+            <RsvpButton
+              label={place.kind === "confirmed" ? "✓ You're in" : place.kind === "waitlist" ? "✓ On the waitlist" : "I'm in"}
+              kind="in"
+              selected={place.kind === "confirmed" || place.kind === "waitlist"}
+              disabled={needsName}
+              loading={pending === "in"}
+              onPress={() => respond("in")}
+            />
+            <RsvpButton label={place.kind === "out" ? "✓ You're out" : "I'm out"} kind="out" selected={place.kind === "out"} disabled={needsName} loading={pending === "out"} onPress={() => respond("out")} />
           </View>
         </Card>
       )}
@@ -276,10 +295,13 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid }: {
       {people.length === 0 && <Muted>Nobody yet. Be the first!</Muted>}
       {people.map((p, i) => (
         <Pop key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Text style={{ color: t.text, fontSize: 16, flex: 1 }}>
-            {numbered ? `${i + 1}. ` : ""}
-            {p.name}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+            {numbered && <Text style={{ color: t.muted, width: 18, textAlign: "right", fontVariant: ["tabular-nums"] }}>{i + 1}</Text>}
+            <Avatar name={p.name} />
+            <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
+              {p.name}
+            </Text>
+          </View>
           {onTogglePaid && paid && (
             <Pressable
               accessibilityRole="checkbox"
@@ -332,5 +354,49 @@ function TeamsCard({ teams, roster, groupName, onShare }: { teams: string[][]; r
         ))}
       </View>
     </Card>
+  );
+}
+
+/** Slim top bar on web: brand link home (every player sees Turnout) and, for organizers, their groups. */
+function BrandBar() {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+      <Link href="/" accessibilityLabel="Turnout home">
+        <Text style={{ color: t.text, fontSize: 20, fontWeight: "900", letterSpacing: -0.8 }}>
+          turnout<Text style={{ color: t.accent }}>.</Text>
+        </Text>
+      </Link>
+      <Link href="/dashboard">
+        <Text style={{ color: t.muted, fontWeight: "600" }}>Organizer? Your groups →</Text>
+      </Link>
+    </View>
+  );
+}
+
+/** In/Out button that shows the member's current answer as selected rather than disabled. */
+function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
+  label: string; kind: "in" | "out"; selected: boolean; disabled: boolean; loading: boolean; onPress: () => void;
+}) {
+  const t = useTheme();
+  // "In" is always the green primary; "Out" fills in when chosen. A ring marks the current answer.
+  const bg = kind === "in" ? t.accent : selected ? t.text : t.card;
+  const fg = kind === "in" ? t.accentText : selected ? t.bg : t.text;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected, disabled, busy: loading }}
+      onPress={selected ? undefined : onPress}
+      disabled={disabled || loading}
+      style={({ pressed }) => ({
+        flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 20, borderRadius: 16, borderWidth: 2,
+        backgroundColor: bg,
+        borderColor: selected ? t.text : kind === "in" ? t.accent : t.border,
+        opacity: disabled ? 0.45 : 1,
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+      })}
+    >
+      {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontSize: 19, fontWeight: "800" }}>{label}</Text>}
+    </Pressable>
   );
 }

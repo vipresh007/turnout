@@ -9,6 +9,8 @@ param caeId string
 param acrName string
 @description('Custom domain for the web app, e.g. turnout.dataeaver.ca. Its CNAME must already point at the static web app.')
 param webDomain string = ''
+@description('0 scales to zero when idle; 1 keeps one API replica warm.')
+param minReplicas int = 0
 @description('Leave empty on first deploy to use a public placeholder image.')
 param apiImage string
 @secure()
@@ -173,8 +175,7 @@ resource api 'Microsoft.App/containerApps@2024-03-01' = {
           ]
         }
       ]
-      // Scale to zero when idle (a few seconds of cold start on the first request).
-      scale: { minReplicas: 0, maxReplicas: env == 'live' ? 3 : 1, rules: [{ name: 'http', http: { metadata: { concurrentRequests: '50' } } }] }
+      scale: { minReplicas: minReplicas, maxReplicas: env == 'live' ? 3 : 1, rules: [{ name: 'http', http: { metadata: { concurrentRequests: '50' } } }] }
     }
   }
 }

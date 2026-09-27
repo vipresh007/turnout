@@ -32,7 +32,7 @@ export default function RootLayout() {
         <Stack.Screen name="dashboard" options={{ title: "Turnout", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="new" options={{ title: "New group", presentation: "modal" }} />
         <Stack.Screen name="edit/[slug]" options={{ title: "Edit group", presentation: "modal" }} />
-        <Stack.Screen name="g/[slug]" options={{ title: "" }} />
+        <Stack.Screen name="g/[slug]" options={{ title: "", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="email" options={{ title: "Email reminders" }} />
         <Stack.Screen name="teams/[slug]" options={{ title: "Make teams", presentation: "modal" }} />

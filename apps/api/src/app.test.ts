@@ -242,3 +242,18 @@ test("auth events: the sign-in code endpoint only accepts Entra's signed calls",
   assert.match(otpEmailHtml("12345678"), /12345678/);
   assert.match(otpEmailText("12345678"), /12345678/);
 });
+
+test("calendar feed: weekly repeating event in the group's timezone", async () => {
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: { "x-dev-user": "cal-org" },
+    payload: { name: "Cal Soccer, Tuesdays", location: "Riverside; Field 2", weekday: 2, startTime: "19:30", timezone: "America/Toronto", cap: 10 },
+  })).json().group;
+  const res = await app.inject({ url: `/groups/${slug}/calendar.ics` });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers["content-type"] as string, /text\/calendar/);
+  const ics = res.body;
+  assert.match(ics, /RRULE:FREQ=WEEKLY;BYDAY=TU/);
+  assert.match(ics, /DTSTART;TZID=America\/Toronto:\d{8}T193000/);
+  assert.match(ics, /SUMMARY:Cal Soccer\\, Tuesdays/);
+  assert.match(ics, /LOCATION:Riverside\\; Field 2/);
+});

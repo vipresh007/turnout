@@ -115,3 +115,10 @@ export function useApi(): Api {
 export function wakeApi(): void {
   fetch(`${config.apiUrl}/health`).catch(() => {});
 }
+
+/** Calendar feed for a group. webcal:// subscribes on Apple devices so the calendar stays up to date. */
+export function calendarUrl(slug: string): string {
+  const https = `${config.apiUrl}/groups/${slug}/calendar.ics`;
+  const apple = typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/.test(navigator.userAgent);
+  return apple ? https.replace(/^https?:/, "webcal:") : https;
+}

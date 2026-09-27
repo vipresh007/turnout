@@ -22,10 +22,11 @@ import {
 } from "@turnout/shared";
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
 import { registerAuthEvents } from "./authEvents.ts";
+import { groupCalendar } from "./calendar.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
-import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, sessionRsvps, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { notifyPromoted, remindNow } from "./reminders.ts";
@@ -151,6 +152,14 @@ export async function buildApp(db: Db) {
     const group = await groupOr404(req.params.slug);
     const organizer = await currentOrganizer(db, req).catch(() => null); // an expired token shouldn't hide a public page
     return groupPage(db, group, organizer?.id ?? null);
+  });
+
+  // Subscribable calendar: the game as a weekly repeating event.
+  app.get<SlugParams>("/groups/:slug/calendar.ics", async (req, reply) => {
+    const group = await groupOr404(req.params.slug);
+    const session = await currentSession(db, group);
+    reply.header("content-type", "text/calendar; charset=utf-8").header("content-disposition", `inline; filename="${group.slug}.ics"`);
+    return groupCalendar(publicGroup(group), new Date(session.startsAt), `${webUrl()}/g/${group.slug}`);
   });
 
   app.get<SlugParams>("/groups/:slug/live", strict(30), async (req) => {

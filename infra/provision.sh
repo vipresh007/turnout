@@ -49,6 +49,7 @@ az deployment group create -g "$RESOURCE_GROUP" -n "turnout-$(date +%Y%m%d%H%M%S
   --parameters location="$LOCATION" postgresPassword="$POSTGRES_PASSWORD" \
                apiImages="{\"test\":\"$TEST_IMAGE\",\"live\":\"$LIVE_IMAGE\"}" \
                entra="{\"authority\":\"${ENTRA_AUTHORITY:-}\",\"apiClientId\":\"${ENTRA_API_CLIENT_ID:-}\",\"eventsAppId\":\"${ENTRA_EVENTS_APP_ID:-}\"}" \
+               apiMinReplicas="{\"test\":${TEST_MIN_REPLICAS:-1},\"live\":${LIVE_MIN_REPLICAS:-0}}" \
                webDomains="{\"test\":\"${TEST_WEB_DOMAIN:-}\",\"live\":\"${LIVE_WEB_DOMAIN:-}\"}" \
                vapidPublicKey="$VAPID_PUBLIC_KEY" vapidPrivateKey="$VAPID_PRIVATE_KEY" \
                createAiAccount="${CREATE_AI_ACCOUNT:-false}" \
