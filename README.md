@@ -52,6 +52,8 @@ Members opt in on the group page, with no account: **browser notifications** (we
 3. **V3**: Stripe payments, non-sports templates, paid organizer plan
 4. **V4**: venue pages
 
+3. **Now sprint** ✅: always-on test API + mobile polish (calendar feed, maps, avatars), link previews + WhatsApp/Messages sharing, recurring schedules (several days, every N weeks, skip/change a week), dropout flow (spot-opened nudge, organizer alert, late-drop flag), dashboard led by the next game, player identity (duplicate names, restore on a new phone, merge)
+
 ### Open items
 - [ ] AI Services account (Azure's fraud check blocked creation; see infra/README.md). The rule-based parser runs meanwhile.
 - [ ] Google and Apple sign-in in the External ID tenant (needs OAuth clients from Google/Apple developer consoles)
