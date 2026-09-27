@@ -1,8 +1,13 @@
+# az acr build matches these itself; list top-level paths explicitly as well as **/ patterns.
+node_modules
 **/node_modules
+.git
 **/.env
 **/.data
+apps/api/.data
 **/.expo
 **/dist
-.git
 apps/mobile
 !apps/mobile/package.json
+infra
+.claude
