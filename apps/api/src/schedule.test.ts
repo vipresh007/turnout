@@ -1,8 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { currentSessionStart } from "./schedule.ts";
+import { currentSessionStart, scheduledStarts } from "./schedule.ts";
 
-const tuesday7pmToronto = { weekday: 2, startTime: "19:00", durationMinutes: 90, timezone: "America/Toronto" };
+const tuesday7pmToronto = {
+  weekdays: [2], intervalWeeks: 1, startsOn: "2026-01-01", endsOn: null,
+  startTime: "19:00", durationMinutes: 90, timezone: "America/Toronto",
+};
 
 test("next occurrence later this week", () => {
   // Sunday 2026-09-27 12:00 Toronto (EDT, UTC-4)
@@ -20,4 +23,12 @@ test("stays on today's session until it ends, then rolls to next week", () => {
 test("handles DST change (Toronto falls back 2026-11-01)", () => {
   const start = currentSessionStart(tuesday7pmToronto, new Date("2026-11-01T12:00:00Z"));
   assert.equal(start.toISOString(), "2026-11-04T00:00:00.000Z"); // 19:00 EST = 00:00Z
+});
+
+test("two days a week: Thursday comes after Tuesday", () => {
+  const s = { ...tuesday7pmToronto, weekdays: [2, 4] };
+  assert.deepEqual(
+    scheduledStarts(s, new Date("2026-09-27T16:00:00Z"), 3).map((d) => d.toISOString()),
+    ["2026-09-29T23:00:00.000Z", "2026-10-01T23:00:00.000Z", "2026-10-06T23:00:00.000Z"],
+  );
 });

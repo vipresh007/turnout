@@ -7,7 +7,10 @@ export interface Group {
   name: string;
   activity: string | null;
   location: string | null;
-  weekday: number;
+  weekdays: number[];
+  intervalWeeks: number;
+  startsOn: string;
+  endsOn: string | null;
   startTime: string;
   durationMinutes: number;
   timezone: string;
@@ -24,9 +27,24 @@ export interface SavedTeams {
 export interface Session {
   id: string;
   groupId: string;
+  /** When this week's game actually starts (the scheduled time unless moved for this week). */
+  startsAt: string;
+  /** The regular scheduled time for this week; identifies the week. */
+  scheduledAt: string;
+  cancelled: boolean;
+  /** This week only: a different place, and a note from the organizer. */
+  location: string | null;
+  note: string | null;
+  teams: SavedTeams | null;
+}
+
+/** One upcoming week as the organizer's schedule view shows it. */
+export interface UpcomingWeek {
+  scheduledAt: string;
   startsAt: string;
   cancelled: boolean;
-  teams: SavedTeams | null;
+  location: string | null;
+  note: string | null;
 }
 
 /** Payload behind a group's public page (/g/:slug). */

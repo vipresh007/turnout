@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, RsvpStatus, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -65,6 +65,9 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<GroupPage>(`/groups/${slug}/members/${memberId}/skill`, await asOrganizer({ method: "PUT", body: { skill } })),
     saveTeams: async (slug: string, teams: string[][] | null) =>
       request<GroupPage>(`/groups/${slug}/session/teams`, await asOrganizer({ method: "PUT", body: { teams } })),
+    weeks: async (slug: string) => request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks`, await asOrganizer()),
+    updateWeek: async (slug: string, scheduledAt: string, input: SessionUpdateInput) =>
+      request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks/${encodeURIComponent(scheduledAt)}`, await asOrganizer({ method: "PUT", body: input })),
     remind: async (slug: string) =>
       request<{ notified: number; reachable: number; message: string }>(`/groups/${slug}/remind`, await asOrganizer({ method: "POST", body: {} })),
 

@@ -17,7 +17,7 @@ export function groupCardSvg(page: Pick<GroupPage, "group" | "session" | "roster
         ? { text: `Need ${cap - count} more`, color: "#FBBF24" }
         : { text: "Tap to say you're in", color: "#22C55E" };
   const fill = cap ? Math.min(1, count / cap) : 0;
-  const where = [shortWhen(session.startsAt, group.timezone), group.location].filter(Boolean).join("  ·  ");
+  const where = [shortWhen(session.startsAt, group.timezone), session.location ?? group.location].filter(Boolean).join("  ·  ");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <radialGradient id="g1" cx="0.1" cy="0" r="0.7"><stop offset="0" stop-color="#22C55E" stop-opacity="0.35"/><stop offset="1" stop-color="#22C55E" stop-opacity="0"/></radialGradient>

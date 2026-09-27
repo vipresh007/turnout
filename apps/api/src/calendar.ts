@@ -6,13 +6,18 @@ const icsDays = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
 const fold = (line: string) => line.match(/.{1,73}/g)!.join("\r\n ");
 
+/** "20260929T193000" in the given timezone. */
+function localStamp(at: Date, timezone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(at);
+  const p = (t: string) => parts.find((x) => x.type === t)!.value;
+  return `${p("year")}${p("month")}${p("day")}T${p("hour")}${p("minute")}00`;
+}
+
 /** A calendar file with the group's game as a weekly repeating event, in the group's timezone. */
-export function groupCalendar(group: Group, firstStart: Date, url: string): string {
-  const local = new Intl.DateTimeFormat("en-CA", {
-    timeZone: group.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(firstStart);
-  const p = (t: string) => local.find((x) => x.type === t)!.value;
-  const dtstart = `${p("year")}${p("month")}${p("day")}T${p("hour")}${p("minute")}00`;
+export function groupCalendar(group: Group, firstStart: Date, url: string, skipped: Date[] = []): string {
+  const dtstart = localStamp(firstStart, group.timezone);
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
   const lines = [
     "BEGIN:VCALENDAR",
@@ -26,7 +31,10 @@ export function groupCalendar(group: Group, firstStart: Date, url: string): stri
     `DTSTAMP:${stamp}`,
     `DTSTART;TZID=${group.timezone}:${dtstart}`,
     `DURATION:PT${group.durationMinutes}M`,
-    `RRULE:FREQ=WEEKLY;BYDAY=${icsDays[group.weekday]}`,
+    `RRULE:FREQ=WEEKLY;INTERVAL=${group.intervalWeeks};BYDAY=${group.weekdays.map((d) => icsDays[d]).join(",")}${
+      group.endsOn ? `;UNTIL=${group.endsOn.replace(/-/g, "")}T235959Z` : ""
+    }`,
+    ...skipped.map((d) => `EXDATE;TZID=${group.timezone}:${localStamp(d, group.timezone)}`),
     `SUMMARY:${esc(group.name)}`,
     ...(group.location ? [`LOCATION:${esc(group.location)}`] : []),
     `DESCRIPTION:${esc(`Tap in or out each week: ${url}`)}`,

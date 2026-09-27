@@ -1,9 +1,21 @@
-import { buildRoster, type ActivityItem, type Dashboard, type Group, type GroupPage, type OrganizerStats, type Rsvp, type Session } from "@turnout/shared";
+import { buildRoster, type ActivityItem, type Dashboard, type Group, type GroupPage, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
-import { currentSessionStart } from "./schedule.ts";
+import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
-export const groupColumns = `id, slug, name, activity, location, weekday, start_time AS "startTime",
-  duration_minutes AS "durationMinutes", timezone, cap, reminders`;
+export const groupColumns = `id, slug, name, activity, location, weekdays, interval_weeks AS "intervalWeeks",
+  to_char(starts_on, 'YYYY-MM-DD') AS "startsOn", to_char(ends_on, 'YYYY-MM-DD') AS "endsOn",
+  start_time AS "startTime", duration_minutes AS "durationMinutes", timezone, cap, reminders`;
+
+const sessionColumns = `id, group_id AS "groupId", starts_at AS "scheduledAt", starts_at_override AS "startsAtOverride",
+  cancelled, location_override AS "location", note, teams`;
+
+type SessionRow = Omit<Session, "startsAt" | "scheduledAt"> & { scheduledAt: Date | string; startsAtOverride: Date | string | null };
+
+const toSession = (r: SessionRow): Session => {
+  const { startsAtOverride, ...rest } = r;
+  const scheduledAt = new Date(r.scheduledAt).toISOString();
+  return { ...rest, scheduledAt, startsAt: startsAtOverride ? new Date(startsAtOverride).toISOString() : scheduledAt };
+};
 
 export type GroupRow = Group & { organizerId: string };
 
@@ -21,16 +33,47 @@ export async function listOrganizerGroups(db: Db, organizerId: string): Promise<
   return db.query<Group>(`SELECT ${groupColumns} FROM groups WHERE organizer_id = $1 ORDER BY created_at DESC`, [organizerId]);
 }
 
-/** This week's session, created on first access. */
+/** Session rows for these scheduled starts that already exist (overrides, cancellations, RSVPs). */
+export async function sessionsAt(db: Db, groupId: string, starts: Date[]): Promise<Map<string, Session>> {
+  if (!starts.length) return new Map();
+  const rows = await db.query<SessionRow>(
+    `SELECT ${sessionColumns} FROM sessions WHERE group_id = $1 AND starts_at = ANY($2::timestamptz[])`,
+    [groupId, starts.map((d) => d.toISOString())],
+  );
+  return new Map(rows.map((r) => [new Date(r.scheduledAt).toISOString(), toSession(r)]));
+}
+
+/**
+ * This week's session, created on first access: the first scheduled game that hasn't ended,
+ * counting this week's time change if the organizer moved it.
+ */
 export async function currentSession(db: Db, group: Group, now = new Date()): Promise<Session> {
-  const startsAt = currentSessionStart(group, now);
-  const [session] = await db.query<Session>(
+  const candidates = scheduledStarts(group, new Date(now.getTime() - 2 * 86_400_000), 4);
+  const existing = await sessionsAt(db, group.id, candidates);
+  const durationMs = group.durationMinutes * 60_000;
+  const current =
+    candidates.find((c) => {
+      const start = existing.get(c.toISOString())?.startsAt ?? c.toISOString();
+      return new Date(start).getTime() + durationMs > now.getTime();
+    }) ?? candidates.at(-1) ?? lastScheduledStart(group) ?? currentSessionStart(group, now);
+  const [row] = await db.query<SessionRow>(
     `INSERT INTO sessions (group_id, starts_at) VALUES ($1, $2)
      ON CONFLICT (group_id, starts_at) DO UPDATE SET group_id = EXCLUDED.group_id
-     RETURNING id, group_id AS "groupId", starts_at AS "startsAt", cancelled, teams`,
-    [group.id, startsAt.toISOString()],
+     RETURNING ${sessionColumns}`,
+    [group.id, current.toISOString()],
   );
-  return { ...session!, startsAt: new Date(session!.startsAt).toISOString() };
+  return toSession(row!);
+}
+
+/** The next weeks from this one on, with any skips or changes, for the organizer's schedule view. */
+export async function upcomingWeeks(db: Db, group: Group, count = 8): Promise<UpcomingWeek[]> {
+  const current = await currentSession(db, group);
+  const starts = scheduledStarts(group, new Date(current.scheduledAt), count);
+  const existing = await sessionsAt(db, group.id, starts);
+  return starts.map((d) => {
+    const s = existing.get(d.toISOString());
+    return { scheduledAt: d.toISOString(), startsAt: s?.startsAt ?? d.toISOString(), cancelled: s?.cancelled ?? false, location: s?.location ?? null, note: s?.note ?? null };
+  });
 }
 
 export async function sessionRsvps(db: Db, sessionId: string): Promise<Rsvp[]> {

@@ -1,4 +1,4 @@
-import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp } from "@turnout/shared";
+import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp, type Session } from "@turnout/shared";
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
@@ -18,7 +18,15 @@ const reachableMembers = (db: Db, groupId: string) =>
   );
 
 /** What to tell one member, based on where they stand this week. Null = nothing to say. */
-function messageFor(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupRow, startsAt: string, rsvps: Rsvp[], memberId: string): Message | null {
+function messageFor(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupRow, session: Pick<Session, "startsAt" | "location" | "note">, rsvps: Rsvp[], memberId: string): Message | null {
+  const message = messageBody(kind, group, session.startsAt, rsvps, memberId);
+  if (!message) return null;
+  // This week's changes ride along with every reminder.
+  const change = [session.location && `This week at ${session.location}.`, session.note].filter(Boolean).join(" ");
+  return change ? { ...message, body: `${message.body} ${change}` } : message;
+}
+
+function messageBody(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupRow, startsAt: string, rsvps: Rsvp[], memberId: string): Message | null {
   const roster = buildRoster(rsvps, group.cap);
   const when = whenLabel(startsAt, group.timezone);
   const url = `${webUrl()}/g/${group.slug}`;
@@ -59,7 +67,7 @@ export async function runReminders(db: Db, now = new Date()): Promise<{ groups: 
     const rsvps = await sessionRsvps(db, session.id);
     for (const member of await reachableMembers(db, group.id)) {
       for (const kind of due) {
-        const message = messageFor(kind, group, session.startsAt, rsvps, member.id);
+        const message = messageFor(kind, group, session, rsvps, member.id);
         if (!message) continue;
         const [claimed] = await db.query(
           `INSERT INTO notifications_sent (session_id, member_id, kind) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING 1`,
@@ -89,7 +97,7 @@ export async function remindNow(db: Db, group: GroupRow): Promise<{ notified: nu
   if (!claimed) return { notified: 0, reachable: members.length, message }; // already sent within the hour; still give the chat text
   let notified = 0;
   for (const m of members) {
-    const msg = messageFor("manual", group, session.startsAt, rsvps, m.id);
+    const msg = messageFor("manual", group, session, rsvps, m.id);
     if (msg && (await notifyMember(db, m.id, msg)) > 0) notified++;
   }
   return { notified, reachable: members.length, message };

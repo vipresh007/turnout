@@ -85,4 +85,22 @@ export const migrations: string[] = [
   `,
   // Email reminders no longer need a confirmation click; turn on anyone who was waiting on one.
   `UPDATE members SET email_confirmed_at = now() WHERE email IS NOT NULL AND email_confirmed_at IS NULL;`,
+  // Recurrence: several days a week, every N weeks, start/end dates; per-week overrides.
+  `
+  ALTER TABLE groups ADD COLUMN weekdays smallint[];
+  UPDATE groups SET weekdays = ARRAY[weekday];
+  ALTER TABLE groups ALTER COLUMN weekdays SET NOT NULL;
+  ALTER TABLE groups ADD COLUMN interval_weeks smallint NOT NULL DEFAULT 1 CHECK (interval_weeks BETWEEN 1 AND 4);
+  ALTER TABLE groups ADD COLUMN starts_on date;
+  UPDATE groups SET starts_on = created_at::date;
+  ALTER TABLE groups ALTER COLUMN starts_on SET NOT NULL;
+  ALTER TABLE groups ADD COLUMN ends_on date;
+  -- weekday is superseded by weekdays; kept (nullable) so older rows and code paths stay valid.
+  ALTER TABLE groups ALTER COLUMN weekday DROP NOT NULL;
+
+  -- sessions.starts_at stays the scheduled time and identifies the week; overrides are this week only.
+  ALTER TABLE sessions ADD COLUMN starts_at_override timestamptz;
+  ALTER TABLE sessions ADD COLUMN location_override text;
+  ALTER TABLE sessions ADD COLUMN note text;
+  `,
 ];

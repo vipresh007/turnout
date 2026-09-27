@@ -1,4 +1,4 @@
-import { placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { describeRecurrence, placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
@@ -94,8 +94,10 @@ export default function GroupScreen() {
   const { group, session, roster, viewer } = page;
   const link = shareUrl(slug);
   const place = me ? placeOf(roster, me.memberId) : { kind: "none" as const };
+  const where = session.location ?? group.location;
+  const moved = session.startsAt !== session.scheduledAt;
   const shareInput = {
-    name: group.name, activity: group.activity, location: group.location, timezone: group.timezone, cap: group.cap,
+    name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap,
     startsAt: session.startsAt, confirmed: roster.confirmed.length, cancelled: session.cancelled, link,
   };
   const needsName = !me && name.trim().length === 0;
@@ -122,14 +124,15 @@ export default function GroupScreen() {
 
       <View style={{ gap: 4 }}>
         <Title>{group.name}</Title>
+        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>{describeRecurrence(group)}</Text>
         <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>
           {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
           <Text style={{ color: t.accent }}> · {relativeDay(session.startsAt, group.timezone)}</Text>
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 2 }}>
-          {group.location && (
-            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(group.location!))} hitSlop={6}>
-              <Text style={{ color: t.muted }}>📍 <Text style={{ textDecorationLine: "underline" }}>{group.location}</Text></Text>
+          {where && (
+            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(where))} hitSlop={6}>
+              <Text style={{ color: t.muted }}>📍 <Text style={{ textDecorationLine: "underline" }}>{where}</Text></Text>
             </Pressable>
           )}
           <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6}>
@@ -137,6 +140,15 @@ export default function GroupScreen() {
           </Pressable>
         </View>
       </View>
+
+      {!session.cancelled && (moved || session.location || session.note) && (
+        <View style={{ backgroundColor: t.soft, borderColor: t.waitlist, borderWidth: 1, borderRadius: 14, padding: 14, gap: 4 }}>
+          <Text style={{ color: t.text, fontWeight: "800" }}>⚠️ Change for this week</Text>
+          {moved && <Text style={{ color: t.text }}>New time: {new Date(session.startsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone })} (usually {new Date(session.scheduledAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone })})</Text>}
+          {session.location && <Text style={{ color: t.text }}>Place: {session.location}</Text>}
+          {session.note && <Text style={{ color: t.muted }}>“{session.note}”</Text>}
+        </View>
+      )}
 
       {session.cancelled ? (
         <Card>
@@ -223,6 +235,9 @@ export default function GroupScreen() {
               }}
             />
             <Button label="🏁 Make teams" variant="secondary" disabled={roster.confirmed.length < 2} onPress={() => router.push({ pathname: "/teams/[slug]", params: { slug } })} />
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <Button label="🗓 Schedule: skip or change a week" variant="secondary" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
           </View>
           {reminder && (
             <Pop style={{ gap: 8 }}>

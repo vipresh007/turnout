@@ -12,8 +12,10 @@ export function parseGroupSentence(sentence: string): GroupDraft {
   const s = sentence.toLowerCase();
   const draft: GroupDraft = {};
 
-  const day = s.match(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*\b/);
-  if (day) draft.weekday = weekdays.indexOf(day[1]!);
+  // Every day mentioned ("tuesdays and thursdays"), in week order.
+  const days = [...s.matchAll(/\b(sun|mon|tue|wed|thu|fri|sat)[a-z]*\b/g)].map((m) => weekdays.indexOf(m[1]!));
+  if (days.length) draft.weekdays = [...new Set(days)].sort();
+  if (/\b(every other|biweekly|every 2 weeks|every two weeks)\b/.test(s)) draft.intervalWeeks = 2;
 
   const time = s.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/) ?? s.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
   if (time) {
@@ -33,7 +35,7 @@ export function parseGroupSentence(sentence: string): GroupDraft {
   if (location) draft.location = location[1]!.trim();
 
   if (activity) {
-    const dayName = draft.weekday !== undefined ? `${weekdayNames[draft.weekday]} ` : "";
+    const dayName = draft.weekdays?.length === 1 ? `${weekdayNames[draft.weekdays[0]!]} ` : "";
     draft.name = `${dayName}${activity[0]!.toUpperCase()}${activity.slice(1)}`;
   }
   return draft;

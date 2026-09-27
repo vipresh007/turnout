@@ -38,7 +38,7 @@ module.exports = async function (context, req) {
         const status = session.cancelled ? "Cancelled this week" : group.cap ? (count >= group.cap ? `${count}/${group.cap} in · full` : `${count}/${group.cap} in · need ${group.cap - count} more`) : `${count} in`;
         const block = tags({
           title: `${group.name} · ${status}`,
-          description: `${when}${group.location ? ` · ${group.location}` : ""}. Tap to say you're in. No app or account needed.`,
+          description: `${when}${session.location || group.location ? ` · ${session.location || group.location}` : ""}. Tap to say you're in. No app or account needed.`,
           image: `${apiUrl}/og/${slug}.png?v=${count}`,
           url: `${webUrl}/g/${slug}`,
         });

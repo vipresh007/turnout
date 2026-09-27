@@ -35,16 +35,16 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
       </View>
       <Field label="Location" placeholder="Riverside Park" value={value.location} onChangeText={set("location")} />
       <View style={{ gap: 6 }}>
-        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Every</Text>
+        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Days (pick one or more)</Text>
         <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
           {days.map((d, i) => {
-            const selected = value.weekday === i;
+            const selected = value.weekdays.includes(i);
             return (
               <Pressable
                 key={d}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                onPress={() => set("weekday")(i)}
+                onPress={() => set("weekdays")(selected ? value.weekdays.filter((d) => d !== i) : [...value.weekdays, i].sort())}
                 style={{
                   paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1,
                   borderColor: selected ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
@@ -56,7 +56,16 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
           })}
         </View>
       </View>
-      <Field label="Start time (24h)" placeholder="19:30" value={value.startTime} onChangeText={set("startTime")} />
+      <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <Text style={{ color: t.text, marginRight: 4 }}>Repeats:</Text>
+        {[1, 2, 3, 4].map((n) => (
+          <Chip key={n} label={n === 1 ? "Every week" : n === 2 ? "Every other week" : `Every ${n} weeks`} selected={value.intervalWeeks === n} onPress={() => set("intervalWeeks")(n)} />
+        ))}
+      </View>
+      <View style={{ flexDirection: "row", gap: 12 }}>
+        <Field label="Start time (24h)" placeholder="19:30" value={value.startTime} onChangeText={set("startTime")} />
+        <Field label="Ends on (optional)" placeholder="2026-12-15" value={value.endsOn} onChangeText={set("endsOn")} />
+      </View>
       <Muted>Timezone: {timezone}</Muted>
 
       <View style={{ gap: 8, marginTop: 4 }}>

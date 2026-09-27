@@ -14,6 +14,7 @@ import {
   pushSubscriptionSchema,
   rsvpSchema,
   saveTeamsSchema,
+  sessionUpdateSchema,
   skillSchema,
   tokenSchema,
   updateGroupSchema,
@@ -27,11 +28,11 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
-import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { notifyPromoted, remindNow } from "./reminders.ts";
-import { isValidTimezone } from "./schedule.ts";
+import { atLocal, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
 type SlugParams = { Params: { slug: string } };
 
@@ -93,10 +94,12 @@ export async function buildApp(db: Db) {
     const input = createGroupSchema.parse(req.body);
     if (!isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const [group] = await db.query<Group>(
-      `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, start_time, duration_minutes, timezone, cap, reminders)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, weekdays, interval_weeks, starts_on, ends_on,
+                           start_time, duration_minutes, timezone, cap, reminders)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING ${groupColumns}`,
-      [randomSlug(), organizer.id, input.name, input.activity ?? null, input.location ?? null, input.weekday,
+      [randomSlug(), organizer.id, input.name, input.activity ?? null, input.location ?? null, input.weekdays[0], input.weekdays,
+       input.intervalWeeks, input.startsOn ?? todayIn(input.timezone), input.endsOn ?? null,
        input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders)],
     );
     return reply.status(201).send({ group });
@@ -117,7 +120,9 @@ export async function buildApp(db: Db) {
     const input = updateGroupSchema.parse(req.body);
     if (input.timezone && !isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const columns: Record<string, unknown> = {
-      name: input.name, activity: input.activity, location: input.location, weekday: input.weekday,
+      name: input.name, activity: input.activity, location: input.location,
+      weekdays: input.weekdays, weekday: input.weekdays?.[0], interval_weeks: input.intervalWeeks,
+      starts_on: input.startsOn, ends_on: input.endsOn,
       start_time: input.startTime, duration_minutes: input.durationMinutes, timezone: input.timezone, cap: input.cap,
       reminders: input.reminders && JSON.stringify(input.reminders),
     };
@@ -129,6 +134,38 @@ export async function buildApp(db: Db) {
     const updated = (await findGroupBySlug(db, group.slug))!;
     // A lower cap or a new schedule can reshuffle the roster.
     return changed(updated, undefined, organizer.id);
+  });
+
+  // ── Organizer: the schedule, week by week ─────────────────
+  app.get<SlugParams>("/groups/:slug/weeks", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    return { weeks: await upcomingWeeks(db, group) };
+  });
+
+  // Skip one week, move it, change its place, or leave a note. The regular schedule is untouched.
+  app.put<{ Params: { slug: string; scheduledAt: string } }>("/groups/:slug/weeks/:scheduledAt", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    const input = sessionUpdateSchema.parse(req.body);
+    const scheduled = new Date(req.params.scheduledAt);
+    if (Number.isNaN(scheduled.getTime())) throw new HttpError(400, "Unknown week");
+    const isScheduled = scheduledStarts(group, new Date(scheduled.getTime() - 86_400_000), 3).some((d) => d.getTime() === scheduled.getTime());
+    if (!isScheduled) throw new HttpError(400, "That isn't one of this group's games");
+
+    const set: Record<string, unknown> = {};
+    if (input.cancelled !== undefined) set.cancelled = input.cancelled;
+    if (input.startTime !== undefined) {
+      set.starts_at_override = input.startTime === null ? null : atLocal(localDate(scheduled, group.timezone), input.startTime, group.timezone).toISOString();
+    }
+    if (input.location !== undefined) set.location_override = input.location || null;
+    if (input.note !== undefined) set.note = input.note || null;
+    const cols = Object.keys(set);
+    await db.query(
+      `INSERT INTO sessions (group_id, starts_at, ${cols.join(", ")}) VALUES ($1, $2, ${cols.map((_, i) => `$${i + 3}`).join(", ")})
+       ON CONFLICT (group_id, starts_at) DO UPDATE SET ${cols.map((c) => `${c} = EXCLUDED.${c}`).join(", ")}`,
+      [group.id, scheduled.toISOString(), ...cols.map((c) => set[c])],
+    );
+    await events.rosterChanged(group.slug); // players looking at this week see the change
+    return { weeks: await upcomingWeeks(db, group) };
   });
 
   app.put<SlugParams>("/groups/:slug/session/cancelled", async (req) => {
@@ -168,7 +205,8 @@ export async function buildApp(db: Db) {
     const group = await groupOr404(req.params.slug);
     const session = await currentSession(db, group);
     reply.header("content-type", "text/calendar; charset=utf-8").header("content-disposition", `inline; filename="${group.slug}.ics"`);
-    return groupCalendar(publicGroup(group), new Date(session.startsAt), `${webUrl()}/g/${group.slug}`);
+    const skipped = (await upcomingWeeks(db, group, 26)).filter((w) => w.cancelled).map((w) => new Date(w.scheduledAt));
+    return groupCalendar(publicGroup(group), new Date(session.scheduledAt), `${webUrl()}/g/${group.slug}`, skipped);
   });
 
   app.get<SlugParams>("/groups/:slug/live", strict(30), async (req) => {

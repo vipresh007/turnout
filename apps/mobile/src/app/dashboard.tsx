@@ -1,4 +1,4 @@
-import { groupShareMessage, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
+import { describeRecurrence, groupShareMessage, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -8,7 +8,7 @@ import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
 import { shareUrl, useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatTime, greeting, relativeDay, timeAgo, weekdayName } from "@/lib/format";
+import { formatTime, greeting, relativeDay, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
 import { useTheme, type Theme } from "@/lib/theme";
 
@@ -129,7 +129,7 @@ function DashboardView() {
               <Stat
                 label="Next game"
                 value={next ? relativeDay(next.session.startsAt, next.group.timezone) : "None"}
-                hint={next ? `${next.group.name} · ${weekdayName(next.group.weekday).slice(0, 3)} ${formatTime(next.group.startTime)}` : "All cancelled this week"}
+                hint={next ? `${next.group.name} · ${new Date(next.session.startsAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: next.group.timezone })}` : "All cancelled this week"}
                 accent
               />
             </View>
@@ -207,7 +207,7 @@ function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message:
   const chip = statusChip(t, item);
   const link = shareUrl(group.slug);
   const message = groupShareMessage({
-    name: group.name, activity: group.activity, location: group.location, timezone: group.timezone, cap: group.cap,
+    name: group.name, activity: group.activity, location: session.location ?? group.location, timezone: group.timezone, cap: group.cap,
     startsAt: session.startsAt, confirmed, cancelled: session.cancelled, link,
   });
   const need = !session.cancelled && group.cap && confirmed < group.cap;
@@ -224,7 +224,7 @@ function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message:
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ color: t.text, fontSize: 19, fontWeight: "800" }}>{group.name}</Text>
           <Text style={s.muted}>
-            {weekdayName(group.weekday).slice(0, 3)} {formatTime(group.startTime)} · {relativeDay(session.startsAt, group.timezone)}
+            {describeRecurrence(group)} · {formatTime(group.startTime)} · {relativeDay(session.startsAt, group.timezone)}
             {group.location ? ` · ${group.location}` : ""}
           </Text>
         </View>

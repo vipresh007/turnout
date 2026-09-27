@@ -1,4 +1,4 @@
-import type { DashboardGroup, OrganizerStats } from "@turnout/shared";
+import { occursOn, type DashboardGroup, type OrganizerStats } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -6,6 +6,7 @@ import { formatTime } from "@/lib/format";
 import { useTheme, type Theme } from "@/lib/theme";
 
 const DAY = 86_400_000;
+const localYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 /** The next 14 days with each day's games. This week's game shows its live headcount. */
@@ -20,7 +21,7 @@ export function CalendarStrip({ groups }: { groups: DashboardGroup[] }) {
 
   const cell = (day: Date) => {
     const games = groups
-      .filter((g) => g.group.weekday === day.getDay())
+      .filter((g) => occursOn(localYmd(day), g.group))
       .sort((a, b) => a.group.startTime.localeCompare(b.group.startTime));
     const isToday = sameDay(day, today);
     return (

@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="email" options={{ title: "Email reminders" }} />
         <Stack.Screen name="teams/[slug]" options={{ title: "Make teams", presentation: "modal" }} />
+        <Stack.Screen name="schedule/[slug]" options={{ title: "Schedule", presentation: "modal" }} />
       </Stack>
     </AuthProvider>
   );

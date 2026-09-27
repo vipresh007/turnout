@@ -3,7 +3,8 @@ import { parseGroupSentence } from "./heuristic.ts";
 
 const instructions = `You turn one sentence describing a recurring gathering into a JSON group setup.
 Fields (omit any you cannot infer): name (short, friendly), activity (one word), location,
-weekday (0=Sunday..6=Saturday), startTime ("HH:MM" 24h), durationMinutes, cap (max participants).
+weekdays (array of days played, 0=Sunday..6=Saturday), intervalWeeks (1 = every week, 2 = every other week),
+startTime ("HH:MM" 24h), durationMinutes, cap (max participants).
 Reply with JSON only.`;
 
 /** Turns one sentence into a group draft with an Azure AI Foundry model, falling back to the rule-based parser. */

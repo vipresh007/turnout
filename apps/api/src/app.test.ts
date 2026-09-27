@@ -252,7 +252,7 @@ test("calendar feed: weekly repeating event in the group's timezone", async () =
   assert.equal(res.statusCode, 200);
   assert.match(res.headers["content-type"] as string, /text\/calendar/);
   const ics = res.body;
-  assert.match(ics, /RRULE:FREQ=WEEKLY;BYDAY=TU/);
+  assert.match(ics, /RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=TU/);
   assert.match(ics, /DTSTART;TZID=America\/Toronto:\d{8}T193000/);
   assert.match(ics, /SUMMARY:Cal Soccer\\, Tuesdays/);
   assert.match(ics, /LOCATION:Riverside\\; Field 2/);
@@ -271,4 +271,50 @@ test("link preview image renders a PNG for a group", async () => {
   const svg = groupCardSvg((await app.inject({ url: `/groups/${slug}` })).json());
   assert.match(svg, /OG &lt;Hoops&gt; &amp; Co/); // user text is escaped
   assert.match(svg, /Need 10 more/);
+});
+
+test("recurrence: several days, skip a week, move this week, note", async () => {
+  const org = { "x-dev-user": "rec-org" };
+  const created = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "Rec Hoops", weekdays: [2, 4], intervalWeeks: 1, startTime: "19:00", timezone: "America/Toronto", cap: 10, location: "Main Gym" },
+  })).json().group;
+  assert.deepEqual(created.weekdays, [2, 4]);
+  assert.equal(created.intervalWeeks, 1);
+  const slug = created.slug;
+
+  // Legacy clients sending a single weekday still work.
+  const legacy = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Old", weekday: 5, startTime: "18:00", timezone: "UTC", cap: null } })).json().group;
+  assert.deepEqual(legacy.weekdays, [5]);
+
+  const weeks = (await app.inject({ url: `/groups/${slug}/weeks`, headers: org })).json().weeks;
+  assert.equal(weeks.length, 8);
+  // Alternates Tue/Thu in Toronto.
+  const days = weeks.slice(0, 4).map((w: { scheduledAt: string }) => new Date(w.scheduledAt).toLocaleDateString("en-US", { weekday: "short", timeZone: "America/Toronto" }));
+  assert.ok(days.every((d: string) => d === "Tue" || d === "Thu"));
+  assert.notEqual(days[0], days[1]);
+
+  // Skip the second game (e.g. a holiday); the calendar leaves it out.
+  let res = await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/${weeks[1].scheduledAt}`, headers: org, payload: { cancelled: true } });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.json().weeks[1].cancelled, true);
+  assert.match((await app.inject({ url: `/groups/${slug}/calendar.ics` })).body, /EXDATE;TZID=America\/Toronto:/);
+
+  // Move this week's game to 20:30 in another gym with a note; the group page reflects it.
+  res = await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/${weeks[0].scheduledAt}`, headers: org, payload: { startTime: "20:30", location: "Gym B", note: "Main gym is closed" } });
+  assert.equal(res.statusCode, 200);
+  const page = (await app.inject({ url: `/groups/${slug}` })).json() as GroupPage;
+  assert.equal(page.session.scheduledAt, weeks[0].scheduledAt);
+  assert.equal(new Date(page.session.startsAt).getTime() - new Date(page.session.scheduledAt).getTime(), 90 * 60_000);
+  assert.deepEqual([page.session.location, page.session.note], ["Gym B", "Main gym is closed"]);
+
+  // Clearing the overrides restores the regular time and place.
+  await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/${weeks[0].scheduledAt}`, headers: org, payload: { startTime: null, location: null, note: null } });
+  const restored = (await app.inject({ url: `/groups/${slug}` })).json() as GroupPage;
+  assert.equal(restored.session.startsAt, restored.session.scheduledAt);
+  assert.equal(restored.session.location, null);
+
+  // Only real scheduled times are accepted, and only by the organizer.
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/2026-01-01T00:00:00.000Z`, headers: org, payload: { cancelled: true } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/${weeks[0].scheduledAt}`, headers: { "x-dev-user": "not-owner" }, payload: { cancelled: true } })).statusCode, 403);
 });
