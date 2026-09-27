@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import Head from "expo-router/head";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { wakeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView, RotatingWord } from "./motion";
@@ -47,6 +48,7 @@ export function Landing() {
   const scrollRef = useRef<ScrollView>(null);
   const howY = useRef(0);
   const start = () => router.push(status === "signedIn" ? "/new" : "/dashboard");
+  useEffect(() => wakeApi(), []); // most visitors head to sign-in next
 
   return (
     <RevealScrollView ref={scrollRef} style={{ backgroundColor: t.bg }} contentContainerStyle={{ alignItems: "center" }}>

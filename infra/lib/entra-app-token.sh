@@ -9,10 +9,14 @@ _secret="$(AZURE_CONFIG_DIR="$HOME/.azure-turnout-ciam" az rest --method post \
   --headers "Content-Type=application/json" \
   --body "{\"passwordCredential\":{\"displayName\":\"script $(date +%s)\",\"endDateTime\":\"$_end\"}}" --query secretText -o tsv)"
 [ -n "$_secret" ] || { echo "Could not create a setup secret. Sign in: AZURE_CONFIG_DIR=~/.azure-turnout-ciam az login --tenant $TENANT_ID --allow-no-subscriptions"; exit 1; }
-sleep 10 # new secrets take a moment to work
-TOKEN="$(curl -s -X POST "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" \
-  -d "client_id=$SETUP_APP_ID" --data-urlencode "client_secret=$_secret" \
-  -d "scope=https://graph.microsoft.com/.default" -d "grant_type=client_credentials" \
-  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token || ""')"
+TOKEN=""
+for _try in 1 2 3 4 5 6; do # new secrets can take up to a minute to start working
+  sleep 10
+  TOKEN="$(curl -s -X POST "https://login.microsoftonline.com/$TENANT_ID/oauth2/v2.0/token" \
+    -d "client_id=$SETUP_APP_ID" --data-urlencode "client_secret=$_secret" \
+    -d "scope=https://graph.microsoft.com/.default" -d "grant_type=client_credentials" \
+    | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token || ""')"
+  [ -n "$TOKEN" ] && break
+done
 unset _secret _end
 [ -n "$TOKEN" ] || { echo "Could not get a Graph token for the setup app"; exit 1; }

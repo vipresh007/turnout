@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { wakeApi } from "@/lib/api";
 import { useAuth, type Provider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { Card, Muted, Screen } from "./ui";
@@ -16,6 +17,9 @@ const labels: Record<Provider, string> = {
 export function SignInGate({ children, reason }: { children: ReactNode; reason: string }) {
   const t = useTheme();
   const { status, ready, providers, signIn } = useAuth();
+  useEffect(() => {
+    if (status === "signedOut") wakeApi(); // warm the API while they pick a sign-in method
+  }, [status]);
   if (status === "signedIn") return <>{children}</>;
   return (
     <Screen>

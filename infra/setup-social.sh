@@ -45,7 +45,7 @@ else
   echo "Google: skipped (no GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)"
 fi
 if [ -n "${APPLE_SERVICE_ID:-}" ] && [ -n "${APPLE_TEAM_ID:-}" ] && [ -n "${APPLE_KEY_ID:-}" ] && [ -f "${APPLE_KEY_FILE:-/nonexistent}" ]; then
-  ensure_provider "Apple" "$(json "#microsoft.graph.appleManagedIdentityProvider" displayName Apple developerId "$APPLE_TEAM_ID" serviceId "$APPLE_SERVICE_ID" keyId "$APPLE_KEY_ID" certificateData "$(cat "$APPLE_KEY_FILE")")"
+  ensure_provider "Apple" "$(json "#microsoft.graph.appleManagedIdentityProvider" displayName Apple developerId "$APPLE_TEAM_ID" serviceId "$APPLE_SERVICE_ID" keyId "$APPLE_KEY_ID" certificateData "$(grep -v -- '-----' "$APPLE_KEY_FILE" | tr -d '\r\n ')")"
   PROVIDERS="$PROVIDERS,apple"
 else
   echo "Apple: skipped (needs APPLE_SERVICE_ID, APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_KEY_FILE)"

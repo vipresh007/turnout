@@ -107,3 +107,11 @@ export function useApi(): Api {
   const { authHeaders } = useAuth();
   return useMemo(() => createApi(authHeaders), [authHeaders]);
 }
+
+/**
+ * Wakes the API. It scales to zero when idle and takes a while to start, and Entra only waits
+ * about 2 seconds when it calls us during sign-in, so screens that lead to sign-in call this early.
+ */
+export function wakeApi(): void {
+  fetch(`${config.apiUrl}/health`).catch(() => {});
+}
