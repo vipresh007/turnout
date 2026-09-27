@@ -83,4 +83,6 @@ export const migrations: string[] = [
     PRIMARY KEY (session_id, member_id, kind)
   );
   `,
+  // Email reminders no longer need a confirmation click; turn on anyone who was waiting on one.
+  `UPDATE members SET email_confirmed_at = now() WHERE email IS NOT NULL AND email_confirmed_at IS NULL;`,
 ];

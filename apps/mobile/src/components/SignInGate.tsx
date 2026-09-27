@@ -1,3 +1,4 @@
+import { Link } from "expo-router";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useAuth, type Provider } from "@/lib/auth";
@@ -18,19 +19,31 @@ export function SignInGate({ children, reason }: { children: ReactNode; reason: 
   if (status === "signedIn") return <>{children}</>;
   return (
     <Screen>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
+        <Link href="/" accessibilityLabel="Turnout home">
+          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 }}>
+            turnout<Text style={{ color: t.accent }}>.</Text>
+          </Text>
+        </Link>
+        <Link href="/">
+          <Text style={{ color: t.muted, fontWeight: "600" }}>← Back to home</Text>
+        </Link>
+      </View>
       {status === "loading" ? (
         <ActivityIndicator style={{ marginTop: 48 }} />
       ) : (
-        <Card>
-          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>Sign in to Turnout</Text>
-          <Muted>{reason} Players never need an account. Only organizers sign in.</Muted>
-          <View style={{ gap: 10, marginTop: 4 }}>
-            {providers.map((p) => (
-              <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />
-            ))}
-          </View>
-          <Text style={{ color: t.muted, fontSize: 12, textAlign: "center" }}>New here? Any option creates your account automatically.</Text>
-        </Card>
+        <View style={{ marginTop: 32 }}>
+          <Card>
+            <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>Sign in to Turnout</Text>
+            <Muted>{reason} Players never need an account. Only organizers sign in.</Muted>
+            <View style={{ gap: 10, marginTop: 4 }}>
+              {providers.map((p) => (
+                <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />
+              ))}
+            </View>
+            <Text style={{ color: t.muted, fontSize: 12, textAlign: "center" }}>New here? Any option creates your account automatically.</Text>
+          </Card>
+        </View>
       )}
     </Screen>
   );

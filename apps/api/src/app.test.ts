@@ -199,9 +199,9 @@ test("V2: reminder channels, double opt-in email, and the reminder job never dou
   let self = (await app.inject({ method: "PUT", url: `/groups/${slug}/me/push`, headers: me, payload: { endpoint: "https://push.example.com/abc", keys: { p256dh: "k", auth: "a" } } })).json();
   assert.equal(self.channels.push, 1);
 
-  // Email: pending until confirmed through the emailed token
+  // Email: on right away (the welcome email carries a one-tap stop)
   self = (await app.inject({ method: "PUT", url: `/groups/${slug}/me/email`, headers: me, payload: { email: "Ana@Example.com" } })).json();
-  assert.deepEqual([self.channels.email, self.channels.emailConfirmed], ["ana@example.com", false]);
+  assert.deepEqual([self.channels.email, self.channels.emailConfirmed], ["ana@example.com", true]);
   const [row] = await db.query<{ token: string }>(`SELECT email_token AS token FROM members WHERE id = $1`, [a.member.id]);
   const token = row!.token;
   assert.equal((await app.inject({ method: "POST", url: "/email/confirm", payload: { token } })).json().slug, slug);

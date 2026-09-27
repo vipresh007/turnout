@@ -87,8 +87,6 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
               <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }} numberOfLines={1}>✓ Emailing {channels.email}</Text>
               <Button label="Stop" variant="secondary" loading={busy === "email-off"} onPress={() => run("email-off", () => api.removeEmail(slug, me.token))} />
             </View>
-          ) : channels.email ? (
-            <Muted>📬 Check {channels.email} and tap the link to confirm. (Not there? Check spam, or enter it again below.)</Muted>
           ) : null}
           {!channels.emailConfirmed && (
             <View style={{ flexDirection: "row", gap: 8, alignItems: "flex-end" }}>

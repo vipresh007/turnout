@@ -93,7 +93,7 @@ export function emailHtml(m: { title: string; body: string; url: string }, unsub
       <tr><td style="padding-top:20px;font-size:20px;font-weight:800;color:#111418">${escape(m.title)}</td></tr>
       <tr><td style="padding-top:8px;font-size:16px;line-height:24px;color:#4b5563">${escape(m.body)}</td></tr>
       <tr><td style="padding-top:24px"><a href="${escape(m.url)}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">${escape(buttonLabel)}</a></td></tr>
-      ${unsubscribeUrl ? `<tr><td style="padding-top:28px;font-size:12px;color:#9ca3af">You asked for reminders for this group. <a href="${escape(unsubscribeUrl)}" style="color:#9ca3af">Stop these emails</a>.</td></tr>` : ""}
+      ${unsubscribeUrl ? `<tr><td style="padding-top:28px;font-size:12px;color:#9ca3af">Sent by Turnout because this address was entered for reminders on the group's page. <a href="${escape(unsubscribeUrl)}" style="color:#6b7280;font-weight:700">Stop these emails</a></td></tr>` : ""}
     </table>
   </td></tr></table></body></html>`;
 }

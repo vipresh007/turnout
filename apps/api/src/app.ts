@@ -276,15 +276,22 @@ export async function buildApp(db: Db) {
     const member = await requireMember(db, req, group.id);
     const { email } = emailSchema.parse(req.body);
     const token = newMemberToken();
-    await db.query(`UPDATE members SET email = $2, email_confirmed_at = NULL, email_token = $3 WHERE id = $1`, [member.id, email, token]);
-    // Double opt-in: nothing else is sent until they click this, so nobody can sign up someone else.
-    const confirmUrl = `${webUrl()}/email?confirm=${token}`;
+    // Typing your own email on the page is the consent; reminders start right away. The welcome
+    // email says who we are and has a one-tap stop, so a mistyped or someone-else's address is
+    // stopped by its owner with one tap (CASL: identify the sender, include an unsubscribe).
+    await db.query(`UPDATE members SET email = $2, email_confirmed_at = now(), email_token = $3 WHERE id = $1`, [member.id, email, token]);
+    const stopUrl = `${webUrl()}/email?unsubscribe=${token}`;
     await sendEmail(
       email,
-      `Confirm reminders for ${group.name}`,
-      emailHtml({ title: `Get reminders for ${group.name}?`, body: `Tap below to confirm. We'll only email you about this group's games, and you can stop any time.`, url: confirmUrl }, undefined, "Yes, send me reminders"),
-      `Confirm reminders for ${group.name}: ${confirmUrl}`,
-    );
+      `You're set for ${group.name} reminders`,
+      emailHtml(
+        { title: `You'll get reminders for ${group.name}`, body: `We'll email you before each game, and that's all. Not you, or changed your mind? Tap “Stop these emails” below.`, url: `${webUrl()}/g/${group.slug}` },
+        stopUrl,
+        `Open ${group.name}`,
+      ),
+      `You'll get reminders for ${group.name}. Not you? Stop these emails: ${stopUrl}`,
+      stopUrl,
+    ).catch((err) => req.log.warn({ err }, "welcome email failed"));
     return memberSelf(member.id);
   });
 
