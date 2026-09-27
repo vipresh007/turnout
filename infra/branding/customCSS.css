@@ -1,0 +1,83 @@
+/* Turnout styling for the Entra External ID sign-in pages.
+   Colors match apps/mobile/src/lib/theme.ts (dark). Avoid layout properties Microsoft deprecates
+   (position, margin, transform, display, ...): colors, borders, radius, spacing and type only. */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #F3F4F6;
+  background-color: #0E1113;
+}
+
+a, a:link, .ext-link { color: #22C55E; font-weight: 600; text-decoration: none; }
+a:hover, .ext-link:hover { color: #4ADE80; text-decoration: underline; }
+a:focus, .ext-link:focus { outline: 2px solid #22C55E; outline-offset: 2px; border-radius: 4px; }
+
+.ext-sign-in-box {
+  background-color: #171B1F;
+  border: 1px solid #262B31;
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  color: #F3F4F6;
+  padding: 44px 44px 36px;
+}
+
+.ext-title {
+  color: #F3F4F6;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.ext-subtitle, .ext-boilerplate-text { color: #9CA3AF; font-size: 15px; line-height: 22px; }
+
+.ext-input.ext-text-box {
+  background-color: #0E1113;
+  color: #F3F4F6;
+  border: 1px solid #262B31;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
+  height: auto;
+}
+.ext-input.ext-text-box:hover { border-color: #3A414A; }
+.ext-input.ext-text-box:focus, .ext-input.ext-text-box:focus:hover { border-color: #22C55E; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); }
+.ext-input.ext-text-box.ext-has-error { border-color: #F87171; }
+.ext-error { color: #F87171; font-weight: 600; }
+
+.ext-button.ext-primary {
+  background-color: #16A34A;
+  border: 1px solid #16A34A;
+  color: #FFFFFF;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 24px;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.35);
+}
+.ext-button.ext-primary:hover, .ext-button.ext-primary:focus:hover { background-color: #15803D; border-color: #15803D; }
+.ext-button.ext-primary:focus { outline: 2px solid #4ADE80; outline-offset: 2px; }
+.ext-button.ext-primary:active { background-color: #166534; }
+
+.ext-button.ext-secondary {
+  background-color: #171B1F;
+  border: 1px solid #262B31;
+  color: #F3F4F6;
+  border-radius: 12px;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 10px 24px;
+}
+.ext-button.ext-secondary:hover, .ext-button.ext-secondary:focus:hover { background-color: #0E1113; border-color: #3A414A; }
+
+/* "Sign in with Microsoft" and other provider options */
+.ext-promoted-fed-cred-box {
+  background-color: #171B1F;
+  border: 1px solid #262B31;
+  border-radius: 16px;
+  color: #F3F4F6;
+}
+.ext-promoted-fed-cred-box:hover { border-color: #22C55E; background-color: #13251A; }
+
+.ext-footer { background-color: transparent; }
+.ext-footer-item, .ext-footer-links a, .ext-debug-item { color: #9CA3AF; }

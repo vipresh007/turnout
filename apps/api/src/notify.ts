@@ -64,7 +64,14 @@ export async function notifyMember(db: Db, memberId: string, message: Message): 
   return sent;
 }
 
-export async function sendEmail(to: string, subject: string, html: string, plainText: string, unsubscribeUrl?: string): Promise<void> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  plainText: string,
+  unsubscribeUrl?: string,
+  { wait = true }: { wait?: boolean } = {},
+): Promise<void> {
   if (!email) return;
   const poller = await email.client.beginSend({
     senderAddress: email.sender,
@@ -72,7 +79,8 @@ export async function sendEmail(to: string, subject: string, html: string, plain
     content: { subject, html, plainText },
     headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>` } : undefined,
   });
-  await poller.pollUntilDone();
+  // beginSend returns once the service has accepted the message; waiting confirms delivery started.
+  if (wait) await poller.pollUntilDone();
 }
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

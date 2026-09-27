@@ -21,6 +21,7 @@ param webDomains object = { test: '', live: '' }
 param entra object = {
   authority: ''
   apiClientId: ''
+  eventsAppId: ''
 }
 
 @description('Create a dedicated AI Services account. When false, use externalAi (or none: the API falls back to its rule-based parser).')
@@ -125,6 +126,13 @@ resource emailDomain 'Microsoft.Communication/emailServices/domains@2023-04-01' 
   properties: { domainManagement: 'AzureManaged', userEngagementTracking: 'Disabled' }
 }
 
+// Shows as "Turnout" in inboxes instead of the bare DoNotReply address.
+resource emailSender 'Microsoft.Communication/emailServices/domains/senderUsernames@2023-04-01' = {
+  parent: emailDomain
+  name: 'donotreply'
+  properties: { username: 'DoNotReply', displayName: 'Turnout' }
+}
+
 resource acs 'Microsoft.Communication/communicationServices@2023-04-01' = {
   name: 'acs-turnout-${suffix}'
   location: 'global'
@@ -153,6 +161,7 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     aiDeployment: createAiAccount ? aiModel : externalAi.deployment
     entraAuthority: entra.authority
     entraApiClientId: entra.apiClientId
+    entraEventsAppId: entra.?eventsAppId ?? ''
     vapidPublicKey: vapidPublicKey
     vapidPrivateKey: vapidPrivateKey
     acsConnectionString: acs.listKeys().primaryConnectionString

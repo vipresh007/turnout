@@ -233,3 +233,12 @@ test("V2: reminder channels, double opt-in email, and the reminder job never dou
   assert.equal(self.channels.email, null);
   assert.equal((await app.inject({ method: "POST", url: "/email/confirm", payload: { token } })).statusCode, 404);
 });
+
+test("auth events: the sign-in code endpoint only accepts Entra's signed calls", async () => {
+  const body = { data: { otpContext: { identifier: "a@example.com", onetimecode: "12345678" } } };
+  assert.equal((await app.inject({ method: "POST", url: "/auth-events/otp-send", payload: body })).statusCode, 401);
+  assert.equal((await app.inject({ method: "POST", url: "/auth-events/otp-send", headers: { authorization: "Bearer not.a.token" }, payload: body })).statusCode, 401);
+  const { otpEmailHtml, otpEmailText } = await import("./authEvents.ts");
+  assert.match(otpEmailHtml("12345678"), /12345678/);
+  assert.match(otpEmailText("12345678"), /12345678/);
+});

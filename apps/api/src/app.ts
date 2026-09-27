@@ -21,6 +21,7 @@ import {
   type MemberSelf,
 } from "@turnout/shared";
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
+import { registerAuthEvents } from "./authEvents.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl } from "./events.ts";
@@ -76,6 +77,7 @@ export async function buildApp(db: Db) {
   };
 
   app.get("/health", async () => ({ ok: true }));
+  registerAuthEvents(app);
 
   // ── Organizer ──────────────────────────────────────────────
   app.post("/ai/group-draft", strict(10), async (req) => {

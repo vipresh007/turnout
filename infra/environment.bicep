@@ -21,6 +21,8 @@ param aiKey string
 param aiDeployment string
 param entraAuthority string
 param entraApiClientId string
+@description('App registration Entra uses to call our auth-events endpoint (custom sign-in code emails).')
+param entraEventsAppId string = ''
 param vapidPublicKey string = ''
 @secure()
 param vapidPrivateKey string = ''
@@ -122,6 +124,7 @@ var appEnv = concat(
     { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appi' }
     { name: 'ENTRA_AUTHORITY', value: entraAuthority }
     { name: 'ENTRA_API_CLIENT_ID', value: entraApiClientId }
+    { name: 'ENTRA_EVENTS_APP_ID', value: entraEventsAppId }
   ],
   hasAi ? [
     { name: 'AZURE_AI_ENDPOINT', value: aiEndpoint }
