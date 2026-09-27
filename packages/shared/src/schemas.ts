@@ -57,7 +57,12 @@ export type SessionUpdateInput = z.infer<typeof sessionUpdateSchema>;
 export const groupDraftSchema = z.preprocess(withLegacyWeekday, groupFields.partial().extend({ timezone: z.string().optional() }));
 export type GroupDraft = Partial<CreateGroupInput>;
 
-export const joinGroupSchema = z.object({ name: z.string().trim().min(1).max(40) });
+export const joinGroupSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  /** Join even though someone with this name is already in the group. */
+  confirmNew: z.boolean().optional(),
+});
+export const mergeMemberSchema = z.object({ intoId: z.string().uuid() });
 export const rsvpSchema = z.object({ status: z.enum(["in", "out"]) });
 export const parseGroupSchema = z.object({ sentence: z.string().trim().min(3).max(500), timezone: z.string().optional() });
 

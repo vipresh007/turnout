@@ -352,3 +352,40 @@ test("dropout close to game time: late-drop flag and a spot-opened nudge, once",
   // Late drops are organizer-only.
   assert.equal(((await app.inject({ url: `/groups/${slug}` })).json() as GroupPage).organizer, undefined);
 });
+
+test("identity: duplicate names ask first, restore links, organizer merge", async () => {
+  const org = { "x-dev-user": "id-org" };
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "ID Hoops", weekdays: [3], startTime: "19:00", timezone: "UTC", cap: 10 } })).json().group;
+  const john = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "John" } })).json();
+  await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": john.token }, payload: { status: "in" } });
+
+  // A second "john" is asked first; confirming creates a separate member.
+  let res = await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: " john " } });
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.json().existing.id, john.member.id);
+  const john2 = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "John", confirmNew: true } })).json();
+  assert.notEqual(john2.member.id, john.member.id);
+
+  // Without a reminder email there's nothing to send a restore link to.
+  assert.deepEqual((await app.inject({ method: "POST", url: `/groups/${slug}/members/${john.member.id}/restore` })).json(), { sent: false });
+
+  // A restore link gives a new device token for the same member, once.
+  const { hashToken } = await import("./ids.ts");
+  await db.query(`INSERT INTO member_restores (token_hash, member_id, expires_at) VALUES ($1, $2, now() + interval '1 hour')`, [hashToken("restore-token-123"), john.member.id]);
+  const restored = (await app.inject({ method: "POST", url: "/restore", payload: { token: "restore-token-123" } })).json();
+  assert.deepEqual([restored.slug, restored.member.id], [slug, john.member.id]);
+  const me = (await app.inject({ url: `/groups/${slug}/me`, headers: { "x-member-token": restored.token } })).json();
+  assert.equal(me.member.id, john.member.id); // new phone, same John
+  assert.equal((await app.inject({ method: "POST", url: "/restore", payload: { token: "restore-token-123" } })).statusCode, 404);
+
+  // Organizer merges the duplicate into the original: its device keeps working as John.
+  let members = (await app.inject({ url: `/groups/${slug}/members`, headers: org })).json().members;
+  assert.equal(members.length, 2);
+  res = await app.inject({ method: "POST", url: `/groups/${slug}/members/${john2.member.id}/merge`, headers: org, payload: { intoId: john.member.id } });
+  assert.equal(res.statusCode, 200);
+  members = (await app.inject({ url: `/groups/${slug}/members`, headers: org })).json().members;
+  assert.deepEqual(members.map((m: { id: string; devices: number }) => [m.id, m.devices]), [[john.member.id, 3]]);
+  const viaOld = (await app.inject({ url: `/groups/${slug}/me`, headers: { "x-member-token": john2.token } })).json();
+  assert.equal(viaOld.member.id, john.member.id);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/${john.member.id}/merge`, headers: { "x-dev-user": "stranger" }, payload: { intoId: john.member.id } })).statusCode, 403);
+});

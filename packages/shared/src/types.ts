@@ -125,3 +125,13 @@ export interface Dashboard {
   /** Latest RSVP changes across all the organizer's groups, newest first. */
   activity: ActivityItem[];
 }
+
+/** A group member as the organizer's members screen shows them. */
+export interface MemberSummary {
+  id: string;
+  name: string;
+  hasEmail: boolean;
+  devices: number;
+  gamesIn: number;
+  joinedAt: string;
+}

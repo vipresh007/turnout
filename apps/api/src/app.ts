@@ -8,6 +8,7 @@ import {
   createGroupSchema,
   emailSchema,
   joinGroupSchema,
+  mergeMemberSchema,
   paidSchema,
   parseGroupSchema,
   promotedMembers,
@@ -20,6 +21,7 @@ import {
   updateGroupSchema,
   type Group,
   type MemberSelf,
+  type MemberSummary,
 } from "@turnout/shared";
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
 import { registerAuthEvents } from "./authEvents.ts";
@@ -218,13 +220,104 @@ export async function buildApp(db: Db) {
 
   app.post<SlugParams>("/groups/:slug/members", strict(10), async (req, reply) => {
     const group = await groupOr404(req.params.slug);
-    const { name } = joinGroupSchema.parse(req.body);
-    const token = newMemberToken();
-    const [member] = await db.query<{ id: string; name: string }>(
-      `INSERT INTO members (group_id, name, token_hash) VALUES ($1, $2, $3) RETURNING id, name`,
-      [group.id, name, hashToken(token)],
+    const { name, confirmNew } = joinGroupSchema.parse(req.body);
+    // Same name already here? Ask "is that you?" before creating a second one.
+    const [existing] = await db.query<{ id: string; name: string; hasEmail: boolean }>(
+      `SELECT id, name, email_confirmed_at IS NOT NULL AS "hasEmail" FROM members
+       WHERE group_id = $1 AND lower(trim(name)) = lower($2) ORDER BY created_at LIMIT 1`,
+      [group.id, name],
     );
+    if (existing && !confirmNew) return reply.status(409).send({ error: "name_taken", existing });
+    const [member] = await db.query<{ id: string; name: string }>(
+      `INSERT INTO members (group_id, name) VALUES ($1, $2) RETURNING id, name`,
+      [group.id, name],
+    );
+    const token = await issueDeviceToken(member!.id);
     return reply.status(201).send({ member, token });
+  });
+
+  const issueDeviceToken = async (memberId: string) => {
+    const token = newMemberToken();
+    await db.query(`INSERT INTO member_tokens (token_hash, member_id) VALUES ($1, $2)`, [hashToken(token), memberId]);
+    return token;
+  };
+
+  // "That's me" on a new phone: email a one-time link to the address they use for reminders.
+  // The response never reveals the address or whether one exists beyond sent/not sent.
+  app.post<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/restore", strict(5), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const [m] = await db.query<{ id: string; name: string; email: string | null }>(
+      `SELECT id, name, CASE WHEN email_confirmed_at IS NOT NULL THEN email END AS email FROM members WHERE id = $1 AND group_id = $2`,
+      [req.params.memberId, group.id],
+    );
+    if (!m) throw new HttpError(404, "Member not found");
+    if (!m.email || !emailEnabled()) return { sent: false };
+    const token = newMemberToken();
+    await db.query(`INSERT INTO member_restores (token_hash, member_id, expires_at) VALUES ($1, $2, now() + interval '1 hour')`, [hashToken(token), m.id]);
+    const url = `${webUrl()}/restore?t=${token}`;
+    await sendEmail(
+      m.email,
+      `Use Turnout on your new phone`,
+      emailHtml({ title: `Is this you, ${m.name}?`, body: `Tap below on your new phone to pick up where you left off in ${group.name}. The link works once, for an hour. Didn't ask for this? Ignore it.`, url }, undefined, "Continue on this phone"),
+      `Continue in ${group.name} on your new phone: ${url} (works once, for an hour)`,
+    );
+    return { sent: true };
+  });
+
+  app.post("/restore", strict(20), async (req) => {
+    const { token } = tokenSchema.parse(req.body);
+    const [row] = await db.query<{ memberId: string; name: string; slug: string }>(
+      `DELETE FROM member_restores r USING members m, groups g
+       WHERE r.token_hash = $1 AND r.expires_at > now() AND m.id = r.member_id AND g.id = m.group_id
+       RETURNING r.member_id AS "memberId", m.name, g.slug`,
+      [hashToken(token)],
+    );
+    if (!row) throw new HttpError(404, "This link has expired. Ask for a new one from the group page.");
+    return { slug: row.slug, member: { id: row.memberId, name: row.name }, token: await issueDeviceToken(row.memberId) };
+  });
+
+  // ── Organizer: members ────────────────────────────────────
+  app.get<SlugParams>("/groups/:slug/members", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    const members = await db.query<MemberSummary & { joinedAt: Date | string }>(
+      `SELECT m.id, m.name, m.email_confirmed_at IS NOT NULL AS "hasEmail", m.created_at AS "joinedAt",
+              (SELECT count(*)::int FROM member_tokens t WHERE t.member_id = m.id) AS devices,
+              (SELECT count(*)::int FROM rsvps r WHERE r.member_id = m.id AND r.status = 'in') AS "gamesIn"
+       FROM members m WHERE m.group_id = $1 ORDER BY lower(m.name), m.created_at`,
+      [group.id],
+    );
+    return { members: members.map((m) => ({ ...m, joinedAt: new Date(m.joinedAt).toISOString() })) };
+  });
+
+  // Two entries for one person (e.g. a new phone): move everything onto one and remove the other.
+  app.post<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/merge", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    const { intoId } = mergeMemberSchema.parse(req.body);
+    const from = req.params.memberId;
+    if (from === intoId) throw new HttpError(400, "Pick a different player to merge into");
+    const found = await db.query(`SELECT id FROM members WHERE group_id = $1 AND id = ANY($2::uuid[])`, [group.id, [from, intoId]]);
+    if (found.length !== 2) throw new HttpError(404, "Member not found");
+    await db.query(`UPDATE member_tokens SET member_id = $2 WHERE member_id = $1`, [from, intoId]);
+    await db.query(
+      `INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth)
+       SELECT $2, endpoint, p256dh, auth FROM push_subscriptions WHERE member_id = $1 ON CONFLICT DO NOTHING`,
+      [from, intoId],
+    );
+    // Answers: keep the merged-into player's where both answered the same week.
+    await db.query(
+      `UPDATE rsvps SET member_id = $2 WHERE member_id = $1
+       AND session_id NOT IN (SELECT session_id FROM rsvps WHERE member_id = $2)`,
+      [from, intoId],
+    );
+    await db.query(
+      `UPDATE members t SET email = f.email, email_confirmed_at = f.email_confirmed_at, email_token = f.email_token
+       FROM members f WHERE t.id = $2 AND f.id = $1 AND t.email IS NULL`,
+      [from, intoId],
+    );
+    await db.query(`UPDATE members t SET skill = COALESCE(t.skill, f.skill) FROM members f WHERE t.id = $2 AND f.id = $1`, [from, intoId]);
+    await db.query(`DELETE FROM members WHERE id = $1`, [from]);
+    await changed(group, undefined, organizer.id);
+    return { ok: true };
   });
 
   app.put<SlugParams>("/groups/:slug/rsvp", strict(30), async (req) => {

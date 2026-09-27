@@ -105,4 +105,22 @@ export const migrations: string[] = [
   `,
   // Dropouts close to game time, for the organizer (and reliability later).
   `ALTER TABLE rsvps ADD COLUMN late_drop boolean NOT NULL DEFAULT false;`,
+  // A member can be on several devices; one-time links restore a member on a new phone.
+  `
+  CREATE TABLE member_tokens (
+    token_hash text PRIMARY KEY,
+    member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  INSERT INTO member_tokens (token_hash, member_id) SELECT token_hash, id FROM members;
+  CREATE INDEX member_tokens_member_idx ON member_tokens (member_id);
+  -- members.token_hash is superseded by member_tokens.
+  ALTER TABLE members ALTER COLUMN token_hash DROP NOT NULL;
+
+  CREATE TABLE member_restores (
+    token_hash text PRIMARY KEY,
+    member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+  );
+  `,
 ];

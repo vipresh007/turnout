@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -14,9 +14,20 @@ export interface Membership {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  body: unknown;
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.status = status;
+    this.body = body;
+  }
+}
+
+/** Joining with a name someone in the group already has. */
+export class NameTakenError extends Error {
+  existing: { id: string; name: string; hasEmail: boolean };
+  constructor(existing: NameTakenError["existing"]) {
+    super(`There's already a ${existing.name} in this group`);
+    this.existing = existing;
   }
 }
 
@@ -29,7 +40,7 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`, data);
   return data as T;
 }
 
@@ -41,6 +52,7 @@ export const memberships = {
     return raw ? (JSON.parse(raw) as Membership) : null;
   },
   forget: (slug: string) => storage.remove(membershipKey(slug)),
+  set: (slug: string, m: Membership) => storage.set(membershipKey(slug), JSON.stringify(m)),
 };
 
 function createApi(authHeaders: () => Promise<Headers>) {
@@ -76,11 +88,16 @@ function createApi(authHeaders: () => Promise<Headers>) {
     liveUrl: (slug: string) => request<{ url: string | null }>(`/groups/${slug}/live`),
 
     // Members
-    join: async (slug: string, name: string): Promise<Membership> => {
-      const { member, token } = await request<{ member: { id: string; name: string }; token: string }>(`/groups/${slug}/members`, {
-        method: "POST",
-        body: { name },
-      });
+    join: async (slug: string, name: string, confirmNew = false): Promise<Membership> => {
+      let joined: { member: { id: string; name: string }; token: string };
+      try {
+        joined = await request(`/groups/${slug}/members`, { method: "POST", body: { name, confirmNew } });
+      } catch (e) {
+        const body = e instanceof ApiError ? (e.body as { error?: string; existing?: NameTakenError["existing"] }) : undefined;
+        if (e instanceof ApiError && e.status === 409 && body?.existing) throw new NameTakenError(body.existing);
+        throw e;
+      }
+      const { member, token } = joined;
       const membership = { memberId: member.id, name: member.name, token };
       await storage.set(membershipKey(slug), JSON.stringify(membership));
       return membership;
@@ -99,6 +116,16 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<MemberSelf>(`/groups/${slug}/me/email`, { method: "PUT", body: { email }, headers: { "x-member-token": token } }),
     removeEmail: (slug: string, token: string) =>
       request<MemberSelf>(`/groups/${slug}/me/email`, { method: "DELETE", headers: { "x-member-token": token } }),
+    requestRestore: (slug: string, memberId: string) =>
+      request<{ sent: boolean }>(`/groups/${slug}/members/${memberId}/restore`, { method: "POST", body: {} }),
+    restore: async (token: string) => {
+      const r = await request<{ slug: string; member: { id: string; name: string }; token: string }>("/restore", { method: "POST", body: { token } });
+      await memberships.set(r.slug, { memberId: r.member.id, name: r.member.name, token: r.token });
+      return r;
+    },
+    members: async (slug: string) => request<{ members: MemberSummary[] }>(`/groups/${slug}/members`, await asOrganizer()),
+    mergeMember: async (slug: string, memberId: string, intoId: string) =>
+      request<{ ok: true }>(`/groups/${slug}/members/${memberId}/merge`, await asOrganizer({ method: "POST", body: { intoId } })),
     confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),
     unsubscribeEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/unsubscribe", { method: "POST", body: { token } }),
   };

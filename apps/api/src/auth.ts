@@ -90,7 +90,7 @@ export async function requireMember(db: Db, req: FastifyRequest, groupId: string
   const token = req.headers["x-member-token"];
   if (typeof token !== "string") throw new HttpError(401, "Join the group first");
   const [member] = await db.query<{ id: string; name: string }>(
-    `SELECT id, name FROM members WHERE token_hash = $1 AND group_id = $2`,
+    `SELECT m.id, m.name FROM member_tokens t JOIN members m ON m.id = t.member_id WHERE t.token_hash = $1 AND m.group_id = $2`,
     [hashToken(token), groupId],
   );
   if (!member) throw new HttpError(401, "Unknown member");

@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
 import { ShareCard } from "@/components/ShareCard";
 import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
-import { ApiError, calendarUrl, memberships, shareUrl, useApi, type Membership } from "@/lib/api";
+import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
 import { useLiveGroup } from "@/lib/live";
@@ -26,6 +26,9 @@ export default function GroupScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [reminder, setReminder] = useState<{ notified: number; reachable: number; message: string } | null>(null);
+  // Joining with a name that's taken: ask "is that you?" before creating a second one.
+  const [nameTaken, setNameTaken] = useState<{ existing: NameTakenError["existing"]; status: RsvpStatus } | null>(null);
+  const [identityStep, setIdentityStep] = useState<"ask" | "someoneElse" | "emailSent" | "noEmail">("ask");
 
   const load = useCallback(() => {
     api.groupPage(slug).then(setPage, (e: Error) => setError(e.message));
@@ -47,15 +50,27 @@ export default function GroupScreen() {
     try {
       setPage(await action());
     } catch (e) {
-      setError((e as Error).message);
+      if (!(e instanceof NameTakenError)) setError((e as Error).message); // shown as the "is that you?" prompt instead
     } finally {
       setPending(null);
     }
   };
 
-  const respond = (status: RsvpStatus) =>
+  const respond = (status: RsvpStatus, joinAs?: { name: string; confirmNew: boolean }) =>
     run(status, async () => {
-      const membership = me ?? (await api.join(slug, name));
+      let membership = me;
+      if (!membership) {
+        try {
+          membership = await api.join(slug, joinAs?.name ?? name, joinAs?.confirmNew ?? false);
+        } catch (e) {
+          if (e instanceof NameTakenError) {
+            setNameTaken({ existing: e.existing, status });
+            setIdentityStep("ask");
+          }
+          throw e;
+        }
+        setNameTaken(null);
+      }
       setMe(membership);
       try {
         return await api.rsvp(slug, membership.token, status);
@@ -173,7 +188,21 @@ export default function GroupScreen() {
 
           <StatusLine place={place} name={me?.name} />
 
-          {!me && <Field label="Your name" placeholder="First name is fine" value={name} onChangeText={setName} autoComplete="given-name" />}
+          {!me && nameTaken ? (
+            <IdentityPrompt
+              existing={nameTaken.existing}
+              step={identityStep}
+              onThatsMe={async () => {
+                if (!nameTaken.existing.hasEmail) return setIdentityStep("noEmail");
+                const { sent } = await api.requestRestore(slug, nameTaken.existing.id);
+                setIdentityStep(sent ? "emailSent" : "noEmail");
+              }}
+              onSomeoneElse={() => setIdentityStep("someoneElse")}
+              onJoinAs={(newName) => respond(nameTaken.status, { name: newName, confirmNew: true })}
+            />
+          ) : (
+            !me && <Field label="Your name" placeholder="First name is fine" value={name} onChangeText={setName} autoComplete="given-name" />
+          )}
           <View style={{ flexDirection: "row", gap: 12 }}>
             <RsvpButton
               label={place.kind === "confirmed" ? "✓ You're in" : place.kind === "waitlist" ? "✓ On the waitlist" : "I'm in"}
@@ -236,8 +265,9 @@ export default function GroupScreen() {
             />
             <Button label="🏁 Make teams" variant="secondary" disabled={roster.confirmed.length < 2} onPress={() => router.push({ pathname: "/teams/[slug]", params: { slug } })} />
           </View>
-          <View style={{ flexDirection: "row" }}>
-            <Button label="🗓 Schedule: skip or change a week" variant="secondary" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Button label="🗓 Schedule" variant="secondary" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
+            <Button label="👥 Members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug } })} />
           </View>
           {reminder && (
             <Pop style={{ gap: 8 }}>
@@ -279,7 +309,7 @@ export default function GroupScreen() {
 function StatusLine({ place, name }: { place: ReturnType<typeof placeOf>; name?: string }) {
   const t = useTheme();
   const text =
-    place.kind === "confirmed" ? `You're in, ${name}.` :
+    place.kind === "confirmed" ? `You're in, ${name}${name?.endsWith(".") ? "" : "."}` :
     place.kind === "waitlist" ? `You're #${place.position} on the waitlist. We'll move you up if someone drops.` :
     place.kind === "out" ? "You're out this week." :
     null;
@@ -414,5 +444,48 @@ function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
     >
       {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontSize: 19, fontWeight: "800" }}>{label}</Text>}
     </Pressable>
+  );
+}
+
+/** "There's already a John here. Is that you?" Keeps one person from becoming two, without accounts. */
+function IdentityPrompt({ existing, step, onThatsMe, onSomeoneElse, onJoinAs }: {
+  existing: NameTakenError["existing"];
+  step: "ask" | "someoneElse" | "emailSent" | "noEmail";
+  onThatsMe: () => void;
+  onSomeoneElse: () => void;
+  onJoinAs: (name: string) => void;
+}) {
+  const t = useTheme();
+  const [initial, setInitial] = useState("");
+  if (step === "emailSent") {
+    return (
+      <View style={{ gap: 6 }}>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>📬 Check your email on this phone</Text>
+        <Muted>We sent a link to the address {existing.name} uses for reminders. Open it here and you'll pick up where you left off.</Muted>
+      </View>
+    );
+  }
+  if (step === "someoneElse" || step === "noEmail") {
+    const full = `${existing.name} ${initial.trim()}`.trim();
+    return (
+      <View style={{ gap: 8 }}>
+        {step === "noEmail" && (
+          <Muted>We can't confirm it's you without a reminder email. Join with your last initial, and ask the organizer to merge the two.</Muted>
+        )}
+        <Field label="Add your last initial so people can tell you apart" placeholder="B" value={initial} onChangeText={(v) => setInitial(v.slice(0, 12))} autoCapitalize="characters" />
+        <View style={{ flexDirection: "row" }}>
+          <Button label={`Join as ${full}${initial ? (initial.length === 1 ? "." : "") : ""}`} disabled={!initial.trim()} onPress={() => onJoinAs(initial.trim().length === 1 ? `${full}.` : full)} />
+        </View>
+      </View>
+    );
+  }
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>There's already a {existing.name} in this group. Is that you?</Text>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button label="Yes, that's me" onPress={onThatsMe} />
+        <Button label="No, someone else" variant="secondary" onPress={onSomeoneElse} />
+      </View>
+    </View>
   );
 }
