@@ -65,6 +65,13 @@ export interface MemberSelf {
 }
 
 /** One group as the organizer's dashboard shows it: this week's session and counts. */
+export interface DashboardPlayer {
+  memberId: string;
+  name: string;
+  status: "in" | "waitlist" | "out";
+  paid: boolean;
+}
+
 export interface DashboardGroup {
   group: Group;
   session: Session;
@@ -72,6 +79,8 @@ export interface DashboardGroup {
   waitlist: number;
   out: number;
   spotsLeft: number;
+  /** This week's answers, in roster order: in, then waitlist, then out. */
+  players: DashboardPlayer[];
 }
 
 export interface ActivityItem {

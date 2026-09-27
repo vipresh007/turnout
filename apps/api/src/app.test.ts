@@ -140,6 +140,7 @@ test("organizer dashboard: groups with this week's counts and recent activity", 
   assert.equal(dash.groups[0].group.name, "Dash Hoops");
   assert.equal(dash.groups[0].group.organizerId, undefined); // internal column never leaks
   assert.deepEqual([dash.groups[0].confirmed, dash.groups[0].waitlist, dash.groups[0].spotsLeft], [1, 1, 0]);
+  assert.deepEqual(dash.groups[0].players.map((p: { name: string; status: string; paid: boolean }) => [p.name, p.status, p.paid]), [["Ana", "in", false], ["Ben", "waitlist", false]]);
   assert.deepEqual(dash.activity.map((x: { name: string }) => x.name).sort(), ["Ana", "Ben"]);
 
   // Stats: this week's session (one capped spot, filled, two responses) lands in one of the recent buckets.

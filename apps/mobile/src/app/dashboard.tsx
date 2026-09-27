@@ -3,6 +3,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { CalendarStrip, Regulars, TurnoutChart } from "@/components/DashboardInsights";
+import { NextUpCard } from "@/components/NextUpCard";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
@@ -76,7 +77,8 @@ function DashboardView() {
   const displayName = organizer.name ?? organizer.email?.split("@")[0] ?? null;
   const playersIn = groups.filter((g) => !g.session.cancelled).reduce((n, g) => n + g.confirmed, 0);
   const spots = groups.filter((g) => !g.session.cancelled).reduce((n, g) => n + (g.group.cap ?? 0), 0);
-  const next = groups.find((g) => !g.session.cancelled);
+  const next = groups.find((g) => !g.session.cancelled) ?? groups[0];
+  const others = groups.filter((g) => g !== next);
 
   return (
     <RevealScrollView
@@ -122,45 +124,46 @@ function DashboardView() {
           <EmptyState />
         ) : (
           <>
-            {/* Stats */}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-              <Stat label="Groups" value={String(groups.length)} hint="running weekly" />
-              <Stat label="Players in this week" value={String(playersIn)} hint={spots ? `of ${spots} spots` : "across your groups"} />
-              <Stat
-                label="Next game"
-                value={next ? relativeDay(next.session.startsAt, next.group.timezone) : "None"}
-                hint={next ? `${next.group.name} · ${new Date(next.session.startsAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: next.group.timezone })}` : "All cancelled this week"}
-                accent
-              />
-            </View>
+            {/* The next game first: what an organizer needs when they open Turnout. */}
+            {next && <NextUpCard item={next} onShare={share} onChanged={load} />}
+            {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
+
+            {others.length > 0 && (
+              <View style={{ gap: 12 }}>
+                <Text style={s.sectionTitle}>Your other groups</Text>
+                {others.map((g, i) => (
+                  <Reveal key={g.group.id} delay={i * 80}>
+                    <GroupCard item={g} onShare={share} />
+                  </Reveal>
+                ))}
+              </View>
+            )}
 
             <Reveal style={{ gap: 12 }}>
               <Text style={s.sectionTitle}>Next two weeks</Text>
               <CalendarStrip groups={groups} />
             </Reveal>
 
-            <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
-              {/* Groups */}
-              <View style={{ flex: wide ? 1.6 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
-                <Text style={s.sectionTitle}>This week</Text>
-                {groups.map((g, i) => (
-                  <Reveal key={g.group.id} delay={i * 80}>
-                    <GroupCard item={g} onShare={share} />
-                  </Reveal>
-                ))}
-                {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
+            {/* Insights below the operational stuff. */}
+            <View style={{ gap: 12 }}>
+              <Text style={s.sectionTitle}>Insights</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                <Stat label="Groups" value={String(groups.length)} hint="running" />
+                <Stat label="Players in this week" value={String(playersIn)} hint={spots ? `of ${spots} spots` : "across your groups"} />
+                <Stat label="Fill rate" value={data.stats.fillRate === null ? "–" : `${Math.round(data.stats.fillRate * 100)}%`} hint="past 8 weeks" />
               </View>
-
-              {/* Insights + activity */}
-              <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
-                <Text style={s.sectionTitle}>Insights</Text>
+            </View>
+            <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
+              <View style={{ flex: wide ? 1.3 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
                 <Reveal>
                   <TurnoutChart stats={data.stats} />
                 </Reveal>
                 <Reveal delay={80}>
                   <Regulars stats={data.stats} />
                 </Reveal>
-                <Text style={[s.sectionTitle, { marginTop: 8 }]}>Recent activity</Text>
+              </View>
+              <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
+                <Text style={s.sectionTitle}>Recent activity</Text>
                 <View style={s.card}>
                   {activity.length === 0 ? (
                     <Text style={s.muted}>No RSVPs yet. Share your group link and responses show up here as they come in.</Text>
@@ -183,7 +186,7 @@ function Stat({ label, value, hint, accent }: { label: string; value: string; hi
   const s = styles(t);
   const wide = useWindowDimensions().width >= 900;
   return (
-    <View style={[s.card, { flexGrow: 1, flexBasis: wide ? "30%" : accent ? "100%" : "40%", minWidth: 150, gap: 4 }, accent && { borderColor: t.accent, backgroundColor: t.soft }]}>
+    <View style={[s.card, { flexGrow: 1, flexBasis: wide ? "30%" : "40%", minWidth: 140, gap: 4 }, accent && { borderColor: t.accent, backgroundColor: t.soft }]}>
       <Text style={s.label}>{label}</Text>
       <Text style={{ color: accent ? t.accent : t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1 }}>{value}</Text>
       <Text style={s.muted} numberOfLines={1}>

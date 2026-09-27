@@ -1,4 +1,4 @@
-import { buildRoster, type ActivityItem, type Dashboard, type Group, type GroupPage, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, type ActivityItem, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
@@ -114,6 +114,10 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
     rows.map(async (row) => {
       const session = await currentSession(db, row);
       const roster = buildRoster(await sessionRsvps(db, session.id), row.cap);
+      const paid = new Set(
+        (await db.query<{ memberId: string }>(`SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND paid_at IS NOT NULL`, [session.id])).map((p) => p.memberId),
+      );
+      const player = (status: DashboardPlayer["status"]) => (r: Rsvp): DashboardPlayer => ({ memberId: r.memberId, name: r.name, status, paid: paid.has(r.memberId) });
       return {
         group: publicGroup(row),
         session,
@@ -121,6 +125,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
         waitlist: roster.waitlist.length,
         out: roster.out.length,
         spotsLeft: roster.spotsLeft,
+        players: [...roster.confirmed.map(player("in")), ...roster.waitlist.map(player("waitlist")), ...roster.out.map(player("out"))],
       };
     }),
   );
