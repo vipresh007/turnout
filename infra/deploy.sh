@@ -49,5 +49,17 @@ EXPO_PUBLIC_ENTRA_PROVIDERS="$(gh variable get ENTRA_PROVIDERS -R "$REPO" -e "$T
 # Variables set here take precedence over apps/mobile/.env (Expo never overrides the shell).
 node scripts/add-meta.mjs dist "$API_URL" "$WEB_URL"
 TOKEN="$(az staticwebapp secrets list -g "$RG" -n "swa-turnout-$TARGET" --query properties.apiKey -o tsv)"
-npx --yes @azure/static-web-apps-cli@2 deploy dist --api-location api --api-language node --api-version 20 --deployment-token "$TOKEN" --env production
+# The Static Web Apps uploader is x86-only; run it in a Linux container on the registry instead
+# (works from Apple Silicon without Rosetta). The token goes in as a secret, never on a command line.
+CTX="$(mktemp -d)"
+cp -R dist api public/staticwebapp.config.json "$CTX/"
+cat > "$CTX/swa-deploy.yaml" <<'YAML'
+version: v1.1.0
+steps:
+  - cmd: node:20 sh -c "npx --yes @azure/static-web-apps-cli@2 deploy dist --api-location api --api-language node --api-version 20 --env production"
+    env: ["SWA_CLI_DEPLOYMENT_TOKEN={{.Secrets.TOKEN}}"]
+    timeout: 900
+YAML
+az acr run -r "$ACR" -f swa-deploy.yaml --set-secret "TOKEN=$TOKEN" "$CTX" 2>&1 | grep -E "Project deployed|Deployment Failed|error" || true
+rm -rf "$CTX"
 echo "Deployed $IMAGE_TAG to $TARGET: $WEB_URL"
