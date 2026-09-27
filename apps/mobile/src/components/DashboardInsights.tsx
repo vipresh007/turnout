@@ -1,7 +1,7 @@
 import { occursOn, type DashboardGroup, type OrganizerStats } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { formatTime } from "@/lib/format";
 import { useTheme, type Theme } from "@/lib/theme";
 
@@ -9,63 +9,172 @@ const DAY = 86_400_000;
 const localYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-/** The next 14 days with each day's games. This week's game shows its live headcount. */
-export function CalendarStrip({ groups }: { groups: DashboardGroup[] }) {
+interface DayGame {
+  item: DashboardGroup;
+  /** When it starts that day (moved time if changed), for display. */
+  startsAt: Date | null;
+  cancelled: boolean;
+  isCurrent: boolean;
+}
+
+/** Games on a local calendar day, using each group's schedule plus known skips and changes. */
+function gamesOn(day: Date, groups: DashboardGroup[]): DayGame[] {
+  const key = localYmd(day);
+  return groups
+    .filter((g) => occursOn(key, g.group))
+    .map((g) => {
+      const week = g.weeks.find((w) => sameDay(new Date(w.scheduledAt), day));
+      return {
+        item: g,
+        startsAt: week ? new Date(week.startsAt) : null,
+        cancelled: week?.cancelled ?? false,
+        isCurrent: sameDay(new Date(g.session.scheduledAt), day),
+      };
+    })
+    .sort((a, b) => a.item.group.startTime.localeCompare(b.item.group.startTime));
+}
+
+const startOfWeek = (d: Date) => {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - x.getDay()); // Sunday-first, like most calendars here
+  return x;
+};
+
+/** Two-week or month calendar of your games, with navigation back and forward. */
+export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
   const t = useTheme();
   const s = styles(t);
   const { width } = useWindowDimensions();
-  const wide = width >= 900;
+  const wide = width >= 700;
+  const [mode, setMode] = useState<"twoWeeks" | "month">("twoWeeks");
+  const [offset, setOffset] = useState(0);
+  const [selected, setSelected] = useState<Date | null>(null);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const days = Array.from({ length: 14 }, (_, i) => new Date(today.getTime() + i * DAY));
+
+  let days: Date[];
+  let title: string;
+  let monthIndex = -1;
+  if (mode === "twoWeeks") {
+    const first = new Date(startOfWeek(today).getTime() + offset * 14 * DAY);
+    days = Array.from({ length: 14 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
+    const last = days[13]!;
+    title = `${first.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${last.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  } else {
+    const month = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    monthIndex = month.getMonth();
+    const first = startOfWeek(month);
+    const weeks = Math.ceil((month.getDay() + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7);
+    days = Array.from({ length: weeks * 7 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
+    title = month.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  }
+  const rows = Array.from({ length: days.length / 7 }, (_, r) => days.slice(r * 7, r * 7 + 7));
+  const compact = mode === "month" && !wide; // dots, tap a day for details
 
   const cell = (day: Date) => {
-    const games = groups
-      .filter((g) => occursOn(localYmd(day), g.group))
-      .sort((a, b) => a.group.startTime.localeCompare(b.group.startTime));
+    const games = gamesOn(day, groups);
     const isToday = sameDay(day, today);
+    const outside = mode === "month" && day.getMonth() !== monthIndex;
+    const past = day < today;
+    const isSelected = selected && sameDay(selected, day);
     return (
-      <View key={day.toISOString()} style={[s.day, wide ? { flex: 1 } : { width: 120 }, isToday && { borderColor: t.accent }]}>
-        <Text style={[s.dayName, isToday && { color: t.accent }]}>{isToday ? "Today" : day.toLocaleDateString(undefined, { weekday: "short" })}</Text>
-        <Text style={[s.dayNum, games.length === 0 && { color: t.muted }]}>{day.getDate()}</Text>
-        {games.map((g) => {
-          const isCurrent = sameDay(new Date(g.session.startsAt), day);
-          const cancelled = isCurrent && g.session.cancelled;
-          return (
-            <Pressable
-              key={g.group.id}
-              accessibilityRole="link"
-              accessibilityLabel={`${g.group.name} at ${formatTime(g.group.startTime)}${isCurrent ? `, ${g.confirmed} in` : ""}${cancelled ? ", cancelled" : ""}`}
-              onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: g.group.slug } })}
-              style={({ hovered }: { hovered?: boolean }) => [s.game, hovered && { borderColor: t.accent }, cancelled && { opacity: 0.55 }]}
-            >
-              <Text style={[s.gameName, cancelled && { textDecorationLine: "line-through" }]} numberOfLines={1}>
-                {g.group.name}
-              </Text>
-              <Text style={s.gameMeta} numberOfLines={1}>
-                {formatTime(g.group.startTime)}
-                {isCurrent && !cancelled ? ` · ${g.confirmed}${g.group.cap ? `/${g.group.cap}` : ""}` : ""}
-                {cancelled ? " · off" : ""}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Pressable
+        key={day.toISOString()}
+        onPress={() => setSelected(isSelected ? null : day)}
+        accessibilityRole="button"
+        accessibilityLabel={`${day.toDateString()}, ${games.length} ${games.length === 1 ? "game" : "games"}`}
+        style={[s.day, { flex: 1, minHeight: compact ? 54 : mode === "month" ? 96 : 92, opacity: outside ? 0.4 : past ? 0.7 : 1 }, isToday && { borderColor: t.accent }, isSelected && { backgroundColor: t.soft }]}
+      >
+        <Text style={[s.dayNum, { fontSize: compact ? 14 : 18 }, isToday && { color: t.accent }, games.length === 0 && !isToday && { color: t.muted }]}>{day.getDate()}</Text>
+        {compact ? (
+          <View style={{ flexDirection: "row", gap: 3, flexWrap: "wrap" }}>
+            {games.map((g) => (
+              <View key={g.item.group.id} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: g.cancelled ? t.danger : t.accent }} />
+            ))}
+          </View>
+        ) : (
+          games.slice(0, mode === "month" ? 2 : 3).map((g) => <GamePill key={g.item.group.id} game={g} />)
+        )}
+        {!compact && games.length > (mode === "month" ? 2 : 3) && <Text style={s.gameMeta}>+{games.length - (mode === "month" ? 2 : 3)} more</Text>}
+      </Pressable>
     );
   };
 
-  if (wide) {
-    return (
-      <View style={{ gap: 8 }}>
-        <View style={{ flexDirection: "row", gap: 8 }}>{days.slice(0, 7).map(cell)}</View>
-        <View style={{ flexDirection: "row", gap: 8 }}>{days.slice(7).map(cell)}</View>
-      </View>
-    );
-  }
+  const selectedGames = selected ? gamesOn(selected, groups) : [];
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-      {days.map(cell)}
-    </ScrollView>
+    <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <Text style={{ color: t.text, fontSize: 16, fontWeight: "800", flex: 1, minWidth: 140 }}>{title}</Text>
+        <Seg options={[["twoWeeks", "2 weeks"], ["month", "Month"]]} value={mode} onChange={(m) => { setMode(m as typeof mode); setOffset(0); setSelected(null); }} />
+        <NavButton label="‹" onPress={() => setOffset((o) => o - 1)} a11y="Previous" />
+        <NavButton label="Today" onPress={() => { setOffset(0); setSelected(null); }} a11y="Today" />
+        <NavButton label="›" onPress={() => setOffset((o) => o + 1)} a11y="Next" />
+      </View>
+      <View style={{ flexDirection: "row", gap: 6 }}>
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <Text key={d} style={[s.dayName, { flex: 1, textAlign: "center" }]}>{compact ? d[0] : d}</Text>
+        ))}
+      </View>
+      {rows.map((r, i) => (
+        <View key={i} style={{ flexDirection: "row", gap: 6 }}>{r.map(cell)}</View>
+      ))}
+      {selected && (
+        <View style={[s.card, { gap: 8 }]}>
+          <Text style={s.cardTitle}>{selected.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
+          {selectedGames.length === 0 && <Text style={s.muted}>No games.</Text>}
+          {selectedGames.map((g) => <GamePill key={g.item.group.id} game={g} large />)}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function GamePill({ game, large }: { game: DayGame; large?: boolean }) {
+  const t = useTheme();
+  const s = styles(t);
+  const { item, cancelled, isCurrent } = game;
+  const time = game.startsAt
+    ? game.startsAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: item.group.timezone })
+    : formatTime(item.group.startTime);
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={`${item.group.name} at ${time}${isCurrent ? `, ${item.confirmed} in` : ""}${cancelled ? ", skipped" : ""}`}
+      onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: item.group.slug } })}
+      style={({ hovered }: { hovered?: boolean }) => [s.game, large && { paddingVertical: 8 }, hovered && { borderColor: t.accent }, cancelled && { borderLeftColor: t.danger, opacity: 0.6 }]}
+    >
+      <Text style={[s.gameName, large && { fontSize: 15 }, cancelled && { textDecorationLine: "line-through" }]} numberOfLines={1}>
+        {item.group.name}
+      </Text>
+      <Text style={[s.gameMeta, large && { fontSize: 13 }]} numberOfLines={1}>
+        {time}
+        {isCurrent && !cancelled ? ` · ${item.confirmed}${item.group.cap ? `/${item.group.cap}` : ""}` : ""}
+        {cancelled ? " · skipped" : ""}
+      </Text>
+    </Pressable>
+  );
+}
+
+function Seg({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", borderWidth: 1, borderColor: t.border, borderRadius: 10, overflow: "hidden" }}>
+      {options.map(([v, label]) => (
+        <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: value === v }} onPress={() => onChange(v)} style={{ paddingVertical: 6, paddingHorizontal: 12, backgroundColor: value === v ? t.soft : t.card }}>
+          <Text style={{ color: value === v ? t.accent : t.text, fontWeight: "700", fontSize: 13 }}>{label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function NavButton({ label, onPress, a11y }: { label: string; onPress: () => void; a11y: string }) {
+  const t = useTheme();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={a11y} onPress={onPress} style={({ hovered }: { hovered?: boolean }) => ({ paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: t.border, backgroundColor: hovered ? t.bg : t.card })}>
+      <Text style={{ color: t.text, fontWeight: "800" }}>{label}</Text>
+    </Pressable>
   );
 }
 

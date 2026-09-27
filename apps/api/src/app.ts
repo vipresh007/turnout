@@ -29,7 +29,7 @@ import { groupCalendar } from "./calendar.ts";
 import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
-import { events, liveUrl } from "./events.ts";
+import { events, liveUrl, liveUrlForGroups } from "./events.ts";
 import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
@@ -112,6 +112,13 @@ export async function buildApp(db: Db) {
   app.get("/me/groups", async (req) => {
     const organizer = await requireOrganizer(db, req);
     return { groups: await listOrganizerGroups(db, organizer.id) };
+  });
+
+  // Live updates for the dashboard: one channel covering all of the organizer's groups.
+  app.get("/me/live", strict(30), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const groups = await listOrganizerGroups(db, organizer.id);
+    return { url: await liveUrlForGroups(groups.map((g) => g.slug)) };
   });
 
   app.get("/me/dashboard", async (req) => {

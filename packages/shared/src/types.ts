@@ -81,6 +81,8 @@ export interface DashboardGroup {
   spotsLeft: number;
   /** This week's answers, in roster order: in, then waitlist, then out. */
   players: DashboardPlayer[];
+  /** This week and the next ones, with skips and one-off changes (for the calendar). */
+  weeks: UpcomingWeek[];
 }
 
 export interface ActivityItem {

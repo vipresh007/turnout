@@ -65,6 +65,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
     createGroup: async (input: CreateGroupInput) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: input })),
     myGroups: async () => request<{ groups: Group[] }>("/me/groups", await asOrganizer()),
     dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
+    dashboardLive: async () => request<{ url: string | null }>("/me/live", await asOrganizer()),
     updateGroup: async (slug: string, input: UpdateGroupInput) =>
       request<GroupPage>(`/groups/${slug}`, await asOrganizer({ method: "PATCH", body: input })),
     setCancelled: async (slug: string, cancelled: boolean) =>

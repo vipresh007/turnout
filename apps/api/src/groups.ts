@@ -126,6 +126,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
         out: roster.out.length,
         spotsLeft: roster.spotsLeft,
         players: [...roster.confirmed.map(player("in")), ...roster.waitlist.map(player("waitlist")), ...roster.out.map(player("out"))],
+        weeks: await upcomingWeeks(db, row, 12),
       };
     }),
   );

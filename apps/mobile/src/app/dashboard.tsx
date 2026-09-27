@@ -2,18 +2,18 @@ import { describeRecurrence, groupShareMessage, type ActivityItem, type Dashboar
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { CalendarStrip, Regulars, TurnoutChart } from "@/components/DashboardInsights";
+import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
 import { NextUpCard } from "@/components/NextUpCard";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
 import { shareUrl, useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useLive } from "@/lib/live";
 import { formatTime, greeting, relativeDay, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
 import { useTheme, type Theme } from "@/lib/theme";
 
-const REFRESH_MS = 30_000;
 
 export default function DashboardScreen() {
   return (
@@ -38,13 +38,16 @@ function DashboardView() {
 
   const load = useCallback(() => api.dashboard().then(setData, (e: Error) => setError(e.message)), [api]);
 
+  const [focused, setFocused] = useState(false);
   useFocusEffect(
     useCallback(() => {
+      setFocused(true);
       load();
-      const timer = setInterval(load, REFRESH_MS);
-      return () => clearInterval(timer);
+      return () => setFocused(false);
     }, [load]),
   );
+  // Live: anyone tapping in or out in any of your groups updates the dashboard right away.
+  useLive(api.dashboardLive, "dashboard", focused, load);
 
   const refresh = async () => {
     setRefreshing(true);
@@ -140,8 +143,8 @@ function DashboardView() {
             )}
 
             <Reveal style={{ gap: 12 }}>
-              <Text style={s.sectionTitle}>Next two weeks</Text>
-              <CalendarStrip groups={groups} />
+              <Text style={s.sectionTitle}>Calendar</Text>
+              <CalendarView groups={groups} />
             </Reveal>
 
             {/* Insights below the operational stuff. */}

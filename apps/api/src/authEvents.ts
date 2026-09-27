@@ -47,16 +47,29 @@ export function registerAuthEvents(app: FastifyInstance) {
   // Warm up at startup: Entra gives us about 2 seconds per call, too short for first-time fetches.
   eventsVerifier()?.catch((err) => app.log.warn({ err }, "auth events verifier warm-up failed"));
 
-  app.post("/auth-events/otp-send", async (req) => {
+  // Diagnostics: this call has stalled without logging before, so record each stage.
+  app.addHook("onRequest", async (req) => {
+    if (req.url.startsWith("/auth-events/")) {
+      const h = req.headers;
+      req.log.info({ contentType: h["content-type"], contentLength: h["content-length"], encoding: h["content-encoding"], transfer: h["transfer-encoding"], expect: h.expect }, "auth event: headers received");
+    }
+  });
+
+  app.post("/auth-events/otp-send", async (req, reply) => {
     const started = Date.now();
+    req.log.info("auth event: body parsed");
     const verify = eventsVerifier();
     const auth = req.headers.authorization;
     if (!verify || !auth?.startsWith("Bearer ")) throw new HttpError(401, "Unauthorized");
     try {
-      await (await verify)(auth.slice(7));
+      // Never keep Entra waiting: past 1.5s it gives up anyway, so fail fast and let it fall back.
+      await Promise.race([
+        (async () => (await verify)(auth.slice(7)))(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("token check timed out")), 1500)),
+      ]);
     } catch (err) {
-      req.log.warn({ err }, "rejected auth event token");
-      throw new HttpError(401, "Unauthorized");
+      req.log.warn({ err: (err as Error).message, ms: Date.now() - started }, "rejected auth event token");
+      return reply.status((err as Error).message.includes("timed out") ? 503 : 401).send({ error: "Unauthorized" });
     }
 
     const verifiedMs = Date.now() - started;

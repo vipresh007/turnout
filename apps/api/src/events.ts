@@ -16,6 +16,13 @@ export async function liveUrl(groupSlug: string): Promise<string | null> {
   return url;
 }
 
+/** One connection that follows several groups, e.g. every group on an organizer's dashboard. */
+export async function liveUrlForGroups(groupSlugs: string[]): Promise<string | null> {
+  if (!pubsub || !groupSlugs.length) return null;
+  const { url } = await pubsub.getClientAccessToken({ groups: groupSlugs.map(channel), expirationTimeInMinutes: 60 });
+  return url;
+}
+
 /** Side effects of roster changes. Failures are logged and never block the RSVP. */
 export const events = {
   async rosterChanged(groupSlug: string) {
