@@ -57,7 +57,7 @@ cat > "$CTX/swa-deploy.yaml" <<'YAML'
 version: v1.1.0
 steps:
   - cmd: node:20 sh -c "npx --yes @azure/static-web-apps-cli@2 deploy dist --api-location api --api-language node --api-version 20 --env production"
-    env: ["SWA_CLI_DEPLOYMENT_TOKEN={{.Secrets.TOKEN}}"]
+    env: ["SWA_CLI_DEPLOYMENT_TOKEN={{.Values.TOKEN}}", "CI=1"]
     timeout: 900
 YAML
 az acr run -r "$ACR" -f swa-deploy.yaml --set-secret "TOKEN=$TOKEN" "$CTX" 2>&1 | grep -E "Project deployed|Deployment Failed|error" || true
