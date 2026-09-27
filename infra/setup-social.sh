@@ -25,7 +25,9 @@ ensure_provider() {
   local name="$1" body="$2" id res
   id="$(api GET "identity/identityProviders" | node -pe "(JSON.parse(require('fs').readFileSync(0)).value.find(p => p.displayName === '$name') || {}).id || ''")"
   if [ -n "$id" ]; then
-    api PATCH "identity/identityProviders/$id" "$body" >/dev/null
+    # The provider type can't be patched, so leave it out of updates.
+    res="$(api PATCH "identity/identityProviders/$id" "$(echo "$body" | node -pe 'const o = JSON.parse(require("fs").readFileSync(0)); delete o.identityProviderType; JSON.stringify(o)')")"
+    [ -z "$res" ] || { echo "$name: update failed: $(echo "$res" | head -c 400)"; return 1; }
   else
     res="$(api POST "identity/identityProviders" "$body")"
     id="$(echo "$res" | node -pe 'const j = JSON.parse(require("fs").readFileSync(0)); j.id || ""')"
@@ -52,4 +54,4 @@ else
 fi
 
 for env in test live; do gh variable set ENTRA_PROVIDERS -R "$REPO" -e "$env" -b "$PROVIDERS"; done
-echo "Sign-in buttons: $PROVIDERS. Redeploy to show them: gh workflow run deploy.yml -f environment=test"
+echo "Sign-in buttons: $PROVIDERS. Redeploy to show them: ./infra/deploy.sh test"

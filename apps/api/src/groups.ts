@@ -4,7 +4,8 @@ import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./sche
 
 export const groupColumns = `id, slug, name, activity, location, weekdays, interval_weeks AS "intervalWeeks",
   to_char(starts_on, 'YYYY-MM-DD') AS "startsOn", to_char(ends_on, 'YYYY-MM-DD') AS "endsOn",
-  start_time AS "startTime", duration_minutes AS "durationMinutes", timezone, cap, reminders`;
+  start_time AS "startTime", duration_minutes AS "durationMinutes", timezone, cap,
+  fee_cents AS "feeCents", fee_split AS "feeSplit", pay_note AS "payNote", reminders`;
 
 const sessionColumns = `id, group_id AS "groupId", starts_at AS "scheduledAt", starts_at_override AS "startsAtOverride",
   cancelled, location_override AS "location", note, teams`;

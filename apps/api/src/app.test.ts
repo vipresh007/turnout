@@ -393,3 +393,24 @@ test("identity: duplicate names ask first, restore links, organizer merge", asyn
   assert.equal(viaOld.member.id, john.member.id);
   assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/${john.member.id}/merge`, headers: { "x-dev-user": "stranger" }, payload: { intoId: john.member.id } })).statusCode, 403);
 });
+
+test("optional cost: per player or a split total, with how to pay", async () => {
+  const org = { "x-dev-user": "fee-org" };
+  const created = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "Fee Hoops", weekdays: [3], startTime: "19:00", timezone: "UTC", cap: 10, feeCents: 12000, feeSplit: true, payNote: "e-Transfer to sam@example.com" },
+  })).json().group;
+  assert.equal(created.feeCents, 12000);
+  assert.equal(created.feeSplit, true);
+  assert.equal(created.payNote, "e-Transfer to sam@example.com");
+
+  const res = await app.inject({ method: "PATCH", url: `/groups/${created.slug}`, headers: org, payload: { feeCents: null, payNote: null } });
+  assert.equal(res.statusCode, 200);
+  const page = (await app.inject({ url: `/groups/${created.slug}` })).json();
+  assert.equal(page.group.feeCents, null);
+  assert.equal(page.group.payNote, null);
+
+  const plain = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Free", weekdays: [1], startTime: "18:00", timezone: "UTC", cap: null } })).json().group;
+  assert.equal(plain.feeCents, null);
+  assert.equal(plain.feeSplit, false);
+});

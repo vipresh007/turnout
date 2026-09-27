@@ -18,6 +18,11 @@ export const groupFields = z.object({
   durationMinutes: z.number().int().min(15).max(24 * 60).default(90),
   timezone: z.string().min(1),
   cap: z.number().int().min(1).max(500).nullable(),
+  /** Optional cost in cents: per player, or the total split between everyone in. */
+  feeCents: z.number().int().min(1).max(10_000_000).nullable().optional(),
+  feeSplit: z.boolean().optional(),
+  /** How to pay, e.g. "e-Transfer to sam@example.com". */
+  payNote: z.string().trim().max(200).nullable().optional(),
   reminders: z
     .object({ dayBefore: z.boolean(), hoursBefore: z.number().int().min(1).max(48).nullable() })
     .default({ dayBefore: true, hoursBefore: 2 }),

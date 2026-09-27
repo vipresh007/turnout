@@ -15,6 +15,10 @@ export interface Group {
   durationMinutes: number;
   timezone: string;
   cap: number | null;
+  /** Cost in cents, per player or (feeSplit) the total split between everyone in. */
+  feeCents: number | null;
+  feeSplit: boolean;
+  payNote: string | null;
   reminders: ReminderSettings;
 }
 

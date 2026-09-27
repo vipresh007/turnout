@@ -214,7 +214,7 @@ function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message:
   const link = shareUrl(group.slug);
   const message = groupShareMessage({
     name: group.name, activity: group.activity, location: session.location ?? group.location, timezone: group.timezone, cap: group.cap,
-    startsAt: session.startsAt, confirmed, cancelled: session.cancelled, link,
+    startsAt: session.startsAt, confirmed, cancelled: session.cancelled, link, feeCents: group.feeCents, feeSplit: group.feeSplit,
   });
   const need = !session.cancelled && group.cap && confirmed < group.cap;
   const fill = group.cap ? Math.min(1, confirmed / group.cap) : 0;

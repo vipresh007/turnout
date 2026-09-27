@@ -1,4 +1,4 @@
-import { describeRecurrence, placeOf, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { describeCost, describeRecurrence, formatMoney, placeOf, shareCents, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
@@ -114,6 +114,7 @@ export default function GroupScreen() {
   const shareInput = {
     name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap,
     startsAt: session.startsAt, confirmed: roster.confirmed.length, cancelled: session.cancelled, link,
+    feeCents: group.feeCents, feeSplit: group.feeSplit,
   };
   const needsName = !me && name.trim().length === 0;
   const paidSet = viewer.isOrganizer ? new Set(page.organizer?.paid ?? []) : undefined;
@@ -187,6 +188,7 @@ export default function GroupScreen() {
           {roster.spotsLeft > 0 && <Muted>{roster.spotsLeft} {roster.spotsLeft === 1 ? "spot" : "spots"} left</Muted>}
 
           <StatusLine place={place} name={me?.name} />
+          <CostLine cost={describeCost(group, roster.confirmed.length)} payNote={group.payNote} />
 
           {!me && nameTaken ? (
             <IdentityPrompt
@@ -288,7 +290,7 @@ export default function GroupScreen() {
           )}
           {paidSet && roster.confirmed.length > 0 && (
             <Text style={{ color: t.muted }}>
-              💵 {roster.confirmed.filter((r) => paidSet.has(r.memberId)).length} of {roster.confirmed.length} paid · tap “Paid” next to a name to mark it
+              💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))} · tap “Paid” next to a name to mark it
             </Text>
           )}
           <Muted>Tap × next to a name to remove someone from the group.</Muted>
@@ -316,6 +318,21 @@ function StatusLine({ place, name }: { place: ReturnType<typeof placeOf>; name?:
   if (!text) return null;
   const color = place.kind === "confirmed" ? t.accent : place.kind === "waitlist" ? t.waitlist : t.muted;
   return <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{text}</Text>;
+}
+
+/** "3 of 10 paid · $30 of $100 collected". */
+const paidLine = (paid: number, total: number, share: number | null) =>
+  `${paid} of ${total} paid${share !== null ? ` · ${formatMoney(paid * share)} of ${formatMoney(total * share)} collected` : ""}`;
+
+function CostLine({ cost, payNote }: { cost: string | null; payNote: string | null }) {
+  const t = useTheme();
+  if (!cost) return null;
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={{ color: t.text, fontWeight: "700" }}>💵 {cost}</Text>
+      {payNote && <Text style={{ color: t.muted }}>{payNote}</Text>}
+    </View>
+  );
 }
 
 function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lateDrops }: {

@@ -1,3 +1,5 @@
+import { formatMoney, shareCents } from "./cost.ts";
+
 const emoji: [RegExp, string][] = [
   [/soccer|football|futsal/i, "⚽"], [/basketball|hoops/i, "🏀"], [/volleyball/i, "🏐"], [/hockey|shinny/i, "🏒"],
   [/pickleball|ping ?pong|table tennis/i, "🏓"], [/tennis/i, "🎾"], [/badminton/i, "🏸"], [/run|running|jog/i, "🏃"],
@@ -21,6 +23,8 @@ export interface ShareInput {
   confirmed: number;
   cancelled?: boolean;
   link: string;
+  feeCents?: number | null;
+  feeSplit?: boolean;
 }
 
 /** "Wed, Sep 30 · 8:00 PM" in the group's timezone. */
@@ -43,6 +47,8 @@ export function groupShareMessage(g: ShareInput): string {
   } else {
     lines.push(`👥 ${g.confirmed} in so far`);
   }
+  const share = g.cancelled ? null : shareCents({ feeCents: g.feeCents ?? null, feeSplit: !!g.feeSplit }, g.confirmed);
+  if (share !== null) lines.push(g.feeSplit ? `💵 ${formatMoney(g.feeCents!)} split · ${formatMoney(share)} each so far` : `💵 ${formatMoney(share)} each`);
   lines.push("", `Tap to join: ${g.link}`);
   return lines.join("\n");
 }

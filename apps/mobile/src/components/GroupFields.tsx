@@ -69,6 +69,19 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
       <Muted>Timezone: {timezone}</Muted>
 
       <View style={{ gap: 8, marginTop: 4 }}>
+        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Cost (optional)</Text>
+        <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <Chip label="Per player" selected={!value.feeSplit} onPress={() => set("feeSplit")(false)} />
+          <Chip label="Total, split between everyone in" selected={value.feeSplit} onPress={() => set("feeSplit")(true)} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 12 }}>
+          <Field label={value.feeSplit ? "Total ($)" : "Each ($)"} placeholder={value.feeSplit ? "120" : "10"} value={value.fee} onChangeText={(v) => set("fee")(v.replace(/[^\d.,]/g, ""))} keyboardType="decimal-pad" />
+          <Field label="How to pay" placeholder="e-Transfer to sam@example.com" value={value.payNote} onChangeText={set("payNote")} />
+        </View>
+        {value.feeSplit && <Muted>Each player's share updates as people join.</Muted>}
+      </View>
+
+      <View style={{ gap: 8, marginTop: 4 }}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Reminders for players who turn them on</Text>
         <Chip
           label="🌙 Evening before (6pm)"

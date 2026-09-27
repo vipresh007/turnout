@@ -99,12 +99,13 @@ export async function buildApp(db: Db) {
     if (!isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const [group] = await db.query<Group>(
       `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, weekdays, interval_weeks, starts_on, ends_on,
-                           start_time, duration_minutes, timezone, cap, reminders)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                           start_time, duration_minutes, timezone, cap, reminders, fee_cents, fee_split, pay_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING ${groupColumns}`,
       [randomSlug(), organizer.id, input.name, input.activity ?? null, input.location ?? null, input.weekdays[0], input.weekdays,
        input.intervalWeeks, input.startsOn ?? todayIn(input.timezone), input.endsOn ?? null,
-       input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders)],
+       input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders),
+       input.feeCents ?? null, input.feeSplit ?? false, input.payNote || null],
     );
     return reply.status(201).send({ group });
   });
@@ -136,6 +137,7 @@ export async function buildApp(db: Db) {
       starts_on: input.startsOn, ends_on: input.endsOn,
       start_time: input.startTime, duration_minutes: input.durationMinutes, timezone: input.timezone, cap: input.cap,
       reminders: input.reminders && JSON.stringify(input.reminders),
+      fee_cents: input.feeCents, fee_split: input.feeSplit, pay_note: input.payNote === "" ? null : input.payNote,
     };
     const entries = Object.entries(columns).filter(([, v]) => v !== undefined);
     await db.query(

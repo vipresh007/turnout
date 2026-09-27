@@ -123,4 +123,10 @@ export const migrations: string[] = [
     expires_at timestamptz NOT NULL
   );
   `,
+  // Optional cost per game: per player or a total split between everyone in, and how to pay.
+  `
+  ALTER TABLE groups ADD COLUMN fee_cents integer;
+  ALTER TABLE groups ADD COLUMN fee_split boolean NOT NULL DEFAULT false;
+  ALTER TABLE groups ADD COLUMN pay_note text;
+  `,
 ];

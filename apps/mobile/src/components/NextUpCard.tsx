@@ -1,4 +1,4 @@
-import { describeRecurrence, groupShareMessage, teamNames, type DashboardGroup } from "@turnout/shared";
+import { describeRecurrence, formatMoney, groupShareMessage, shareCents, teamNames, type DashboardGroup } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -25,7 +25,9 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
   const message = groupShareMessage({
     name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap,
     startsAt: session.startsAt, confirmed: item.confirmed, cancelled: session.cancelled, link,
+    feeCents: group.feeCents, feeSplit: group.feeSplit,
   });
+  const share = shareCents(group, item.confirmed);
   const fill = group.cap ? Math.min(1, item.confirmed / group.cap) : 0;
   const status = session.cancelled
     ? { text: "Cancelled this week", color: t.danger }
@@ -81,6 +83,7 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
           )}
           <Text style={{ color: t.muted, fontWeight: "700", fontSize: 13, letterSpacing: 0.4 }}>
             {item.confirmed} IN · {item.out} OUT · {item.waitlist} WAITLIST{item.confirmed ? ` · ${paidCount}/${item.confirmed} PAID` : ""}
+            {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} OF ${formatMoney(item.confirmed * share)}` : ""}
           </Text>
         </View>
       )}

@@ -16,7 +16,7 @@ export type Provider = "email" | "microsoft" | "google" | "apple";
 const domainHints: Record<Provider, string | undefined> = {
   email: undefined,
   microsoft: "login.microsoftonline.com", // custom OIDC: the issuer's domain
-  google: "google.com", // Entra rejects the documented "google" (AADSTS90023)
+  google: "Google", // built-in social provider: its type name
   apple: "apple",
 };
 
