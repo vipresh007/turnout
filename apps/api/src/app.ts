@@ -31,7 +31,7 @@ import { events, liveUrl } from "./events.ts";
 import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
-import { notifyPromoted, remindNow } from "./reminders.ts";
+import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
 import { atLocal, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
 type SlugParams = { Params: { slug: string } };
@@ -45,8 +45,10 @@ export async function buildApp(db: Db) {
     origin: process.env.CORS_ORIGIN?.split(",") ?? true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   });
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
-  const strict = (max: number) => ({ config: { rateLimit: { max, timeWindow: "1 minute" } } });
+  // Tests make many requests from one address; production limits are per client.
+  const limit = (max: number) => (process.env.NODE_ENV === "test" ? 100_000 : max);
+  await app.register(rateLimit, { max: limit(300), timeWindow: "1 minute" });
+  const strict = (max: number) => ({ config: { rateLimit: { max: limit(max), timeWindow: "1 minute" } } });
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof ZodError) return reply.status(400).send({ error: err.issues[0]?.message ?? "Invalid input", issues: err.issues });
@@ -233,15 +235,25 @@ export async function buildApp(db: Db) {
     if (session.cancelled) throw new HttpError(409, "This week's session is cancelled");
 
     const before = buildRoster(await sessionRsvps(db, session.id), group.cap);
+    const wasConfirmed = before.confirmed.some((r) => r.memberId === member.id);
+    const hoursToGo = (new Date(session.startsAt).getTime() - Date.now()) / 3_600_000;
+    const lateDrop = status === "out" && wasConfirmed && hoursToGo > 0 && hoursToGo <= LATE_DROP_HOURS;
     // Saying "in" again keeps your place. Any change moves your timestamp, so rejoining puts you at the back.
     await db.query(
-      `INSERT INTO rsvps (session_id, member_id, status) VALUES ($1, $2, $3)
+      `INSERT INTO rsvps (session_id, member_id, status, late_drop) VALUES ($1, $2, $3, $4)
        ON CONFLICT (session_id, member_id) DO UPDATE SET
          status = EXCLUDED.status,
+         late_drop = EXCLUDED.late_drop OR (rsvps.late_drop AND EXCLUDED.status = 'out'),
          responded_at = CASE WHEN rsvps.status = EXCLUDED.status THEN rsvps.responded_at ELSE now() END`,
-      [session.id, member.id, status],
+      [session.id, member.id, status, lateDrop],
     );
-    return changed(group, before);
+    const page = await changed(group, before);
+    // A confirmed player left and nobody moved up: chase the open spot.
+    if (wasConfirmed && status === "out" && promotedMembers(before, page.roster).length === 0) {
+      const rsvps = await sessionRsvps(db, session.id);
+      await onSpotOpened(db, group, session, rsvps, member.name).catch((err) => req.log.warn({ err }, "spot-opened failed"));
+    }
+    return page;
   });
 
   // ── Organizer: payments, skills, teams, reminders ─────────

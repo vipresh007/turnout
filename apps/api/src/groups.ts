@@ -101,7 +101,8 @@ async function organizerDetails(db: Db, groupId: string, sessionId: string): Pro
     [sessionId],
   );
   const skills = await db.query<{ id: string; skill: number }>(`SELECT id, skill FROM members WHERE group_id = $1 AND skill IS NOT NULL`, [groupId]);
-  return { paid: paid.map((p) => p.memberId), skills: Object.fromEntries(skills.map((m) => [m.id, m.skill])) };
+  const late = await db.query<{ memberId: string }>(`SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND late_drop`, [sessionId]);
+  return { paid: paid.map((p) => p.memberId), skills: Object.fromEntries(skills.map((m) => [m.id, m.skill])), lateDrops: late.map((l) => l.memberId) };
 }
 
 /** Everything the organizer's home screen shows, in one request. */

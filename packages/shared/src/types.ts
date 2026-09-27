@@ -54,8 +54,8 @@ export interface GroupPage {
   roster: Roster;
   /** What the requester may do. Only set from a verified organizer identity. */
   viewer: { isOrganizer: boolean };
-  /** Organizer-only details: who has paid this week and each member's skill rating. */
-  organizer?: { paid: string[]; skills: Record<string, number> };
+  /** Organizer-only details: who has paid, skill ratings, and who dropped out late this week. */
+  organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[] };
 }
 
 /** A member's own settings, seen only with their member token. */

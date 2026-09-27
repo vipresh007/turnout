@@ -318,3 +318,36 @@ test("recurrence: several days, skip a week, move this week, note", async () => 
   assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/2026-01-01T00:00:00.000Z`, headers: org, payload: { cancelled: true } })).statusCode, 400);
   assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/weeks/${weeks[0].scheduledAt}`, headers: { "x-dev-user": "not-owner" }, payload: { cancelled: true } })).statusCode, 403);
 });
+
+test("dropout close to game time: late-drop flag and a spot-opened nudge, once", async () => {
+  const org = { "x-dev-user": "drop-org" };
+  const start = new Date(Date.now() + 3 * 3_600_000); // a game three hours from now (UTC)
+  const hhmm = `${String(start.getUTCHours()).padStart(2, "0")}:${String(start.getUTCMinutes()).padStart(2, "0")}`;
+  const { slug } = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "Drop Test", weekdays: [start.getUTCDay()], startTime: hhmm, timezone: "UTC", cap: 2 },
+  })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json();
+  const [a, b, c] = [await join("Ana"), await join("Ben"), await join("Cy")];
+  const rsvp = (m: { token: string }, status: "in" | "out") =>
+    app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": m.token }, payload: { status } });
+  await rsvp(a, "in");
+  await rsvp(b, "in");
+  // Cy hasn't answered but has reminders on.
+  await app.inject({ method: "PUT", url: `/groups/${slug}/me/push`, headers: { "x-member-token": c.token }, payload: { endpoint: "https://push.example.com/cy", keys: { p256dh: "k", auth: "a" } } });
+
+  await rsvp(a, "out"); // full game, no waitlist, 3h to go
+  let page = (await app.inject({ url: `/groups/${slug}`, headers: org })).json() as GroupPage;
+  assert.deepEqual(page.organizer?.lateDrops, [a.member.id]);
+  const sent = async () => (await db.query(`SELECT count(*)::int AS n FROM notifications_sent WHERE member_id = $1 AND kind = 'spotOpened'`, [c.member.id]))[0]!.n;
+  assert.equal(await sent(), 1);
+
+  // Ben drops too: Cy isn't nudged twice for the same game. Rejoining clears Ana's late-drop flag.
+  await rsvp(b, "out");
+  assert.equal(await sent(), 1);
+  await rsvp(a, "in");
+  page = (await app.inject({ url: `/groups/${slug}`, headers: org })).json() as GroupPage;
+  assert.deepEqual(page.organizer?.lateDrops, [b.member.id]);
+  // Late drops are organizer-only.
+  assert.equal(((await app.inject({ url: `/groups/${slug}` })).json() as GroupPage).organizer, undefined);
+});

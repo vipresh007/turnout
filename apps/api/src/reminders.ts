@@ -2,7 +2,7 @@ import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, ty
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
-import { notifyMember, webUrl, type Message } from "./notify.ts";
+import { emailHtml, notifyMember, sendEmail, webUrl, type Message } from "./notify.ts";
 
 /** "Wed 8:00 PM" in the group's timezone. */
 export function whenLabel(startsAt: string, timezone: string): string {
@@ -113,5 +113,46 @@ export async function notifyPromoted(db: Db, group: GroupRow, startsAt: string, 
       url: `${webUrl()}/g/${group.slug}`,
       rsvpActions: true,
     }).catch((err) => console.warn("promotion notify failed", err));
+  }
+}
+
+/** Dropping out within this many hours of the start counts as a late drop. */
+export const LATE_DROP_HOURS = 12;
+/** Only chase an open spot when the game is this close; earlier, the normal reminders cover it. */
+const SPOT_OPENED_HOURS = 48;
+
+/**
+ * A confirmed player dropped out and nobody moved up from the waitlist: tell people who haven't
+ * answered that a spot opened (first to tap gets it), and email the organizer a "need N" alert.
+ */
+export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rsvps: Rsvp[], droppedName: string): Promise<void> {
+  const hoursToGo = (new Date(session.startsAt).getTime() - Date.now()) / 3_600_000;
+  if (session.cancelled || hoursToGo <= 0 || hoursToGo > SPOT_OPENED_HOURS) return;
+  const roster = buildRoster(rsvps, group.cap);
+  if (roster.spotsLeft === 0) return;
+  const when = whenLabel(session.startsAt, group.timezone);
+  const url = `${webUrl()}/g/${group.slug}`;
+  const count = `${roster.confirmed.length}/${group.cap} in`;
+
+  const responded = new Set(rsvps.map((r) => r.memberId));
+  for (const m of await reachableMembers(db, group.id)) {
+    if (responded.has(m.id)) continue;
+    const [claimed] = await db.query(
+      `INSERT INTO notifications_sent (session_id, member_id, kind) VALUES ($1, $2, 'spotOpened') ON CONFLICT DO NOTHING RETURNING 1`,
+      [session.id, m.id],
+    );
+    if (claimed) {
+      await notifyMember(db, m.id, { title: `A spot just opened for ${group.name}`, body: `${when} · ${count}. First to tap gets it.`, url, rsvpActions: true })
+        .catch((err) => console.warn("spot-opened notify failed", err));
+    }
+  }
+
+  const [organizer] = await db.query<{ email: string | null }>(`SELECT email FROM organizers WHERE id = $1`, [group.organizerId]);
+  if (organizer?.email) {
+    const need = roster.spotsLeft;
+    const title = `${droppedName} dropped out of ${group.name}`;
+    const body = `${when} · ${count}. You need ${need} more. Share the link in your group chat to fill the spot${need === 1 ? "" : "s"}.`;
+    await sendEmail(organizer.email, `${title} · need ${need}`, emailHtml({ title, body, url }, undefined, "Open the group"), `${title}. ${body} ${url}`)
+      .catch((err) => console.warn("organizer alert failed", err));
   }
 }

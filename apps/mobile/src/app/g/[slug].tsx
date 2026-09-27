@@ -195,7 +195,7 @@ export default function GroupScreen() {
 
       <PeopleList title="In" people={roster.confirmed} numbered onRemove={onRemove} paid={paidSet} onTogglePaid={onTogglePaid} />
       {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} />}
-      {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} />}
+      {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} lateDrops={viewer.isOrganizer ? new Set(page.organizer?.lateDrops ?? []) : undefined} />}
 
       <ShareCard input={shareInput} />
       {notice && <Muted>{notice}</Muted>}
@@ -288,7 +288,8 @@ function StatusLine({ place, name }: { place: ReturnType<typeof placeOf>; name?:
   return <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{text}</Text>;
 }
 
-function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid }: {
+function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lateDrops }: {
+  lateDrops?: Set<string>;
   title: string;
   people: Rsvp[];
   numbered?: boolean;
@@ -311,6 +312,11 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid }: {
             <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
               {p.name}
             </Text>
+            {lateDrops?.has(p.memberId) && (
+              <View style={{ borderWidth: 1, borderColor: t.waitlist, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: t.waitlist, fontSize: 11, fontWeight: "800" }}>late drop</Text>
+              </View>
+            )}
           </View>
           {onTogglePaid && paid && (
             <Pressable

@@ -103,4 +103,6 @@ export const migrations: string[] = [
   ALTER TABLE sessions ADD COLUMN location_override text;
   ALTER TABLE sessions ADD COLUMN note text;
   `,
+  // Dropouts close to game time, for the organizer (and reliability later).
+  `ALTER TABLE rsvps ADD COLUMN late_drop boolean NOT NULL DEFAULT false;`,
 ];
