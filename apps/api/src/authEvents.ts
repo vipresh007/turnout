@@ -15,10 +15,12 @@ function eventsVerifier() {
   const audience = process.env.ENTRA_EVENTS_APP_ID;
   if (!authority || !audience) return undefined;
   verifier ??= (async () => {
-    const res = await fetch(`${authority.replace(/\/$/, "")}/.well-known/openid-configuration`);
+    const res = await fetch(`${authority.replace(/\/$/, "")}/.well-known/openid-configuration`, { signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error(`Entra discovery failed: ${res.status}`);
     const { issuer, jwks_uri } = (await res.json()) as { issuer: string; jwks_uri: string };
-    const jwks = createRemoteJWKSet(new URL(jwks_uri));
+    const jwks = createRemoteJWKSet(new URL(jwks_uri), { timeoutDuration: 3000, cooldownDuration: 30_000 });
+    // Load the signing keys now, so the first sign-in doesn't pay for the fetch.
+    await jwks.reload().catch(() => {});
     return async (token: string) => {
       const { payload } = await jwtVerify(token, jwks, { issuer, audience });
       if ((payload.azp ?? payload.appid) !== ENTRA_EXTENSIONS_SERVICE_APP_ID) throw new Error("unexpected caller");
@@ -42,7 +44,11 @@ interface OtpSendEvent {
 }
 
 export function registerAuthEvents(app: FastifyInstance) {
+  // Warm up at startup: Entra gives us about 2 seconds per call, too short for first-time fetches.
+  eventsVerifier()?.catch((err) => app.log.warn({ err }, "auth events verifier warm-up failed"));
+
   app.post("/auth-events/otp-send", async (req) => {
+    const started = Date.now();
     const verify = eventsVerifier();
     const auth = req.headers.authorization;
     if (!verify || !auth?.startsWith("Bearer ")) throw new HttpError(401, "Unauthorized");
@@ -53,11 +59,16 @@ export function registerAuthEvents(app: FastifyInstance) {
       throw new HttpError(401, "Unauthorized");
     }
 
+    const verifiedMs = Date.now() - started;
+
     const otp = (req.body as OtpSendEvent).data?.otpContext;
     if (!otp?.identifier || !otp.onetimecode) throw new HttpError(400, "Missing code");
-    // Entra waits about 2 seconds for us, so hand the email to the sender and answer right away.
-    // If sending fails, Entra's fallback to its own email covers it (configured on the listener).
-    await sendEmail(otp.identifier, `${otp.onetimecode} is your Turnout code`, otpEmailHtml(otp.onetimecode), otpEmailText(otp.onetimecode), undefined, { wait: false });
+    // Answer Entra immediately and send in the background: the email doesn't have to be accepted
+    // by the mail service before we reply, and Entra only waits about 2 seconds.
+    sendEmail(otp.identifier, `${otp.onetimecode} is your Turnout code`, otpEmailHtml(otp.onetimecode), otpEmailText(otp.onetimecode), undefined, { wait: false })
+      .then(() => req.log.info({ ms: Date.now() - started }, "sign-in code email accepted"))
+      .catch((err) => req.log.error({ err }, "sign-in code email failed"));
+    req.log.info({ verifiedMs }, "sign-in code event handled");
     return continueResponse;
   });
 }
