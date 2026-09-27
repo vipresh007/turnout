@@ -241,7 +241,9 @@ test("auth events: the sign-in code endpoint only accepts Entra's signed calls",
   const body = { data: { otpContext: { identifier: "a@example.com", onetimecode: "12345678" } } };
   assert.equal((await app.inject({ method: "POST", url: "/auth-events/otp-send", payload: body })).statusCode, 401);
   assert.equal((await app.inject({ method: "POST", url: "/auth-events/otp-send", headers: { authorization: "Bearer not.a.token" }, payload: body })).statusCode, 401);
-  const { otpEmailHtml, otpEmailText } = await import("./authEvents.ts");
+  const { otpEmailHtml, otpEmailText, readOtp } = await import("./authEvents.ts");
+  assert.deepEqual(readOtp({ data: { otpContext: { identifier: "a@x.com", onetimecode: "123" } } }), { email: "a@x.com", code: "123" });
+  assert.deepEqual(readOtp({ data: { otpContext: { email: "a@x.com", oneTimeCode: "123" } } }), { email: "a@x.com", code: "123" });
   assert.match(otpEmailHtml("12345678"), /12345678/);
   assert.match(otpEmailText("12345678"), /12345678/);
 });

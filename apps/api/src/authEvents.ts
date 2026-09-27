@@ -39,8 +39,21 @@ const continueResponse = {
   },
 };
 
-interface OtpSendEvent {
-  data?: { otpContext?: { identifier?: string; onetimecode?: string } };
+/** Names of every field in the payload (never the values), to see its real shape in the logs. */
+function shape(v: unknown, depth = 0): unknown {
+  if (!v || typeof v !== "object" || depth > 3) return typeof v;
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, shape(x, depth + 1)]));
+}
+
+/** Finds the email and code; the payload's field names vary from the documented ones. */
+export function readOtp(body: unknown): { email?: string; code?: string } {
+  const data = (body as { data?: Record<string, unknown> })?.data ?? {};
+  const ctx = (data.otpContext ?? data.oneTimeCodeContext ?? data.otp ?? {}) as Record<string, unknown>;
+  const pick = (o: Record<string, unknown>, keys: string[]) => keys.map((k) => o[k]).find((x) => typeof x === "string") as string | undefined;
+  return {
+    email: pick(ctx, ["identifier", "email", "emailAddress", "userPrincipalName"]),
+    code: pick(ctx, ["onetimecode", "oneTimeCode", "otp", "code", "passcode"]),
+  };
 }
 
 export function registerAuthEvents(app: FastifyInstance) {
@@ -74,8 +87,12 @@ export function registerAuthEvents(app: FastifyInstance) {
 
     const verifiedMs = Date.now() - started;
 
-    const otp = (req.body as OtpSendEvent).data?.otpContext;
-    if (!otp?.identifier || !otp.onetimecode) throw new HttpError(400, "Missing code");
+    const { email, code } = readOtp(req.body);
+    if (!email || !code) {
+      req.log.warn({ payload: shape(req.body) }, "auth event: code or email not found in payload");
+      throw new HttpError(400, "Missing code");
+    }
+    const otp = { identifier: email, onetimecode: code };
     // Answer Entra immediately and send in the background: the email doesn't have to be accepted
     // by the mail service before we reply, and Entra only waits about 2 seconds.
     sendEmail(otp.identifier, `${otp.onetimecode} is your Turnout code`, otpEmailHtml(otp.onetimecode), otpEmailText(otp.onetimecode), undefined, { wait: false })
