@@ -31,11 +31,20 @@ const features = [
   { icon: "🔁", title: "Self-running waitlist", body: "Set a cap. When someone drops, the next person moves up without you lifting a finger." },
   { icon: "🔗", title: "No app for players", body: "Players tap a link in any browser. Only the organizer signs in." },
   { icon: "📣", title: "“We need 2 more”", body: "Short on players? Share a ready-made message with the live count and a join link." },
-  { icon: "🛠️", title: "You stay in control", body: "Cancel a week, change the cap, remove someone. Everyone's page updates instantly." },
-  { icon: "✨", title: "Coming soon", body: "Game-day reminders, balanced teams, and tracking who's paid." },
+  { icon: "⏰", title: "Reminders that land", body: "Players can turn on a game-day reminder by email or notification. Still no account, and one tap to stop." },
+  { icon: "🤝", title: "Run it together", body: "Add co-organizers, split the court fee, track who's paid, make balanced teams, and see who you can count on." },
 ];
 
 const uses = ["⚽️ Pickup soccer", "🏀 Basketball runs", "🏐 Volleyball", "🏃 Run clubs", "🃏 Poker nights", "🧘 Yoga classes", "🤝 Volunteer shifts", "🎲 Board game nights", "🏸 Badminton", "🥏 Ultimate", "🎾 Pickleball", "🏒 Shinny"];
+
+const faqs = [
+  { q: "Do players need to download an app or make an account?", a: "No. Players open the link in any browser, type their name once, and tap in or out. Only organizers sign in." },
+  { q: "Is it free?", a: "Yes, Turnout is free for organizers and players. If we add paid extras later, what you use today stays free." },
+  { q: "What happens when the game is full?", a: "New players join a waitlist. If someone drops out, the next person moves up automatically and gets a heads-up." },
+  { q: "How do reminders work without an account?", a: "On the group page, players can ask for a reminder by email or turn on browser notifications. Every email has a one-tap stop link." },
+  { q: "Can someone else help run the group?", a: "Yes. Invite co-organizers with a private link. They can remind, cancel or move a week, make teams, and mark payments." },
+  { q: "Does Turnout collect money?", a: "No. You can set a cost per player or split a total, and tick off who's paid. The money itself goes however your group already pays." },
+];
 
 const demoNames = ["Maya", "Jordan", "Priya", "Sam", "Luis", "Aisha", "Chen"];
 
@@ -47,7 +56,11 @@ export function Landing() {
   const { status } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
   const howY = useRef(0);
-  const start = () => router.push(status === "signedIn" ? "/new" : "/dashboard");
+  const featuresY = useRef(0);
+  const faqY = useRef(0);
+  const scrollTo = (y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
+  // Signed out, /new asks for sign-in first and comes back to the form; "Sign in" goes to the dashboard.
+  const start = () => router.push("/new");
   useEffect(() => wakeApi(), []); // most visitors head to sign-in next
 
   return (
@@ -67,9 +80,23 @@ export function Landing() {
           <Text style={s.logo}>
             turnout<Text style={{ color: t.accent }}>.</Text>
           </Text>
-          <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, hovered && { backgroundColor: t.card }]}>
-            <Text style={{ color: t.text, fontWeight: "600" }}>{status === "signedIn" ? "Your groups" : "Sign in"}</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: wide ? 6 : 8 }}>
+            {wide && (
+              <>
+                <NavText label="How it works" onPress={() => scrollTo(howY.current)} />
+                <NavText label="Features" onPress={() => scrollTo(featuresY.current)} />
+                <NavText label="FAQ" onPress={() => scrollTo(faqY.current)} />
+              </>
+            )}
+            <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, hovered && { backgroundColor: t.card }]}>
+              <Text style={{ color: t.text, fontWeight: "600" }}>{status === "signedIn" ? "Your groups" : "Sign in"}</Text>
+            </Pressable>
+            {(wide || status !== "signedIn") && (
+              <Pressable accessibilityRole="button" onPress={start} style={({ hovered }: { hovered?: boolean }) => [s.navLink, { backgroundColor: t.accent, borderColor: t.accent }, hovered && { opacity: 0.9 }]}>
+                <Text style={{ color: t.accentText, fontWeight: "800" }}>{wide ? "Start a group" : "Start"}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
@@ -159,7 +186,7 @@ export function Landing() {
       </View>
 
       {/* ── Features ── */}
-      <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
+      <View onLayout={(e) => (featuresY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 40, paddingVertical: 80 }]}>
         <Reveal style={{ gap: 12 }}>
           <Text style={s.kicker}>Features</Text>
           <Text style={s.h2}>Everything the group chat can't do</Text>
@@ -192,6 +219,17 @@ export function Landing() {
             </View>
           ))}
         </Marquee>
+      </View>
+
+      {/* ── FAQ ── */}
+      <View onLayout={(e) => (faqY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 820 }]}>
+        <Reveal style={{ gap: 12, alignItems: "center" }}>
+          <Text style={s.kicker}>FAQ</Text>
+          <Text style={[s.h2, { textAlign: "center" }]}>Questions organizers ask</Text>
+        </Reveal>
+        <View style={{ gap: 10 }}>
+          {faqs.map((f) => <Faq key={f.q} q={f.q} a={f.a} />)}
+        </View>
       </View>
 
       {/* ── Final CTA ── */}
@@ -439,3 +477,31 @@ const styles = (t: Theme) =>
     },
     ctaInverse: { backgroundColor: "#fff", paddingVertical: 17, paddingHorizontal: 30, borderRadius: 16, marginTop: 8 },
   });
+
+function NavText({ label, onPress }: { label: string; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable accessibilityRole="link" onPress={onPress} style={({ hovered }: { hovered?: boolean }) => ({ paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: hovered ? t.card : "transparent" })}>
+      <Text style={{ color: t.muted, fontWeight: "600" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Faq({ q, a }: { q: string; a: string }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      onPress={() => setOpen((o) => !o)}
+      style={({ hovered }: { hovered?: boolean }) => ({ backgroundColor: t.card, borderColor: open || hovered ? t.accent : t.border, borderWidth: 1, borderRadius: 16, padding: 18, gap: 8 })}
+    >
+      <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
+        <Text style={{ color: t.text, fontSize: 17, fontWeight: "800", flex: 1 }}>{q}</Text>
+        <Text style={{ color: t.accent, fontSize: 20, fontWeight: "800" }}>{open ? "−" : "+"}</Text>
+      </View>
+      {open && <Text style={{ color: t.muted, fontSize: 16, lineHeight: 24 }}>{a}</Text>}
+    </Pressable>
+  );
+}

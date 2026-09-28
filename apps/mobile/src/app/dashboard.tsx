@@ -1,19 +1,22 @@
-import { describeRecurrence, groupShareMessage, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
+import { Link, router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
-import { NextUpCard } from "@/components/NextUpCard";
+import { GroupTile } from "@/components/GroupTile";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
-import { shareUrl, useApi } from "@/lib/api";
+import { useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useLive } from "@/lib/live";
-import { formatTime, greeting, relativeDay, timeAgo } from "@/lib/format";
+import { greeting, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
+import { storage } from "@/lib/storage";
 import { useTheme, type Theme } from "@/lib/theme";
 
+
+const EXPANDED_KEY = "dashboard:expanded";
 
 export default function DashboardScreen() {
   return (
@@ -35,6 +38,18 @@ function DashboardView() {
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // Which group tiles are open; remembered on this device.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    storage.get(EXPANDED_KEY).then((raw) => raw && setExpanded(new Set(JSON.parse(raw) as string[])), () => {});
+  }, []);
+  const toggle = (slug: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(slug)) next.add(slug);
+      storage.set(EXPANDED_KEY, JSON.stringify([...next])).catch(() => {});
+      return next;
+    });
 
   const load = useCallback(() => api.dashboard().then(setData, (e: Error) => setError(e.message)), [api]);
 
@@ -82,6 +97,9 @@ function DashboardView() {
   const spots = groups.filter((g) => !g.session.cancelled).reduce((n, g) => n + (g.group.cap ?? 0), 0);
   const next = groups.find((g) => !g.session.cancelled) ?? groups[0];
   const others = groups.filter((g) => g !== next);
+  const tile = (g: DashboardGroup) => (
+    <GroupTile item={g} isNext={g === next} expanded={expanded.has(g.group.slug)} onToggle={() => toggle(g.group.slug)} onShare={share} onChanged={load} />
+  );
 
   return (
     <RevealScrollView
@@ -91,6 +109,13 @@ function DashboardView() {
     >
       <View style={s.container}>
         {/* Header */}
+        {Platform.OS === "web" && (
+          <Link href="/" accessibilityLabel="Turnout home page" style={{ alignSelf: "flex-start" }}>
+            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900", letterSpacing: -1 }}>
+              turnout<Text style={{ color: t.accent }}>.</Text>
+            </Text>
+          </Link>
+        )}
         <View style={s.header}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={s.hello}>
@@ -108,6 +133,11 @@ function DashboardView() {
               {menuOpen && (
                 <Pop style={s.menu}>
                   {organizer.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{organizer.email}</Text>}
+                  {Platform.OS === "web" && (
+                    <Pressable accessibilityRole="link" onPress={() => router.push("/")} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
+                      <Text style={{ color: t.text, fontWeight: "700" }}>Home page</Text>
+                    </Pressable>
+                  )}
                   <Pressable accessibilityRole="button" onPress={doSignOut} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
                     <Text style={{ color: t.danger, fontWeight: "700" }}>Sign out</Text>
                   </Pressable>
@@ -128,15 +158,15 @@ function DashboardView() {
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
-            {next && <NextUpCard item={next} onShare={share} onChanged={load} />}
+            {next && tile(next)}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
 
             {others.length > 0 && (
-              <View style={{ gap: 12 }}>
+              <View style={{ gap: 10 }}>
                 <Text style={s.sectionTitle}>Your other groups</Text>
                 {others.map((g, i) => (
                   <Reveal key={g.group.id} delay={i * 80}>
-                    <GroupCard item={g} onShare={share} />
+                    {tile(g)}
                   </Reveal>
                 ))}
               </View>
@@ -196,93 +226,6 @@ function Stat({ label, value, hint, accent }: { label: string; value: string; hi
         {hint}
       </Text>
     </View>
-  );
-}
-
-function statusChip(t: Theme, g: DashboardGroup): { text: string; color: string; bg: string } {
-  if (g.session.cancelled) return { text: "Cancelled", color: t.danger, bg: "transparent" };
-  if (g.group.cap === null) return { text: `${g.confirmed} in`, color: t.muted, bg: "transparent" };
-  if (g.spotsLeft === 0) return { text: g.waitlist ? `Full · ${g.waitlist} waitlisted` : "Full", color: t.accent, bg: t.soft };
-  return { text: `Need ${g.spotsLeft} more`, color: t.waitlist, bg: "transparent" };
-}
-
-function GroupCard({ item, onShare }: { item: DashboardGroup; onShare: (message: string) => void }) {
-  const t = useTheme();
-  const s = styles(t);
-  const { group, session, confirmed } = item;
-  const chip = statusChip(t, item);
-  const link = shareUrl(group.slug);
-  const message = groupShareMessage({
-    name: group.name, activity: group.activity, location: session.location ?? group.location, timezone: group.timezone, cap: group.cap,
-    startsAt: session.startsAt, confirmed, cancelled: session.cancelled, link, feeCents: group.feeCents, feeSplit: group.feeSplit,
-  });
-  const need = !session.cancelled && group.cap && confirmed < group.cap;
-  const fill = group.cap ? Math.min(1, confirmed / group.cap) : 0;
-  const open = () => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } });
-
-  return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={open}
-      style={({ hovered }: { hovered?: boolean }) => [s.card, { gap: 12 }, hovered && { borderColor: t.accent, transform: [{ translateY: -2 }] }]}
-    >
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ color: t.text, fontSize: 19, fontWeight: "800" }}>{group.name}</Text>
-          <Text style={s.muted}>
-            {describeRecurrence(group)} · {formatTime(group.startTime)} · {relativeDay(session.startsAt, group.timezone)}
-            {group.location ? ` · ${group.location}` : ""}
-          </Text>
-        </View>
-        <View style={[s.chip, { borderColor: chip.color, backgroundColor: chip.bg }]}>
-          <Text style={{ color: chip.color, fontWeight: "800", fontSize: 12 }}>{chip.text}</Text>
-        </View>
-      </View>
-
-      {!session.cancelled && (
-        <View style={{ gap: 6 }}>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-            <Text style={{ color: t.text, fontSize: 28, fontWeight: "900", letterSpacing: -1 }}>{confirmed}</Text>
-            <Text style={s.muted}>{group.cap ? `/ ${group.cap} in` : "in"}</Text>
-            {item.out > 0 && <Text style={[s.muted, { marginLeft: 8 }]}>· {item.out} out</Text>}
-          </View>
-          {group.cap && (
-            <View style={s.track}>
-              <View style={[s.fill, { width: `${fill * 100}%`, backgroundColor: fill >= 1 ? t.accent : t.accent }]} />
-            </View>
-          )}
-        </View>
-      )}
-
-      <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        <SmallButton label={need ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => onShare(message)} />
-        <SmallButton label="Open →" onPress={open} primary />
-      </View>
-    </Pressable>
-  );
-}
-
-function SmallButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
-  const t = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={(e) => {
-        e.stopPropagation?.(); // don't also trigger the card
-        onPress();
-      }}
-      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: primary ? t.accent : t.border,
-        backgroundColor: primary ? t.accent : hovered ? t.bg : t.card,
-        transform: [{ scale: pressed ? 0.96 : 1 }],
-      })}
-    >
-      <Text style={{ color: primary ? t.accentText : t.text, fontWeight: "700", fontSize: 14 }}>{label}</Text>
-    </Pressable>
   );
 }
 

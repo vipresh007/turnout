@@ -12,7 +12,7 @@ const deviceTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export default function NewGroupScreen() {
   return (
-    <SignInGate reason="Sign in to create and manage your groups.">
+    <SignInGate reason="Sign in to create your group. It takes a few seconds, and you come right back here.">
       <NewGroup />
     </SignInGate>
   );

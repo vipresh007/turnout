@@ -10,10 +10,17 @@ import { Pop } from "./motion";
 import { Button } from "./ui";
 
 /**
- * The operational view of the organizer's next game: how full it is, one-tap share and remind,
- * everyone's answer and payment, and the teams. What an organizer needs when they open Turnout.
+ * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
+ * Expanded: share and remind, who to ask, everyone's answer and payment, the teams, and a way into the group.
  */
-export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup; onShare: (text: string) => void; onChanged: () => void }) {
+export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged }: {
+  item: DashboardGroup;
+  isNext: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+  onShare: (text: string) => void;
+  onChanged: () => void;
+}) {
   const t = useTheme();
   const api = useApi();
   const { group, session, players } = item;
@@ -51,47 +58,72 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
     }
   };
 
+  const open = () => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } });
+  const hint = attentionHint(item);
+
   let waitlistPos = 0;
   return (
-    <View style={{ backgroundColor: t.card, borderColor: t.accent, borderWidth: 1, borderRadius: 22, padding: 20, gap: 16 }}>
-      <View style={{ gap: 4 }}>
-        <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>
-          Next up · {relativeDay(session.startsAt, group.timezone)}
-        </Text>
-        <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } })}>
-          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>{group.name}</Text>
-        </Pressable>
-        <Text style={{ color: t.muted }}>
-          {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
-          {where ? ` · ${where}` : ""} · {describeRecurrence(group)}
-        </Text>
-      </View>
-
-      {!session.cancelled && (
-        <View style={{ gap: 8 }}>
-          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-            <Text style={{ color: t.text, fontSize: 44, fontWeight: "900", letterSpacing: -2 }}>{item.confirmed}</Text>
-            <Text style={{ color: t.muted, fontSize: 20, fontWeight: "700" }}>{group.cap ? `/ ${group.cap}` : "in"}</Text>
-            <View style={{ borderWidth: 1, borderColor: status.color, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, marginLeft: 6 }}>
-              <Text style={{ color: status.color, fontWeight: "800", fontSize: 13 }}>{status.text}</Text>
-            </View>
+    <View style={{ backgroundColor: t.card, borderColor: isNext || expanded ? t.accent : t.border, borderWidth: 1, borderRadius: 20, overflow: "hidden" }}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${group.name}, ${status.text}. ${expanded ? "Hide details" : "Show details"}`}
+        onPress={onToggle}
+        style={({ hovered }: { hovered?: boolean }) => ({ padding: 18, gap: 10, backgroundColor: hovered ? t.bg : "transparent" })}
+      >
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            {isNext && (
+              <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>
+                Next up · {relativeDay(session.startsAt, group.timezone)}
+              </Text>
+            )}
+            <Text style={{ color: t.text, fontSize: 19, fontWeight: "900", letterSpacing: -0.3 }}>{group.name}</Text>
+            <Text style={{ color: t.muted }}>
+              {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
+              {where ? ` · ${where}` : ""}
+              {expanded ? ` · ${describeRecurrence(group)}` : ""}
+              {item.role === "admin" ? " · co-organizer" : ""}
+            </Text>
           </View>
-          {group.cap && (
-            <View style={{ height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
-              <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: t.accent }} />
+          <View style={{ alignItems: "flex-end", gap: 6 }}>
+            <View style={{ borderWidth: 1, borderColor: status.color, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+              <Text style={{ color: status.color, fontWeight: "800", fontSize: 12 }}>{status.text}</Text>
             </View>
-          )}
+            <Text style={{ color: t.muted, fontSize: 16, transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>▾</Text>
+          </View>
+        </View>
+
+        {!session.cancelled && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
+              {item.confirmed}
+              <Text style={{ color: t.muted, fontSize: 15, fontWeight: "700" }}>{group.cap ? ` / ${group.cap}` : " in"}</Text>
+            </Text>
+            {group.cap ? (
+              <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
+                <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: t.accent }} />
+              </View>
+            ) : <View style={{ flex: 1 }} />}
+          </View>
+        )}
+        {!expanded && hint && <Text style={{ color: t.text, fontSize: 14 }}>{hint}</Text>}
+      </Pressable>
+
+      {expanded && (
+      <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 16 }}>
+      {!session.cancelled && (
           <Text style={{ color: t.muted, fontWeight: "700", fontSize: 13, letterSpacing: 0.4 }}>
             {item.confirmed} IN · {item.out} OUT · {item.waitlist} WAITLIST{item.confirmed ? ` · ${paidCount}/${item.confirmed} PAID` : ""}
             {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} OF ${formatMoney(item.confirmed * share)}` : ""}
           </Text>
-        </View>
       )}
-      {session.cancelled && <Text style={{ color: t.danger, fontWeight: "800", fontSize: 18 }}>Cancelled this week</Text>}
+      {session.cancelled && <Text style={{ color: t.danger, fontWeight: "800", fontSize: 16 }}>No game this week</Text>}
 
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
         <Button label={item.spotsLeft && !session.cancelled ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => onShare(message)} />
-        <Button label="⏰ Remind everyone" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", async () => setReminder(await api.remind(group.slug)))} />
+        <Button label="⏰ Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", async () => setReminder(await api.remind(group.slug)))} />
+        <Button label="Open group →" variant="secondary" onPress={open} />
       </View>
       {reminder && (
         <Pop style={{ gap: 8 }}>
@@ -166,8 +198,26 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
         </View>
       )}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
+      </View>
+      )}
     </View>
   );
+}
+
+/** One line for a collapsed tile: the most useful thing to know or do. */
+function attentionHint({ group, session, spotsLeft, suggestions, players, confirmed }: DashboardGroup): string | null {
+  if (session.cancelled) return null;
+  if (session.note) return `📝 ${session.note}`;
+  const waiting = suggestions.invite.length;
+  if (spotsLeft > 0 && waiting > 0 && suggestions.games >= 2) {
+    return `👋 ${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
+  }
+  if (spotsLeft === 0 && group.cap !== null && suggestions.expectedLateDrops > 0 && suggestions.games >= 3) {
+    return "⚠️ Full, but you usually lose a player close to game time";
+  }
+  const unpaid = players.filter((p) => p.status === "in" && !p.paid).length;
+  if (group.feeCents && confirmed > 0 && unpaid > 0) return `💵 ${unpaid} of ${confirmed} still to pay`;
+  return null;
 }
 
 /** When the game is short: the regulars who haven't answered yet, one tap to ask each. And a heads-up about usual late dropouts. */
