@@ -1,9 +1,9 @@
-import { describeRecurrence, formatMoney, groupShareMessage, inviteMessage, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, describeForecast, describeRecurrence, formatMoney, groupShareMessage, inviteMessage, LATE_WARNING_HOURS, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { shareUrl, useApi } from "@/lib/api";
-import { relativeDay, sessionWhen } from "@/lib/format";
+import { shareUrl, trackEvent, useApi } from "@/lib/api";
+import { hoursUntil, relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
 import { Pop } from "./motion";
@@ -121,7 +121,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
       {session.cancelled && <Text style={{ color: t.danger, fontWeight: "800", fontSize: 16 }}>No game this week</Text>}
 
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        <Button label={item.spotsLeft && !session.cancelled ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => onShare(message)} />
+        <Button label={item.spotsLeft && !session.cancelled ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
         <Button label="⏰ Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", async () => setReminder(await api.remind(group.slug)))} />
         <Button label="Open group →" variant="secondary" onPress={open} />
       </View>
@@ -208,60 +208,74 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
 function attentionHint({ group, session, spotsLeft, suggestions, players, confirmed }: DashboardGroup): string | null {
   if (session.cancelled) return null;
   if (session.note) return `📝 ${session.note}`;
+  const hours = hoursUntil(session.startsAt);
+  const close = hours > 0 && hours <= ASK_WINDOW_HOURS;
+  const { forecast } = suggestions;
+  if (close && forecast?.status === "short") return `⚠️ You may be ${forecast.short} short · tap to see who to ask`;
+  if (close && forecast?.status === "good") return `✅ You're probably good · ${forecast.unanswered} still to answer`;
+  if (close && forecast?.status === "full" && hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0) return "Full · you usually lose a player late, a backup would help";
   const waiting = suggestions.invite.length;
-  if (spotsLeft > 0 && waiting > 0 && suggestions.games >= 2) {
+  if (close && !forecast && spotsLeft > 0 && waiting > 0 && suggestions.games >= 2) {
     return `👋 ${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
-  }
-  if (spotsLeft === 0 && group.cap !== null && suggestions.expectedLateDrops > 0 && suggestions.games >= 3) {
-    return "⚠️ Full, but you usually lose a player close to game time";
   }
   const unpaid = players.filter((p) => p.status === "in" && !p.paid).length;
   if (group.feeCents && confirmed > 0 && unpaid > 0) return `💵 ${unpaid} of ${confirmed} still to pay`;
   return null;
 }
 
-/** When the game is short: the regulars who haven't answered yet, one tap to ask each. And a heads-up about usual late dropouts. */
+/**
+ * Autopilot, close to game time: "probably good" or "may be N short", and the regulars most likely to say yes,
+ * one tap to ask each. Hidden until ASK_WINDOW_HOURS before the game, when most answers are still to come.
+ */
 function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: string; onShare: (text: string) => void }) {
   const t = useTheme();
-  const { group, session, suggestions, spotsLeft } = item;
-  if (session.cancelled || suggestions.games < 2) return null;
-  const lateWarning = suggestions.expectedLateDrops > 0 && group.cap !== null && suggestions.games >= 3;
-  const showInvite = (spotsLeft > 0 || lateWarning) && suggestions.invite.length > 0;
-  if (!showInvite && !lateWarning) return null;
+  const { group, session, suggestions, spotsLeft, confirmed } = item;
+  const hours = hoursUntil(session.startsAt);
+  if (session.cancelled || hours <= 0 || hours > ASK_WINDOW_HOURS) return null;
   const when = shortWhen(session.startsAt, group.timezone);
-  const late = suggestions.expectedLateDrops;
+  const { forecast } = suggestions;
+
+  let headline: string | null = null;
+  let detail: string | null = null;
+  let ask = suggestions.invite;
+  let askCount = Math.max(3, spotsLeft);
+  if (forecast && group.cap) {
+    ({ headline, detail } = describeForecast(forecast, confirmed, group.cap));
+    if (forecast.status === "full" && (hours > LATE_WARNING_HOURS || forecast.expectedLateDrops === 0)) detail = null;
+    ask = forecast.status === "full" ? [] : forecast.likely;
+    askCount = Math.max(2, forecast.short + 1);
+  } else if (spotsLeft > 0 && suggestions.invite.length && suggestions.games >= 2) {
+    headline = `Need ${spotsLeft} more? These regulars haven't answered yet:`;
+  }
+  if (!headline) return null;
+  const shortBy = forecast?.short || spotsLeft;
+
   return (
     <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 10 }}>
-      {lateWarning && (
-        <Text style={{ color: t.text, fontWeight: "700" }}>
-          ⚠️ You usually lose {late === 1 ? "a player" : `${late} players`} close to game time.
-          {spotsLeft === 0 ? ` Consider asking ${late === 1 ? "one extra" : `${late} extras`} to join the waitlist.` : ""}
-        </Text>
-      )}
-      {showInvite && (
-        <>
-          <Text style={{ color: t.text, fontWeight: "800" }}>
-            {spotsLeft > 0 ? `Need ${spotsLeft} more? These regulars haven't answered yet:` : "Regulars who haven't answered yet:"}
+      <View style={{ gap: 2 }}>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 15 }}>{headline}</Text>
+        {detail && <Text style={{ color: t.text }}>{detail}</Text>}
+      </View>
+      {ask.slice(0, askCount).map((p) => (
+        <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <Avatar name={p.name} size={26} />
+          <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
+            {p.name} <Text style={{ color: t.muted }}>· played {p.played} of {p.games}</Text>
           </Text>
-          {suggestions.invite.slice(0, Math.max(3, spotsLeft + late)).map((p) => (
-            <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-              <Avatar name={p.name} size={26} />
-              <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
-                {p.name} <Text style={{ color: t.muted }}>· played {p.played} of {p.games}</Text>
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Ask ${p.name}`}
-                hitSlop={8}
-                onPress={() => onShare(inviteMessage(p.name.split(" ")[0]!, group.name, spotsLeft, when, link))}
-                style={({ hovered }: { hovered?: boolean }) => ({ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: hovered ? t.accent : "transparent", ...webTransition })}
-              >
-                {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.accentText : t.accent, fontWeight: "800" }}>Ask</Text>}
-              </Pressable>
-            </View>
-          ))}
-        </>
-      )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ask ${p.name}`}
+            hitSlop={8}
+            onPress={() => {
+              trackEvent("invite_asked", group.slug, { status: forecast?.status ?? "none" });
+              onShare(inviteMessage(p.name.split(" ")[0]!, group.name, shortBy, when, link));
+            }}
+            style={({ hovered }: { hovered?: boolean }) => ({ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: hovered ? t.accent : "transparent", ...webTransition })}
+          >
+            {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.accentText : t.accent, fontWeight: "800" }}>Ask</Text>}
+          </Pressable>
+        </View>
+      ))}
     </View>
   );
 }

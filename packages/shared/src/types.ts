@@ -1,4 +1,4 @@
-import type { InviteSuggestion } from "./insights.ts";
+import type { Forecast, InviteSuggestion } from "./insights.ts";
 import type { ReminderSettings } from "./reminders.ts";
 import type { Roster, RsvpStatus } from "./roster.ts";
 
@@ -61,7 +61,7 @@ export interface GroupPage {
   /** isOrganizer: owner or admin, who get the organizer controls. */
   viewer: { isOrganizer: boolean; role?: GroupRole };
   /** Organizer-only details: who has paid, skill ratings, and who dropped out late this week. */
-  organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[] };
+  organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[]; forecast: Forecast | null };
 }
 
 /** A member's own settings, seen only with their member token. */
@@ -92,7 +92,7 @@ export interface DashboardGroup {
   /** This week and the next ones, with skips and one-off changes (for the calendar). */
   weeks: UpcomingWeek[];
   /** From recent games: regulars to ask when short, and late dropouts to expect. */
-  suggestions: { invite: InviteSuggestion[]; expectedLateDrops: number; games: number };
+  suggestions: { invite: InviteSuggestion[]; expectedLateDrops: number; games: number; forecast: Forecast | null };
 }
 
 export interface ActivityItem {
@@ -130,7 +130,7 @@ export interface OrganizerStats {
 }
 
 export interface Dashboard {
-  organizer: { name: string | null; email: string | null };
+  organizer: { name: string | null; email: string | null; isAdmin?: boolean };
   stats: OrganizerStats;
   /** Sorted by next session, soonest first. */
   groups: DashboardGroup[];
@@ -157,4 +157,23 @@ export interface GroupOrganizer {
   name: string;
   role: GroupRole;
   isYou: boolean;
+}
+
+/** One past game, as it ended: who played, who dropped, what was collected, the teams. */
+export interface GameRecord {
+  startsAt: string;
+  cancelled: boolean;
+  note: string | null;
+  location: string | null;
+  cap: number | null;
+  played: number;
+  waitlist: number;
+  out: number;
+  lateDrops: number;
+  paid: number;
+  /** Collected and expected, using the group's current cost setting; null without a cost. */
+  collectedCents: number | null;
+  expectedCents: number | null;
+  teams: string[][] | null;
+  players: { name: string; status: "in" | "waitlist" | "out"; paid: boolean; lateDrop: boolean }[];
 }

@@ -1,4 +1,4 @@
-import { describeCost, describeRecurrence, formatMoney, placeOf, shareCents, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
@@ -7,9 +7,9 @@ import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
 import { ShareCard } from "@/components/ShareCard";
 import { Button, Card, Field, Muted, Screen, Title, webTransition } from "@/components/ui";
-import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, useApi, type Membership } from "@/lib/api";
+import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, trackEvent, type Membership, useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
-import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
+import { hoursUntil, mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
 import { useLiveGroup } from "@/lib/live";
 import { shareText } from "@/lib/share";
 import { useTheme } from "@/lib/theme";
@@ -17,7 +17,12 @@ import { useTheme } from "@/lib/theme";
 export default function GroupScreen() {
   const t = useTheme();
   const api = useApi();
-  const { slug, created, rsvp } = useLocalSearchParams<{ slug: string; created?: string; rsvp?: string }>();
+  const { slug, created, rsvp, from } = useLocalSearchParams<{ slug: string; created?: string; rsvp?: string; from?: string }>();
+  // Opened from a reminder, spot alert or "you're in" notification: count it once.
+  useEffect(() => {
+    if (from) trackEvent("reminder_opened", slug, { from, action: rsvp ?? "open" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per page open
+  }, []);
   const [page, setPage] = useState<GroupPage | null>(null);
   const [me, setMe] = useState<Membership | null>(null);
   const [name, setName] = useState("");
@@ -234,6 +239,10 @@ export default function GroupScreen() {
       {viewer.isOrganizer && (
         <Card>
           <Text style={{ color: t.muted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>Organizer</Text>
+          <ForecastCard page={page} onAsk={(name) => {
+            trackEvent("invite_asked", slug, { status: page.organizer?.forecast?.status ?? "none", from: "group" });
+            share(inviteMessage(name.split(" ")[0]!, group.name, page.organizer?.forecast?.short || roster.spotsLeft, shortWhen(session.startsAt, group.timezone), link));
+          }} />
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Button label="Edit group" variant="secondary" onPress={() => router.push({ pathname: "/edit/[slug]", params: { slug } })} />
             <Button
@@ -273,6 +282,9 @@ export default function GroupScreen() {
           </View>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Button label="📊 Insights" variant="secondary" onPress={() => router.push({ pathname: "/insights/[slug]", params: { slug } })} />
+            <Button label="🕘 History" variant="secondary" onPress={() => router.push({ pathname: "/history/[slug]", params: { slug } })} />
+          </View>
+          <View style={{ flexDirection: "row", gap: 12 }}>
             <Button label="🤝 Organizers" variant="secondary" onPress={() => router.push({ pathname: "/organizers/[slug]", params: { slug } })} />
           </View>
           {reminder && (
@@ -322,6 +334,39 @@ function StatusLine({ place, name }: { place: ReturnType<typeof placeOf>; name?:
   if (!text) return null;
   const color = place.kind === "confirmed" ? t.accent : place.kind === "waitlist" ? t.waitlist : t.muted;
   return <Text style={{ color, fontSize: 16, fontWeight: "600" }}>{text}</Text>;
+}
+
+/** Autopilot on the group page, for organizers, within ASK_WINDOW_HOURS of the game. */
+function ForecastCard({ page, onAsk }: { page: GroupPage; onAsk: (name: string) => void }) {
+  const t = useTheme();
+  const forecast = page.organizer?.forecast;
+  const { group, session, roster } = page;
+  const hours = hoursUntil(session.startsAt);
+  if (!forecast || !group.cap || session.cancelled || hours <= 0 || hours > ASK_WINDOW_HOURS) return null;
+  const { headline, detail } = describeForecast(forecast, roster.confirmed.length, group.cap);
+  const showDetail = forecast.status !== "full" || (hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0);
+  const ask = forecast.status === "full" ? [] : forecast.likely.slice(0, Math.max(2, forecast.short + 1));
+  return (
+    <View style={{ backgroundColor: t.soft, borderRadius: 12, padding: 12, gap: 8 }}>
+      <Text style={{ color: t.text, fontWeight: "800" }}>{headline}</Text>
+      {showDetail && <Text style={{ color: t.text }}>{detail}</Text>}
+      {ask.length > 0 && (
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+          {ask.map((p) => (
+            <Pressable
+              key={p.memberId}
+              accessibilityRole="button"
+              accessibilityLabel={`Ask ${p.name}`}
+              onPress={() => onAsk(p.name)}
+              style={({ hovered }: { hovered?: boolean }) => ({ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: hovered ? t.accent : "transparent", ...webTransition })}
+            >
+              {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.accentText : t.accent, fontWeight: "800" }}>Ask {p.name}</Text>}
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
 }
 
 /** "3 of 10 paid · $30 of $100 collected". */

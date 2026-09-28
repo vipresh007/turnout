@@ -20,6 +20,9 @@ param apiImages object = { test: '', live: '' }
 @description('Custom web domains per environment (CNAME to the static web app must exist first). Empty = Azure default hostname.')
 param webDomains object = { test: '', live: '' }
 
+@description('Organizer emails that can see product metrics, comma-separated')
+param adminEmails string = ''
+
 @description('Entra External ID settings per environment (empty until the tenant exists).')
 param entra object = {
   authority: ''
@@ -166,6 +169,7 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     entraAuthority: entra.authority
     entraApiClientId: entra.apiClientId
     entraEventsAppId: entra.?eventsAppId ?? ''
+    adminEmails: adminEmails
     vapidPublicKey: vapidPublicKey
     vapidPrivateKey: vapidPrivateKey
     acsConnectionString: acs.listKeys().primaryConnectionString

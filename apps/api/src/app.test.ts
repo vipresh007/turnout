@@ -479,3 +479,52 @@ test("insights: reliability from past games and who to invite when short", async
   assert.equal(dash.groups[0].suggestions.invite[0].name, "Mike");
   assert.equal((await app.inject({ url: `/groups/${slug}/insights`, headers: { "x-dev-user": "someone" } })).statusCode, 403);
 });
+
+test("events, game history, metrics and the autopilot heads-up", async () => {
+  const org = { "x-dev-user": "hist-org" };
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Hist Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 4, feeCents: 1000 } })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json() as { member: { id: string }; token: string };
+  const players = await Promise.all(["Ann", "Bo", "Cy", "Di", "Ed"].map(join));
+  await db.query(`UPDATE members SET created_at = now() - interval '60 days' WHERE group_id = $1`, [id]);
+
+  // This week: one in, one out → events recorded.
+  await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": players[0]!.token }, payload: { status: "in" } });
+  await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": players[1]!.token }, payload: { status: "out" } });
+  assert.equal((await app.inject({ method: "POST", url: "/events", payload: { kind: "link_shared", slug, props: { via: "whatsapp" } } })).statusCode, 204);
+  assert.equal((await app.inject({ method: "POST", url: "/events", payload: { kind: "made_up" } })).statusCode, 400);
+  const kinds = (await db.query<{ kind: string }>(`SELECT kind FROM events WHERE group_id = $1 ORDER BY id`, [id])).map((e) => e.kind);
+  assert.deepEqual(kinds, ["group_created", "player_joined", "player_joined", "player_joined", "player_joined", "player_joined", "rsvp_in", "rsvp_out", "link_shared"]);
+
+  // Three past games: everyone but Ed plays; one paid; one cancelled week.
+  for (const w of [1, 2, 3, 4]) {
+    const [s] = await db.query<{ id: string }>(`INSERT INTO sessions (group_id, starts_at, cancelled) VALUES ($1, now() - interval '${w} weeks', $2) RETURNING id`, [id, w === 4]);
+    for (const [i, p] of players.slice(0, 4).entries()) {
+      await db.query(`INSERT INTO rsvps (session_id, member_id, status, responded_at, paid_at) VALUES ($1, $2, 'in', now() - interval '${w} weeks' - interval '1 day', $3)`, [s!.id, p.member.id, i === 0 ? new Date().toISOString() : null]);
+    }
+  }
+  const games = (await app.inject({ url: `/groups/${slug}/history`, headers: org })).json().games;
+  assert.equal(games.length, 4);
+  assert.deepEqual([games[0].played, games[0].paid, games[0].collectedCents, games[0].expectedCents], [4, 1, 1000, 4000]);
+  assert.equal(games[3].cancelled, true);
+  assert.equal((await app.inject({ url: `/groups/${slug}/history`, headers: { "x-dev-user": "nosy" } })).statusCode, 403);
+
+  // Metrics: admins only.
+  assert.equal((await app.inject({ url: "/admin/metrics", headers: org })).statusCode, 404);
+  process.env.ADMIN_EMAILS = "boss@example.com";
+  await db.query(`UPDATE organizers SET email = 'boss@example.com' WHERE external_id = 'dev:hist-org'`);
+  const metrics = (await app.inject({ url: "/admin/metrics", headers: org })).json();
+  assert.ok(metrics.northStar.gamesRun >= 3);
+  assert.ok(metrics.events.rsvp_in >= 1);
+  assert.equal((await app.inject({ url: "/me/dashboard", headers: org })).json().organizer.isAdmin, true);
+
+  // Autopilot: 1 of 4 in with the game 10 hours away → organizers get one heads-up.
+  const { runForecastAlerts } = await import("./autopilot.ts");
+  const [cur] = await db.query<{ starts_at: Date }>(`SELECT starts_at FROM sessions WHERE group_id = $1 ORDER BY starts_at DESC LIMIT 1`, [id]);
+  const tenHoursBefore = new Date(new Date(cur!.starts_at).getTime() - 10 * 3_600_000);
+  const first = await runForecastAlerts(db, tenHoursBefore);
+  assert.ok(first.alerted >= 1);
+  assert.equal((await runForecastAlerts(db, tenHoursBefore)).alerted, 0); // once per game
+  const page = (await app.inject({ url: `/groups/${slug}`, headers: org })).json();
+  assert.ok(page.organizer.forecast);
+  delete process.env.ADMIN_EMAILS;
+});

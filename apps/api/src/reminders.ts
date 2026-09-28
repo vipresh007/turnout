@@ -1,4 +1,5 @@
 import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp, type Session } from "@turnout/shared";
+import { track } from "./analytics.ts";
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
@@ -29,7 +30,7 @@ function messageFor(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupRo
 function messageBody(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupRow, startsAt: string, rsvps: Rsvp[], memberId: string): Message | null {
   const roster = buildRoster(rsvps, group.cap);
   const when = whenLabel(startsAt, group.timezone);
-  const url = `${webUrl()}/g/${group.slug}`;
+  const url = `${webUrl()}/g/${group.slug}?from=reminder`; // "from" lets us count reminder opens
   const place = placeOf(roster, memberId);
   const count = roster.confirmed.length;
   if (place.kind === "confirmed") {
@@ -73,7 +74,11 @@ export async function runReminders(db: Db, now = new Date()): Promise<{ groups: 
           `INSERT INTO notifications_sent (session_id, member_id, kind) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING 1`,
           [session.id, member.id, kind],
         );
-        if (claimed) sent += await notifyMember(db, member.id, message);
+        if (claimed) {
+          const delivered = await notifyMember(db, member.id, message);
+          sent += delivered;
+          if (delivered) await track(db, "reminder_sent", { groupId: group.id, sessionId: session.id, memberId: member.id, props: { kind } });
+        }
       }
     }
   }
@@ -98,7 +103,10 @@ export async function remindNow(db: Db, group: GroupRow): Promise<{ notified: nu
   let notified = 0;
   for (const m of members) {
     const msg = messageFor("manual", group, session, rsvps, m.id);
-    if (msg && (await notifyMember(db, m.id, msg)) > 0) notified++;
+    if (msg && (await notifyMember(db, m.id, msg)) > 0) {
+      notified++;
+      await track(db, "reminder_sent", { groupId: group.id, sessionId: session.id, memberId: m.id, props: { kind: "manual" } });
+    }
   }
   return { notified, reachable: members.length, message };
 }
@@ -110,7 +118,7 @@ export async function notifyPromoted(db: Db, group: GroupRow, startsAt: string, 
     await notifyMember(db, id, {
       title: `You're in for ${group.name}! 🎉`,
       body: `A spot opened up for ${when}. Can't make it anymore? Tap to drop out so the next person gets it.`,
-      url: `${webUrl()}/g/${group.slug}`,
+      url: `${webUrl()}/g/${group.slug}?from=promoted`,
       rsvpActions: true,
     }).catch((err) => console.warn("promotion notify failed", err));
   }
@@ -142,8 +150,9 @@ export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rs
       [session.id, m.id],
     );
     if (claimed) {
-      await notifyMember(db, m.id, { title: `A spot just opened for ${group.name}`, body: `${when} · ${count}. First to tap gets it.`, url, rsvpActions: true })
+      await notifyMember(db, m.id, { title: `A spot just opened for ${group.name}`, body: `${when} · ${count}. First to tap gets it.`, url: `${url}?from=spot`, rsvpActions: true })
         .catch((err) => console.warn("spot-opened notify failed", err));
+      await track(db, "spot_alert_sent", { groupId: group.id, sessionId: session.id, memberId: m.id });
     }
   }
 

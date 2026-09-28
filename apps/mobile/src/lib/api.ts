@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -46,6 +46,20 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
 
 const membershipKey = (slug: string) => `membership:${slug}`;
 
+/** Events only the browser sees. Fire-and-forget: never blocks or breaks what the person is doing. */
+export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest";
+export function trackEvent(kind: ClientEvent, slug?: string, props?: Record<string, string | number | boolean>): void {
+  (async () => {
+    const membership = slug ? await memberships.get(slug) : null;
+    await fetch(`${config.apiUrl}/events`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(membership ? { "x-member-token": membership.token } : {}) },
+      body: JSON.stringify({ kind, slug, props }),
+      keepalive: true,
+    });
+  })().catch(() => {});
+}
+
 export const memberships = {
   get: async (slug: string): Promise<Membership | null> => {
     const raw = await storage.get(membershipKey(slug));
@@ -81,6 +95,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
     weeks: async (slug: string) => request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks`, await asOrganizer()),
     updateWeek: async (slug: string, scheduledAt: string, input: SessionUpdateInput) =>
       request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks/${encodeURIComponent(scheduledAt)}`, await asOrganizer({ method: "PUT", body: input })),
+    history: async (slug: string) => request<{ games: GameRecord[] }>(`/groups/${slug}/history`, await asOrganizer()),
+    metrics: async (days = 90) => request<ProductMetrics>(`/admin/metrics?days=${days}`, await asOrganizer()),
     insights: async (slug: string) => request<GroupInsights>(`/groups/${slug}/insights`, await asOrganizer()),
     organizers: async (slug: string) => request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/organizers`, await asOrganizer()),
     inviteOrganizer: async (slug: string) => request<{ url: string }>(`/groups/${slug}/organizers/invite`, await asOrganizer({ method: "POST", body: {} })),
@@ -142,6 +158,24 @@ function createApi(authHeaders: () => Promise<Headers>) {
 }
 
 export type Api = ReturnType<typeof createApi>;
+
+/** /admin/metrics: product metrics across all groups (admins only). */
+export interface ProductMetrics {
+  days: number;
+  trackingSince: string | null;
+  northStar: { gamesRun: number; weeks: { start: string; games: number }[] };
+  groups: { created: number; total: number; active: number };
+  games: { scheduled: number; cancelled: number; run: number; avgPlayers: number | null };
+  players: { joined: number; responded: number };
+  rates: {
+    respondBeforeReminder: number | null;
+    gamesNeedingReminder: number | null;
+    gamesUsingWaitlist: number | null;
+    lateDropsPerGame: number | null;
+    spotAlertClaimRate: number | null;
+  };
+  events: Record<string, number>;
+}
 
 export function useApi(): Api {
   const { authHeaders } = useAuth();

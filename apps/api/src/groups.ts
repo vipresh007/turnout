@@ -1,4 +1,4 @@
-import { buildRoster, groupInsights, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, groupInsights, shareCents, type GameRecord, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
@@ -103,12 +103,15 @@ export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: stri
   const role = await groupRole(db, group, viewerOrganizerId);
   const isOrganizer = role !== null;
   const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer } };
-  if (isOrganizer) page.organizer = await organizerDetails(db, group.id, session.id);
+  if (isOrganizer) {
+    const { forecast } = await groupInsightsFor(db, group, { roster, cancelled: session.cancelled });
+    page.organizer = { ...(await organizerDetails(db, group.id, session.id)), forecast };
+  }
   return page;
 }
 
 /** Payment status and skill ratings: visible to the group's organizers only. */
-async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<NonNullable<GroupPage["organizer"]>> {
+async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<Omit<NonNullable<GroupPage["organizer"]>, "forecast">> {
   const paid = await db.query<{ memberId: string }>(
     `SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND paid_at IS NOT NULL`,
     [sessionId],
@@ -145,6 +148,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
           invite: i.invite,
           expectedLateDrops: i.expectedLateDrops,
           games: i.health.games - i.health.cancelled,
+          forecast: i.forecast,
         })),
       };
     }),
@@ -264,5 +268,49 @@ export async function groupInsightsFor(db: Db, group: GroupRow, current?: { rost
     games,
     members: members.map((m) => ({ ...m, joinedAt: iso(m.joinedAt) })),
     ...(current ? { current } : {}),
+  });
+}
+
+/** The group's past games, newest first. */
+export async function gameHistory(db: Db, group: GroupRow, limit = 26, now = new Date()): Promise<GameRecord[]> {
+  const sessions = await db.query<{ id: string; startsAt: Date | string; cancelled: boolean; note: string | null; location: string | null; teams: { teams: string[][] } | null }>(
+    `SELECT id, COALESCE(starts_at_override, starts_at) AS "startsAt", cancelled, note, location_override AS location, teams FROM sessions
+     WHERE group_id = $1 AND COALESCE(starts_at_override, starts_at) < $2 ORDER BY starts_at DESC LIMIT $3`,
+    [group.id, now.toISOString(), limit],
+  );
+  if (!sessions.length) return [];
+  const rows = await db.query<{ sessionId: string; memberId: string; name: string; status: "in" | "out"; respondedAt: Date | string; lateDrop: boolean; paid: boolean }>(
+    `SELECT r.session_id AS "sessionId", r.member_id AS "memberId", m.name, r.status, r.responded_at AS "respondedAt", r.late_drop AS "lateDrop", r.paid_at IS NOT NULL AS paid
+     FROM rsvps r JOIN members m ON m.id = r.member_id WHERE r.session_id = ANY($1::uuid[])`,
+    [sessions.map((s) => s.id)],
+  );
+  return sessions.map((s) => {
+    const answers = rows.filter((r) => r.sessionId === s.id).map((r) => ({ ...r, respondedAt: new Date(r.respondedAt).toISOString() }));
+    const roster = buildRoster(answers, group.cap);
+    const byId = new Map(answers.map((a) => [a.memberId, a]));
+    const players = [
+      ...roster.confirmed.map((r) => ({ name: r.name, status: "in" as const, paid: byId.get(r.memberId)!.paid, lateDrop: false })),
+      ...roster.waitlist.map((r) => ({ name: r.name, status: "waitlist" as const, paid: false, lateDrop: false })),
+      ...roster.out.map((r) => ({ name: r.name, status: "out" as const, paid: false, lateDrop: byId.get(r.memberId)!.lateDrop })),
+    ];
+    const paid = roster.confirmed.filter((r) => byId.get(r.memberId)!.paid).length;
+    const share = s.cancelled ? null : shareCents(group, roster.confirmed.length);
+    const names = new Map(answers.map((a) => [a.memberId, a.name]));
+    return {
+      startsAt: new Date(s.startsAt).toISOString(),
+      cancelled: s.cancelled,
+      note: s.note,
+      location: s.location,
+      cap: group.cap,
+      played: s.cancelled ? 0 : roster.confirmed.length,
+      waitlist: roster.waitlist.length,
+      out: roster.out.length,
+      lateDrops: answers.filter((a) => a.lateDrop && a.status === "out").length,
+      paid,
+      collectedCents: share === null ? null : share * paid,
+      expectedCents: share === null ? null : share * roster.confirmed.length,
+      teams: s.teams?.teams.map((team) => team.map((id) => names.get(id) ?? "Former player")) ?? null,
+      players,
+    };
   });
 }

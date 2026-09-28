@@ -1,6 +1,6 @@
 import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
 import { Link, router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
@@ -12,11 +12,8 @@ import { useAuth } from "@/lib/auth";
 import { useLive } from "@/lib/live";
 import { greeting, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
-import { storage } from "@/lib/storage";
 import { useTheme, type Theme } from "@/lib/theme";
 
-
-const EXPANDED_KEY = "dashboard:expanded";
 
 export default function DashboardScreen() {
   return (
@@ -38,16 +35,12 @@ function DashboardView() {
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // Which group tiles are open; remembered on this device.
+  // Which group tiles are open. Every visit starts with all of them collapsed.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    storage.get(EXPANDED_KEY).then((raw) => raw && setExpanded(new Set(JSON.parse(raw) as string[])), () => {});
-  }, []);
   const toggle = (slug: string) =>
     setExpanded((prev) => {
       const next = new Set(prev);
       if (!next.delete(slug)) next.add(slug);
-      storage.set(EXPANDED_KEY, JSON.stringify([...next])).catch(() => {});
       return next;
     });
 
@@ -133,6 +126,11 @@ function DashboardView() {
               {menuOpen && (
                 <Pop style={s.menu}>
                   {organizer.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{organizer.email}</Text>}
+                  {organizer.isAdmin && (
+                    <Pressable accessibilityRole="link" onPress={() => router.push("/admin")} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
+                      <Text style={{ color: t.text, fontWeight: "700" }}>📈 Metrics</Text>
+                    </Pressable>
+                  )}
                   {Platform.OS === "web" && (
                     <Pressable accessibilityRole="link" onPress={() => router.push("/")} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
                       <Text style={{ color: t.text, fontWeight: "700" }}>Home page</Text>

@@ -3,7 +3,7 @@ import { Email, H, LegalPage, Li, P } from "@/components/LegalPage";
 
 export default function Privacy() {
   return (
-    <LegalPage title="Privacy policy" updated="September 27, 2026">
+    <LegalPage title="Privacy policy" updated="September 28, 2026">
       <P>
         Turnout (turnout.dataeaver.ca) helps people run recurring games: organizers set up a group, and players tap “I'm in” or “I'm out” each week.
         Turnout is operated by Dataeaver (“we”). This policy explains what we collect, why, and the choices you have. We collect as little as we can.
@@ -25,6 +25,11 @@ export default function Privacy() {
       <Li>To run the service: show who's in, manage the waitlist, and let organizers manage their groups.</Li>
       <Li>To send the reminders and notices you or your organizer turned on, such as reminders before a game, “a spot opened up”, or a sign-in code.</Li>
       <Li>To keep Turnout secure, prevent abuse, and fix problems.</Li>
+      <Li>
+        To understand how Turnout is used and improve it: we record actions in the app, such as joining a group, answering,
+        sharing a link or opening a reminder, in our own database. We look at them in total (for example, how many games run each week),
+        and we don't use third-party analytics or tracking tools.
+      </Li>
       <P>
         We don't sell your information, show ads, or use it for advertising. We don't send marketing email. Reminder emails go only to people who ask for them,
         and every one has a link to stop them.

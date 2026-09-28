@@ -21,6 +21,9 @@ const block = [
 ].join("");
 let html = readFileSync(file, "utf8").replace(/<title>[^<]*<\/title>/, "");
 html = html.replace("</head>", `<!--og--><title>${title}</title>${block}<!--/og--></head>`);
+// Versioned icon links so browsers drop a cached old icon; bump ICON_VERSION when the icons change.
+const ICON_VERSION = "2";
+html = html.replace('<link rel="icon" href="/favicon.ico"/>', `<link rel="icon" href="/favicon.ico?v=${ICON_VERSION}"/><link rel="apple-touch-icon" href="/icon.png?v=${ICON_VERSION}"/>`);
 writeFileSync(file, html);
 copyFileSync(file, "api/og-page/index.html");
 writeFileSync("api/og-page/config.json", JSON.stringify({ apiUrl, webUrl }));

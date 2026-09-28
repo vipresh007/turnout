@@ -28,13 +28,15 @@ import {
   type MemberSummary,
 } from "@turnout/shared";
 import { draftGroupFromSentence } from "./ai/parse-group.ts";
+import { CLIENT_EVENTS, track } from "./analytics.ts";
+import { isAdminEmail, productMetrics } from "./metrics.ts";
 import { registerAuthEvents } from "./authEvents.ts";
 import { groupCalendar } from "./calendar.ts";
 import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, groupColumns, groupInsightsFor, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -91,7 +93,10 @@ export async function buildApp(db: Db) {
     await events.rosterChanged(group.slug);
     if (before) {
       const promoted = promotedMembers(before, page.roster);
-      if (promoted.length) await notifyPromoted(db, group, page.session.startsAt, promoted.map((p) => p.memberId));
+      if (promoted.length) {
+        await notifyPromoted(db, group, page.session.startsAt, promoted.map((p) => p.memberId));
+        for (const p of promoted) await track(db, "waitlist_promoted", { groupId: group.id, sessionId: page.session.id, memberId: p.memberId });
+      }
     }
     return page;
   };
@@ -120,6 +125,7 @@ export async function buildApp(db: Db) {
        input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders),
        input.feeCents ?? null, input.feeSplit ?? false, input.payNote || null],
     );
+    await track(db, "group_created", { groupId: group!.id, organizerId: organizer.id, props: { cap: input.cap, weekdays: input.weekdays.length, fee: !!input.feeCents } });
     return reply.status(201).send({ group });
   });
 
@@ -137,7 +143,17 @@ export async function buildApp(db: Db) {
 
   app.get("/me/dashboard", async (req) => {
     const organizer = await requireOrganizer(db, req);
-    return organizerDashboard(db, organizer.id);
+    const dashboard = await organizerDashboard(db, organizer.id);
+    return { ...dashboard, organizer: { ...dashboard.organizer, isAdmin: isAdminEmail(dashboard.organizer.email) } };
+  });
+
+  // Product metrics across all groups, for the people running Turnout (ADMIN_EMAILS).
+  app.get<{ Querystring: { days?: string } }>("/admin/metrics", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const [row] = await db.query<{ email: string | null }>(`SELECT email FROM organizers WHERE id = $1`, [organizer.id]);
+    if (!isAdminEmail(row?.email)) throw new HttpError(404, "Not found");
+    const days = Math.min(365, Math.max(7, Number(req.query.days) || 90));
+    return productMetrics(db, days);
   });
 
   app.patch<SlugParams>("/groups/:slug", async (req) => {
@@ -255,6 +271,7 @@ export async function buildApp(db: Db) {
       [group.id, name],
     );
     const token = await issueDeviceToken(member!.id);
+    await track(db, "player_joined", { groupId: group.id, memberId: member!.id });
     return reply.status(201).send({ member, token });
   });
 
@@ -363,6 +380,16 @@ export async function buildApp(db: Db) {
       [session.id, member.id, status, lateDrop],
     );
     const page = await changed(group, before);
+    const refs = { groupId: group.id, sessionId: session.id, memberId: member.id };
+    const [nudged] = await db.query<{ reminded: boolean; alerted: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM events WHERE session_id = $1 AND member_id = $2 AND kind = 'reminder_sent') AS reminded,
+              EXISTS (SELECT 1 FROM notifications_sent WHERE session_id = $1 AND member_id = $2 AND kind = 'spotOpened') AS alerted`,
+      [session.id, member.id],
+    );
+    await track(db, status === "in" ? "rsvp_in" : "rsvp_out", { ...refs, props: { hoursToGo: Math.round(hoursToGo * 10) / 10, afterReminder: nudged!.reminded } });
+    if (status === "in" && page.roster.waitlist.some((r) => r.memberId === member.id) && !before.waitlist.some((r) => r.memberId === member.id)) await track(db, "waitlisted", refs);
+    if (status === "in" && nudged!.alerted && page.roster.confirmed.some((r) => r.memberId === member.id)) await track(db, "spot_alert_claimed", refs);
+    if (wasConfirmed && status === "out") await track(db, lateDrop ? "late_dropout" : "player_dropped", { ...refs, props: { hoursToGo: Math.round(hoursToGo * 10) / 10 } });
     // A confirmed player left and nobody moved up: chase the open spot.
     if (wasConfirmed && status === "out" && promotedMembers(before, page.roster).length === 0) {
       const rsvps = await sessionRsvps(db, session.id);
@@ -387,6 +414,7 @@ export async function buildApp(db: Db) {
       [session.id, req.params.memberId],
     );
     if (!row) throw new HttpError(409, "They haven't responded this week");
+    if (paid) await track(db, "payment_marked", { groupId: group.id, sessionId: session.id, memberId: req.params.memberId, organizerId: organizer.id });
     return groupPage(db, group, organizer.id);
   });
 
@@ -409,6 +437,7 @@ export async function buildApp(db: Db) {
       if (members.length !== ids.length) throw new HttpError(400, "Unknown player");
     }
     await db.query(`UPDATE sessions SET teams = $2 WHERE id = $1`, [session.id, teams ? JSON.stringify({ teams, savedAt: new Date().toISOString() }) : null]);
+    if (teams) await track(db, "teams_created", { groupId: group.id, sessionId: session.id, organizerId: organizer.id, props: { teams: teams.length, players: teams.flat().length } });
     return changed(group, undefined, organizer.id);
   });
 
@@ -417,11 +446,33 @@ export async function buildApp(db: Db) {
     return remindNow(db, group);
   });
 
+  app.get<SlugParams>("/groups/:slug/history", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    return { games: await gameHistory(db, group) };
+  });
+
   app.get<SlugParams>("/groups/:slug/insights", async (req) => {
     const { group } = await ownedGroup(req, req.params.slug);
     const session = await currentSession(db, group);
     const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
     return groupInsightsFor(db, group, { roster, cancelled: session.cancelled });
+  });
+
+  // Events only the browser sees (a share tapped, a reminder link opened). Anyone can send them; they're counted, never trusted for anything else.
+  app.post("/events", strict(60), async (req, reply) => {
+    const body = (req.body ?? {}) as { kind?: string; slug?: string; props?: Record<string, unknown> };
+    const kind = CLIENT_EVENTS.find((k) => k === body.kind);
+    if (!kind) throw new HttpError(400, "Unknown event");
+    const group = typeof body.slug === "string" ? await findGroupBySlug(db, body.slug) : undefined;
+    const token = req.headers["x-member-token"];
+    const [member] = group && typeof token === "string"
+      ? await db.query<{ id: string }>(`SELECT m.id FROM member_tokens t JOIN members m ON m.id = t.member_id WHERE t.token_hash = $1 AND m.group_id = $2`, [hashToken(token), group.id])
+      : [];
+    const organizer = await currentOrganizer(db, req).catch(() => null);
+    const props = Object.fromEntries(Object.entries(body.props ?? {}).filter(([, v]) => ["string", "number", "boolean"].includes(typeof v)).slice(0, 8).map(([k, v]) => [k.slice(0, 40), typeof v === "string" ? v.slice(0, 80) : v]));
+    const session = group ? await currentSession(db, group) : undefined;
+    await track(db, kind, { groupId: group?.id, sessionId: session?.id, memberId: member?.id, organizerId: organizer?.id, props });
+    return reply.status(204).send();
   });
 
   // ── Organizer: co-organizers ──────────────────────────────

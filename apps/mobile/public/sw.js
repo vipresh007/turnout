@@ -24,11 +24,13 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const base = (event.notification.data && event.notification.data.url) || "/";
-  const url = event.action ? `${base}?rsvp=${event.action}` : base;
+  const target = new URL(base, self.location.origin);
+  if (event.action) target.searchParams.set("rsvp", event.action);
+  const url = target.href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
       for (const w of windows) {
-        if (w.url.startsWith(base) && "focus" in w) return w.navigate(url).then((c) => (c || w).focus());
+        if (w.url.startsWith(target.origin + target.pathname) && "focus" in w) return w.navigate(url).then((c) => (c || w).focus());
       }
       return self.clients.openWindow(url);
     }),

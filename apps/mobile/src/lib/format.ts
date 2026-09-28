@@ -49,3 +49,6 @@ export function sessionWhen(startsAt: string, durationMinutes: number, timezone:
 }
 
 export const mapsUrl = (location: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+
+/** Hours from now until `iso` (negative once it has passed). */
+export const hoursUntil = (iso: string, now = Date.now()) => (new Date(iso).getTime() - now) / 3_600_000;

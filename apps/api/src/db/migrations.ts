@@ -145,4 +145,20 @@ export const migrations: string[] = [
     expires_at timestamptz NOT NULL
   );
   `,
+  // Product analytics (our own table; no third-party trackers) and the organizer's "may be short" heads-up.
+  `
+  CREATE TABLE events (
+    id bigserial PRIMARY KEY,
+    at timestamptz NOT NULL DEFAULT now(),
+    kind text NOT NULL,
+    group_id uuid REFERENCES groups(id) ON DELETE CASCADE,
+    session_id uuid REFERENCES sessions(id) ON DELETE CASCADE,
+    member_id uuid REFERENCES members(id) ON DELETE SET NULL,
+    organizer_id uuid REFERENCES organizers(id) ON DELETE SET NULL,
+    props jsonb
+  );
+  CREATE INDEX events_kind_at_idx ON events (kind, at);
+  CREATE INDEX events_session_idx ON events (session_id, kind);
+  ALTER TABLE sessions ADD COLUMN forecast_alerted_at timestamptz;
+  `,
 ];

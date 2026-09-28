@@ -2,6 +2,7 @@ import { groupShareMessage, smsUrl, whatsappUrl, type ShareInput } from "@turnou
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import { Linking, Platform, Pressable, Share, Text, View } from "react-native";
+import { trackEvent } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Card, webTransition } from "./ui";
 
@@ -11,8 +12,11 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
   const [copied, setCopied] = useState(false);
   const message = groupShareMessage(input);
   const need = input.cap && !input.cancelled ? input.cap - input.confirmed : 0;
+  const slug = input.link.split("/g/")[1]?.split(/[?#]/)[0];
+  const shared = (via: string) => trackEvent("link_shared", slug, { via, from: "group" });
 
   const copyOrShare = async () => {
+    shared(Platform.OS === "web" && typeof navigator.share !== "function" ? "copy" : "share");
     const canShare = Platform.OS !== "web" || typeof navigator.share === "function";
     if (canShare) {
       try {
@@ -36,8 +40,8 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
         <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>{message}</Text>
       </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
-        <ShareButton label="WhatsApp" color="#25D366" textColor="#06240F" onPress={() => Linking.openURL(whatsappUrl(message))} />
-        <ShareButton label="Messages" color={t.card} textColor={t.text} border={t.border} onPress={() => Linking.openURL(smsUrl(message))} />
+        <ShareButton label="WhatsApp" color="#25D366" textColor="#06240F" onPress={() => { shared("whatsapp"); Linking.openURL(whatsappUrl(message)); }} />
+        <ShareButton label="Messages" color={t.card} textColor={t.text} border={t.border} onPress={() => { shared("sms"); Linking.openURL(smsUrl(message)); }} />
         <ShareButton label={copied ? "Copied ✓" : Platform.OS === "web" ? "Copy" : "More…"} color={t.card} textColor={t.text} border={t.border} onPress={copyOrShare} />
       </View>
     </Card>

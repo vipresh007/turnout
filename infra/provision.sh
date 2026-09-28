@@ -55,4 +55,5 @@ az deployment group create -g "$RESOURCE_GROUP" -n "turnout-$(date +%Y%m%d%H%M%S
                createAiAccount="${CREATE_AI_ACCOUNT:-false}" \
                externalAi="{\"endpoint\":\"${AI_ENDPOINT:-}\",\"deployment\":\"${AI_DEPLOYMENT:-}\"}" \
                externalAiKey="${AI_KEY:-}" \
+               adminEmails="${ADMIN_EMAILS:-}" \
   --query properties.outputs -o json

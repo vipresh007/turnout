@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildRoster } from "./roster.ts";
-import { describeLead, groupInsights, inviteMessage, type PastGame } from "./insights.ts";
+import { describeForecast, describeLead, groupInsights, inviteMessage, type PastGame } from "./insights.ts";
 
 const h = (base: string, hoursBefore: number) => new Date(Date.parse(base) - hoursBefore * 3_600_000).toISOString();
 const game = (startsAt: string, answers: [string, "in" | "out", number, boolean?][], cancelled = false): PastGame => ({
@@ -68,4 +68,32 @@ test("time slots compare turnout by day and time", () => {
   const slots = groupInsights({ cap: 10, timezone: "America/Toronto", games: mixed, members }).timeSlots;
   assert.deepEqual(slots.map((s) => s.label), ["Tue 7:00 PM", "Thu 9:00 PM"]);
   assert.equal(slots[1]!.avgPlayers, 1);
+});
+
+test("forecast: in now + likely yeses − uncovered late drops", () => {
+  // mike and raj each played every game they answered (3/3, 2-3/3); sam answered in once, ana never plays.
+  const rsvp = (id: string, status: "in" | "out" = "in") => ({ memberId: id, name: id, status, respondedAt: "2026-09-28T00:00:00Z" });
+  const three = [...games.filter((g) => !g.cancelled), game("2026-09-29T23:00:00Z", [["mike", "in", 5], ["raj", "in", 5]])];
+  const base = { cap: 4, timezone: "UTC", games: three, members };
+
+  const short = groupInsights({ ...base, current: { roster: buildRoster([rsvp("ana")], 4), cancelled: false } }).forecast!;
+  assert.equal(short.status, "short");
+  assert.equal(short.unanswered, 3);
+  assert.ok(short.projected < 4);
+  assert.equal(short.likely[0]!.memberId, "mike");
+
+  const good = groupInsights({ ...base, current: { roster: buildRoster([rsvp("ana"), rsvp("sam")], 4), cancelled: false } }).forecast!;
+  assert.equal(good.status, "good");
+
+  const full = groupInsights({ ...base, current: { roster: buildRoster(["mike", "raj", "sam", "ana"].map((id) => rsvp(id)), 4), cancelled: false } }).forecast!;
+  assert.equal(full.status, "full");
+
+  assert.equal(groupInsights({ ...base, games: games.slice(0, 2), current: { roster: buildRoster([], 4), cancelled: false } }).forecast, null);
+  assert.equal(groupInsights({ ...base, cap: null, current: { roster: buildRoster([], null), cancelled: false } }).forecast, null);
+});
+
+test("forecast wording", () => {
+  const f = { status: "short" as const, projected: 12, short: 2, unanswered: 3, expectedLateDrops: 1, likely: [{ memberId: "m", name: "Mike", played: 9, games: 10 }, { memberId: "r", name: "Raj", played: 8, games: 10 }] };
+  assert.deepEqual(describeForecast(f, 11, 14), { headline: "⚠️ You may be 2 short", detail: "11 of 14 in. You usually lose one close to game time. Mike and Raj usually play but haven't answered." });
+  assert.equal(describeForecast({ ...f, status: "good", short: 0 }, 12, 14).headline, "✅ You're probably good");
 });
