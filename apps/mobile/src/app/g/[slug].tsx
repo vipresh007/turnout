@@ -271,6 +271,9 @@ export default function GroupScreen() {
             <Button label="🗓 Schedule" variant="secondary" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
             <Button label="👥 Members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug } })} />
           </View>
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Button label={viewer.role === "owner" ? "🤝 Organizers · add a co-organizer" : "🤝 Organizers"} variant="secondary" onPress={() => router.push({ pathname: "/organizers/[slug]", params: { slug } })} />
+          </View>
           {reminder && (
             <Pop style={{ gap: 8 }}>
               <Text style={{ color: t.text, fontWeight: "700" }}>

@@ -129,4 +129,20 @@ export const migrations: string[] = [
   ALTER TABLE groups ADD COLUMN fee_split boolean NOT NULL DEFAULT false;
   ALTER TABLE groups ADD COLUMN pay_note text;
   `,
+  // Co-organizers: admins run the group alongside its owner; invites are one-time links.
+  `
+  CREATE TABLE group_admins (
+    group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    organizer_id uuid NOT NULL REFERENCES organizers(id) ON DELETE CASCADE,
+    added_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (group_id, organizer_id)
+  );
+  CREATE INDEX group_admins_organizer_idx ON group_admins (organizer_id);
+
+  CREATE TABLE admin_invites (
+    token_hash text PRIMARY KEY,
+    group_id uuid NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+  );
+  `,
 ];

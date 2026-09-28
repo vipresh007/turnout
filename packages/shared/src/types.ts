@@ -57,7 +57,8 @@ export interface GroupPage {
   session: Session;
   roster: Roster;
   /** What the requester may do. Only set from a verified organizer identity. */
-  viewer: { isOrganizer: boolean };
+  /** isOrganizer: owner or admin, who get the organizer controls. */
+  viewer: { isOrganizer: boolean; role?: GroupRole };
   /** Organizer-only details: who has paid, skill ratings, and who dropped out late this week. */
   organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[] };
 }
@@ -77,6 +78,8 @@ export interface DashboardPlayer {
 }
 
 export interface DashboardGroup {
+  /** The viewer's role in this group. */
+  role: GroupRole;
   group: Group;
   session: Session;
   confirmed: number;
@@ -140,4 +143,15 @@ export interface MemberSummary {
   devices: number;
   gamesIn: number;
   joinedAt: string;
+}
+
+/** Owner: created the group (or had it handed over); the only one who manages admins. Admins run everything else. */
+export type GroupRole = "owner" | "admin";
+
+export interface GroupOrganizer {
+  id: string;
+  /** Name, or email when the sign-in didn't provide one. */
+  name: string;
+  role: GroupRole;
+  isYou: boolean;
 }

@@ -1,4 +1,4 @@
-import { buildRoster, type ActivityItem, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, type ActivityItem, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
@@ -30,8 +30,19 @@ export function publicGroup({ organizerId: _, ...group }: GroupRow): Group {
   return group;
 }
 
+/** SQL condition: the organizer in `param` owns or co-runs the group aliased `alias`. */
+export const managedBy = (alias: string, param: string) =>
+  `(${alias}.organizer_id = ${param} OR EXISTS (SELECT 1 FROM group_admins ga WHERE ga.group_id = ${alias}.id AND ga.organizer_id = ${param}))`;
+
+export async function groupRole(db: Db, group: GroupRow, organizerId: string | null): Promise<GroupRole | null> {
+  if (!organizerId) return null;
+  if (group.organizerId === organizerId) return "owner";
+  const [admin] = await db.query(`SELECT 1 FROM group_admins WHERE group_id = $1 AND organizer_id = $2`, [group.id, organizerId]);
+  return admin ? "admin" : null;
+}
+
 export async function listOrganizerGroups(db: Db, organizerId: string): Promise<Group[]> {
-  return db.query<Group>(`SELECT ${groupColumns} FROM groups WHERE organizer_id = $1 ORDER BY created_at DESC`, [organizerId]);
+  return db.query<Group>(`SELECT ${groupColumns} FROM groups g WHERE ${managedBy("g", "$1")} ORDER BY created_at DESC`, [organizerId]);
 }
 
 /** Session rows for these scheduled starts that already exist (overrides, cancellations, RSVPs). */
@@ -89,13 +100,14 @@ export async function sessionRsvps(db: Db, sessionId: string): Promise<Rsvp[]> {
 export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: string | null): Promise<GroupPage> {
   const session = await currentSession(db, group);
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
-  const isOrganizer = viewerOrganizerId === group.organizerId;
-  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: { isOrganizer } };
+  const role = await groupRole(db, group, viewerOrganizerId);
+  const isOrganizer = role !== null;
+  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer } };
   if (isOrganizer) page.organizer = await organizerDetails(db, group.id, session.id);
   return page;
 }
 
-/** Payment status and skill ratings: visible to the organizer only. */
+/** Payment status and skill ratings: visible to the group's organizers only. */
 async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<NonNullable<GroupPage["organizer"]>> {
   const paid = await db.query<{ memberId: string }>(
     `SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND paid_at IS NOT NULL`,
@@ -109,7 +121,7 @@ async function organizerDetails(db: Db, groupId: string, sessionId: string): Pro
 /** Everything the organizer's home screen shows, in one request. */
 export async function organizerDashboard(db: Db, organizerId: string): Promise<Dashboard> {
   const [organizer] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizerId]);
-  const rows = await db.query<GroupRow>(`SELECT ${groupColumns}, organizer_id AS "organizerId" FROM groups WHERE organizer_id = $1`, [organizerId]);
+  const rows = await db.query<GroupRow>(`SELECT ${groupColumns}, organizer_id AS "organizerId" FROM groups g WHERE ${managedBy("g", "$1")}`, [organizerId]);
 
   const groups = await Promise.all(
     rows.map(async (row) => {
@@ -121,6 +133,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
       const player = (status: DashboardPlayer["status"]) => (r: Rsvp): DashboardPlayer => ({ memberId: r.memberId, name: r.name, status, paid: paid.has(r.memberId) });
       return {
         group: publicGroup(row),
+        role: (row.organizerId === organizerId ? "owner" : "admin") as GroupRole,
         session,
         confirmed: roster.confirmed.length,
         waitlist: roster.waitlist.length,
@@ -138,7 +151,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
      FROM rsvps r
      JOIN members m ON m.id = r.member_id
      JOIN groups g ON g.id = m.group_id
-     WHERE g.organizer_id = $1
+     WHERE ${managedBy("g", "$1")}
      ORDER BY r.responded_at DESC
      LIMIT 12`,
     [organizerId],
@@ -169,7 +182,7 @@ export async function organizerStats(db: Db, organizerId: string, now = new Date
      FROM sessions s
      JOIN groups g ON g.id = s.group_id
      LEFT JOIN rsvps r ON r.session_id = s.id
-     WHERE g.organizer_id = $1 AND s.starts_at >= $2 AND s.starts_at < $3
+     WHERE ${managedBy("g", "$1")} AND s.starts_at >= $2 AND s.starts_at < $3
      GROUP BY s.id, g.cap`,
     [organizerId, from.toISOString(), to.toISOString()],
   );
@@ -198,7 +211,7 @@ export async function organizerStats(db: Db, organizerId: string, now = new Date
      JOIN sessions s ON s.id = r.session_id
      JOIN members m ON m.id = r.member_id
      JOIN groups g ON g.id = s.group_id
-     WHERE g.organizer_id = $1 AND r.status = 'in' AND s.starts_at >= $2 AND s.starts_at < $3 AND NOT s.cancelled
+     WHERE ${managedBy("g", "$1")} AND r.status = 'in' AND s.starts_at >= $2 AND s.starts_at < $3 AND NOT s.cancelled
      GROUP BY m.id, m.name, g.name
      ORDER BY games DESC, min(r.responded_at)
      LIMIT 5`,

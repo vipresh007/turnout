@@ -80,3 +80,6 @@ export const tokenSchema = z.object({ token: z.string().min(10).max(100) });
 export const paidSchema = z.object({ paid: z.boolean() });
 export const skillSchema = z.object({ skill: z.number().int().min(1).max(5) });
 export const saveTeamsSchema = z.object({ teams: z.array(z.array(z.string().uuid()).max(100)).min(2).max(4).nullable() });
+
+export const transferOwnerSchema = z.object({ organizerId: z.string().uuid() });
+export const acceptAdminInviteSchema = z.object({ token: z.string().min(10).max(100) });

@@ -3,6 +3,7 @@ import rateLimit from "@fastify/rate-limit";
 import Fastify from "fastify";
 import { ZodError } from "zod";
 import {
+  acceptAdminInviteSchema,
   buildRoster,
   cancelSessionSchema,
   createGroupSchema,
@@ -18,8 +19,11 @@ import {
   sessionUpdateSchema,
   skillSchema,
   tokenSchema,
+  transferOwnerSchema,
   updateGroupSchema,
   type Group,
+  type GroupOrganizer,
+  type GroupRole,
   type MemberSelf,
   type MemberSummary,
 } from "@turnout/shared";
@@ -30,7 +34,7 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, groupColumns, groupPage, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupColumns, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -67,10 +71,19 @@ export async function buildApp(db: Db) {
     return group;
   };
 
+  /** The group, for its owner or an admin. */
   const ownedGroup = async (req: Parameters<typeof requireOrganizer>[1], slug: string) => {
     const [organizer, group] = await Promise.all([requireOrganizer(db, req), groupOr404(slug)]);
-    if (group.organizerId !== organizer.id) throw new HttpError(403, "Only the organizer can do that");
-    return { organizer, group };
+    const role = await groupRole(db, group, organizer.id);
+    if (!role) throw new HttpError(403, "Only the group's organizers can do that");
+    return { organizer, group, role };
+  };
+
+  /** The group, for its owner only: managing admins and ownership. */
+  const ownerOnly = async (req: Parameters<typeof requireOrganizer>[1], slug: string) => {
+    const owned = await ownedGroup(req, slug);
+    if (owned.role !== "owner") throw new HttpError(403, "Only the group's owner can do that");
+    return owned;
   };
 
   const changed = async (group: GroupRow, before?: ReturnType<typeof buildRoster>, organizerId: string | null = null) => {
@@ -402,6 +415,79 @@ export async function buildApp(db: Db) {
   app.post<SlugParams>("/groups/:slug/remind", strict(10), async (req) => {
     const { group } = await ownedGroup(req, req.params.slug);
     return remindNow(db, group);
+  });
+
+  // ── Organizer: co-organizers ──────────────────────────────
+  const organizersOf = async (group: GroupRow, viewerId: string): Promise<GroupOrganizer[]> => {
+    const rows = await db.query<{ id: string; name: string | null; email: string | null; role: GroupRole }>(
+      `SELECT o.id, o.name, o.email, 'owner' AS role FROM organizers o WHERE o.id = $2
+       UNION ALL
+       SELECT o.id, o.name, o.email, 'admin' AS role FROM group_admins a JOIN organizers o ON o.id = a.organizer_id WHERE a.group_id = $1`,
+      [group.id, group.organizerId],
+    );
+    const rank = (r: { role: GroupRole }) => (r.role === "owner" ? 0 : 1);
+    return rows
+      .map((r) => ({ id: r.id, name: r.name || r.email || "Organizer", role: r.role, isYou: r.id === viewerId }))
+      .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  };
+
+  app.get<SlugParams>("/groups/:slug/organizers", async (req) => {
+    const { organizer, group, role } = await ownedGroup(req, req.params.slug);
+    return { role, organizers: await organizersOf(group, organizer.id) };
+  });
+
+  // A one-time link, valid for a week; whoever opens it signed in becomes an admin.
+  app.post<SlugParams>("/groups/:slug/organizers/invite", strict(20), async (req) => {
+    const { group } = await ownerOnly(req, req.params.slug);
+    const token = newMemberToken();
+    await db.query(`INSERT INTO admin_invites (token_hash, group_id, expires_at) VALUES ($1, $2, now() + interval '7 days')`, [hashToken(token), group.id]);
+    return { url: `${webUrl()}/organize?t=${token}` };
+  });
+
+  // What the invite is for, so the page can say "Help run Tuesday Soccer" before sign-in.
+  app.get<{ Params: { token: string } }>("/organizer-invites/:token", strict(30), async (req) => {
+    const [invite] = await db.query<{ name: string }>(
+      `SELECT g.name FROM admin_invites i JOIN groups g ON g.id = i.group_id WHERE i.token_hash = $1 AND i.expires_at > now()`,
+      [hashToken(req.params.token)],
+    );
+    if (!invite) throw new HttpError(404, "This invite has expired or was already used. Ask for a new one.");
+    return { groupName: invite.name };
+  });
+
+  app.post("/organizer-invites/accept", strict(20), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const { token } = acceptAdminInviteSchema.parse(req.body);
+    const [invite] = await db.query<{ groupId: string; slug: string; ownerId: string }>(
+      `DELETE FROM admin_invites i USING groups g WHERE i.token_hash = $1 AND i.expires_at > now() AND g.id = i.group_id
+       RETURNING g.id AS "groupId", g.slug, g.organizer_id AS "ownerId"`,
+      [hashToken(token)],
+    );
+    if (!invite) throw new HttpError(404, "This invite has expired or was already used. Ask for a new one.");
+    if (invite.ownerId !== organizer.id) {
+      await db.query(`INSERT INTO group_admins (group_id, organizer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [invite.groupId, organizer.id]);
+    }
+    return { slug: invite.slug };
+  });
+
+  // The owner removes an admin, or an admin leaves.
+  app.delete<{ Params: { slug: string; organizerId: string } }>("/groups/:slug/organizers/:organizerId", async (req) => {
+    const { organizer, group, role } = await ownedGroup(req, req.params.slug);
+    const target = req.params.organizerId;
+    if (target === group.organizerId) throw new HttpError(400, "Hand the group to someone else before leaving it");
+    if (role !== "owner" && target !== organizer.id) throw new HttpError(403, "Only the group's owner can remove organizers");
+    await db.query(`DELETE FROM group_admins WHERE group_id = $1 AND organizer_id = $2`, [group.id, target]);
+    return { organizers: target === organizer.id ? [] : await organizersOf(group, organizer.id) };
+  });
+
+  // Hand the group to an admin; the old owner stays on as an admin.
+  app.put<SlugParams>("/groups/:slug/owner", async (req) => {
+    const { organizer, group } = await ownerOnly(req, req.params.slug);
+    const { organizerId } = transferOwnerSchema.parse(req.body);
+    const [admin] = await db.query(`DELETE FROM group_admins WHERE group_id = $1 AND organizer_id = $2 RETURNING 1`, [group.id, organizerId]);
+    if (!admin) throw new HttpError(400, "Add them as an organizer first");
+    await db.query(`UPDATE groups SET organizer_id = $2 WHERE id = $1`, [group.id, organizerId]);
+    await db.query(`INSERT INTO group_admins (group_id, organizer_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [group.id, organizer.id]);
+    return { role: "admin", organizers: await organizersOf({ ...group, organizerId }, organizer.id) };
   });
 
   // ── Members: reminder channels ────────────────────────────

@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupPage, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -81,6 +81,14 @@ function createApi(authHeaders: () => Promise<Headers>) {
     weeks: async (slug: string) => request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks`, await asOrganizer()),
     updateWeek: async (slug: string, scheduledAt: string, input: SessionUpdateInput) =>
       request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks/${encodeURIComponent(scheduledAt)}`, await asOrganizer({ method: "PUT", body: input })),
+    organizers: async (slug: string) => request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/organizers`, await asOrganizer()),
+    inviteOrganizer: async (slug: string) => request<{ url: string }>(`/groups/${slug}/organizers/invite`, await asOrganizer({ method: "POST", body: {} })),
+    removeOrganizer: async (slug: string, organizerId: string) =>
+      request<{ organizers: GroupOrganizer[] }>(`/groups/${slug}/organizers/${organizerId}`, await asOrganizer({ method: "DELETE" })),
+    transferOwner: async (slug: string, organizerId: string) =>
+      request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/owner`, await asOrganizer({ method: "PUT", body: { organizerId } })),
+    organizerInvite: (token: string) => request<{ groupName: string }>(`/organizer-invites/${encodeURIComponent(token)}`),
+    acceptOrganizerInvite: async (token: string) => request<{ slug: string }>("/organizer-invites/accept", await asOrganizer({ method: "POST", body: { token } })),
     remind: async (slug: string) =>
       request<{ notified: number; reachable: number; message: string }>(`/groups/${slug}/remind`, await asOrganizer({ method: "POST", body: {} })),
 

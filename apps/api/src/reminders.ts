@@ -147,8 +147,11 @@ export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rs
     }
   }
 
-  const [organizer] = await db.query<{ email: string | null }>(`SELECT email FROM organizers WHERE id = $1`, [group.organizerId]);
-  if (organizer?.email) {
+  const organizers = await db.query<{ email: string }>(
+    `SELECT email FROM organizers WHERE email IS NOT NULL AND (id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2))`,
+    [group.organizerId, group.id],
+  );
+  for (const organizer of organizers) {
     const need = roster.spotsLeft;
     const title = `${droppedName} dropped out of ${group.name}`;
     const body = `${when} · ${count}. You need ${need} more. Share the link in your group chat to fill the spot${need === 1 ? "" : "s"}.`;

@@ -414,3 +414,41 @@ test("optional cost: per player or a split total, with how to pay", async () => 
   assert.equal(plain.feeCents, null);
   assert.equal(plain.feeSplit, false);
 });
+
+test("co-organizers: invite, admin powers, owner-only actions, handover", async () => {
+  const owner = { "x-dev-user": "co-owner" };
+  const mike = { "x-dev-user": "co-mike" };
+  const stranger = { "x-dev-user": "co-stranger" };
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: owner, payload: { name: "Co Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 10 } })).json().group;
+
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/remind`, headers: mike, payload: {} })).statusCode, 403);
+
+  const { url } = (await app.inject({ method: "POST", url: `/groups/${slug}/organizers/invite`, headers: owner, payload: {} })).json();
+  const token = new URL(url).searchParams.get("t")!;
+  assert.equal((await app.inject({ url: `/organizer-invites/${token}` })).json().groupName, "Co Hoops");
+  assert.equal((await app.inject({ method: "POST", url: "/organizer-invites/accept", headers: mike, payload: { token } })).json().slug, slug);
+  // One use only.
+  assert.equal((await app.inject({ method: "POST", url: "/organizer-invites/accept", headers: stranger, payload: { token } })).statusCode, 404);
+
+  // Mike can run the group: see it on his dashboard, get organizer controls, cancel a week.
+  const dash = (await app.inject({ url: "/me/dashboard", headers: mike })).json();
+  assert.equal(dash.groups.find((g: { group: { slug: string } }) => g.group.slug === slug).role, "admin");
+  assert.equal((await app.inject({ url: `/groups/${slug}`, headers: mike })).json().viewer.role, "admin");
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/session/cancelled`, headers: mike, payload: { cancelled: true } })).statusCode, 200);
+  // But not invite others or take over.
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/organizers/invite`, headers: mike, payload: {} })).statusCode, 403);
+
+  const list = (await app.inject({ url: `/groups/${slug}/organizers`, headers: owner })).json();
+  assert.deepEqual(list.organizers.map((o: { role: string }) => o.role), ["owner", "admin"]);
+  const mikeId = list.organizers.find((o: { role: string }) => o.role === "admin").id;
+  const ownerId = list.organizers.find((o: { role: string }) => o.role === "owner").id;
+
+  // Hand over: Mike owns it, the old owner stays as an admin.
+  const handed = (await app.inject({ method: "PUT", url: `/groups/${slug}/owner`, headers: owner, payload: { organizerId: mikeId } })).json();
+  assert.equal(handed.role, "admin");
+  assert.equal((await app.inject({ url: `/groups/${slug}`, headers: mike })).json().viewer.role, "owner");
+  // The owner can't leave without handing over; an admin can leave.
+  assert.equal((await app.inject({ method: "DELETE", url: `/groups/${slug}/organizers/${mikeId}`, headers: mike })).statusCode, 400);
+  assert.equal((await app.inject({ method: "DELETE", url: `/groups/${slug}/organizers/${ownerId}`, headers: owner })).statusCode, 200);
+  assert.equal((await app.inject({ url: `/groups/${slug}`, headers: owner })).json().viewer.isOrganizer, false);
+});
