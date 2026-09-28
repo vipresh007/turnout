@@ -91,7 +91,7 @@ export const EMAIL = { bg: "#0E1113", card: "#171B1F", border: "#262B31", text: 
 /** Wraps email content (table rows) in the shared layout. `footer` is extra small print inside the card. */
 export function emailShell(rows: string, footer = ""): string {
   const c = EMAIL;
-  return `<!doctype html><html><head><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
+  return asciiHtml(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
   <body style="margin:0;background:${c.bg};font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:${c.bg}"><tr><td align="center" style="padding:40px 16px">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${c.card};border:1px solid ${c.border};border-radius:24px">
@@ -100,8 +100,11 @@ export function emailShell(rows: string, footer = ""): string {
       ${footer ? `<tr><td style="padding:0 32px 32px;font-size:12px;line-height:18px;color:${c.faint}">${footer}</td></tr>` : `<tr><td style="padding-bottom:32px"></td></tr>`}
     </table>
     <p style="font-size:12px;color:${c.faint};margin:16px 0 0">Turnout · stop asking who's playing</p>
-  </td></tr></table></body></html>`;
+  </td></tr></table></body></html>`);
 }
+
+/** Writes every non-ASCII character (·, “ ”, emoji) as an HTML entity, so no mail app can garble it ("Â·"). */
+const asciiHtml = (html: string) => html.replace(/[^\x00-\x7F]/gu, (ch) => `&#${ch.codePointAt(0)};`);
 
 export function emailHtml(m: { title: string; body: string; url: string }, unsubscribeUrl?: string, buttonLabel = "Open Turnout"): string {
   const c = EMAIL;
