@@ -1,5 +1,5 @@
 import { Link, router, usePathname } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useAccount } from "@/lib/account";
 import { useAuth } from "@/lib/auth";
@@ -89,6 +89,13 @@ function AccountMenu() {
   const account = useAccount();
   const [open, setOpen] = useState(false);
   const initial = (account?.name ?? account?.email ?? "").trim()[0]?.toUpperCase() ?? "👤";
+  // Escape closes the menu too.
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
   const go = (href: "/" | "/dashboard" | "/admin") => {
     setOpen(false);
     router.push(href);
@@ -104,6 +111,10 @@ function AccountMenu() {
       >
         <Text style={{ color: t.accentText, fontWeight: "900", fontSize: 16 }}>{initial}</Text>
       </Pressable>
+      {open && (
+        // A click anywhere outside the menu closes it.
+        <Pressable accessibilityLabel="Close menu" onPress={() => setOpen(false)} style={styles.backdrop} />
+      )}
       {open && (
         <Pop style={[styles.menu, { backgroundColor: t.card, borderColor: t.border }]}>
           {account?.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{account.email}</Text>}
@@ -154,5 +165,7 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   menu: { position: "absolute", top: 48, right: 0, width: 220, borderWidth: 1, borderRadius: 14, padding: 12, gap: 8, zIndex: 60, boxShadow: "0 16px 40px rgba(0,0,0,0.25)" },
   menuItem: { paddingVertical: 8, paddingHorizontal: 8, borderRadius: 8 },
+  // Fixed to the viewport on web, so it covers the whole page behind the open menu.
+  backdrop: { position: "fixed" as "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 55, cursor: "default" } as object,
   glow: { position: "absolute", top: 0, left: 0, right: 0, height: 700, overflow: "hidden" },
 });
