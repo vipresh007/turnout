@@ -161,4 +161,10 @@ export const migrations: string[] = [
   CREATE INDEX events_session_idx ON events (session_id, kind);
   ALTER TABLE sessions ADD COLUMN forecast_alerted_at timestamptz;
   `,
+  // Pricing test: would organizers pay? Nothing is charged; answers are for validation.
+  `
+  ALTER TABLE organizers ADD COLUMN pricing_answer text;
+  ALTER TABLE organizers ADD COLUMN pricing_reason text;
+  ALTER TABLE organizers ADD COLUMN pricing_answered_at timestamptz;
+  `,
 ];

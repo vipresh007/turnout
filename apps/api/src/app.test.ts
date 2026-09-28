@@ -528,3 +528,26 @@ test("events, game history, metrics and the autopilot heads-up", async () => {
   assert.ok(page.organizer.forecast);
   delete process.env.ADMIN_EMAILS;
 });
+
+test("pricing test: asked after 3 games, answer recorded once, shown to admins", async () => {
+  const org = { "x-dev-user": "price-org" };
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Price Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  assert.equal((await app.inject({ url: "/me/dashboard", headers: org })).json().organizer.askPricing, false);
+  const a = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "A" } })).json().member.id;
+  const b = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "B" } })).json().member.id;
+  for (const w of [1, 2, 3]) {
+    const [s] = await db.query<{ id: string }>(`INSERT INTO sessions (group_id, starts_at) VALUES ($1, now() - interval '${w} weeks') RETURNING id`, [id]);
+    for (const m of [a, b]) await db.query(`INSERT INTO rsvps (session_id, member_id, status) VALUES ($1, $2, 'in')`, [s!.id, m]);
+  }
+  assert.equal((await app.inject({ url: "/me/dashboard", headers: org })).json().organizer.askPricing, true);
+  assert.equal((await app.inject({ method: "POST", url: "/me/pricing", headers: org, payload: { answer: "sure" } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "POST", url: "/me/pricing", headers: org, payload: { answer: "yes", reason: "Saves me an hour a week", source: "dashboard" } })).statusCode, 200);
+  assert.equal((await app.inject({ url: "/me/dashboard", headers: org })).json().organizer.askPricing, false);
+
+  process.env.ADMIN_EMAILS = "price@example.com";
+  await db.query(`UPDATE organizers SET email = 'price@example.com' WHERE external_id = 'dev:price-org'`);
+  const metrics = (await app.inject({ url: "/admin/metrics", headers: org })).json();
+  assert.equal(metrics.pricing[0].answer, "yes");
+  assert.equal(metrics.pricing[0].reason, "Saves me an hour a week");
+  delete process.env.ADMIN_EMAILS;
+});

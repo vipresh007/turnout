@@ -130,7 +130,7 @@ export interface OrganizerStats {
 }
 
 export interface Dashboard {
-  organizer: { name: string | null; email: string | null; isAdmin?: boolean };
+  organizer: { name: string | null; email: string | null; isAdmin?: boolean; askPricing?: boolean };
   stats: OrganizerStats;
   /** Sorted by next session, soonest first. */
   groups: DashboardGroup[];

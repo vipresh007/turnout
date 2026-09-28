@@ -4,6 +4,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
+import { PricingAsk } from "@/components/PricingAsk";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
@@ -156,6 +157,7 @@ function DashboardView() {
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
+            {organizer.askPricing && <PricingAsk />}
             {next && tile(next)}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
 

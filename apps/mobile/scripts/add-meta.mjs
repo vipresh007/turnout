@@ -6,8 +6,8 @@ import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 const [dist = "dist", apiUrl, webUrl] = process.argv.slice(2);
 if (!apiUrl || !webUrl) throw new Error("usage: add-meta.mjs <dist> <apiUrl> <webUrl>");
 const file = `${dist}/index.html`;
-const title = "Turnout: who's in this week?";
-const description = "One link for your weekly game. Players tap in or out, the headcount updates live, and the waitlist runs itself.";
+const title = "Turnout: stop asking who's playing";
+const description = "One link for your weekly game. Players tap I'm in. Turnout handles the count, the waitlist, reminders, dropouts and teams.";
 const block = [
   `<meta name="description" content="${description}">`,
   `<meta property="og:type" content="website">`,

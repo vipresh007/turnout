@@ -36,11 +36,14 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
 import { atLocal, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
+
+/** Games run before we ask an organizer whether they would pay. */
+const PRICING_ASK_AFTER_GAMES = 3;
 
 type SlugParams = { Params: { slug: string } };
 
@@ -144,7 +147,40 @@ export async function buildApp(db: Db) {
   app.get("/me/dashboard", async (req) => {
     const organizer = await requireOrganizer(db, req);
     const dashboard = await organizerDashboard(db, organizer.id);
-    return { ...dashboard, organizer: { ...dashboard.organizer, isAdmin: isAdminEmail(dashboard.organizer.email) } };
+    // Ask "would you pay?" once, after they've run a few games through Turnout.
+    const [ask] = await db.query<{ ask: boolean }>(
+      `SELECT o.pricing_answer IS NULL AND (
+         SELECT count(*) FROM sessions s JOIN groups g ON g.id = s.group_id
+         WHERE ${managedBy("g", "$1")} AND NOT s.cancelled AND s.starts_at < now()
+           AND (SELECT count(*) FROM rsvps r WHERE r.session_id = s.id AND r.status = 'in') >= 2
+       ) >= $2 AS ask
+       FROM organizers o WHERE o.id = $1`,
+      [organizer.id, PRICING_ASK_AFTER_GAMES],
+    );
+    return { ...dashboard, organizer: { ...dashboard.organizer, isAdmin: isAdminEmail(dashboard.organizer.email), askPricing: !!ask?.ask } };
+  });
+
+  // Pricing test. "I'd pay for this" on the landing page and the dashboard question both land here. Nothing is charged.
+  app.post("/me/pricing", strict(10), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const body = (req.body ?? {}) as { answer?: string; reason?: string; source?: string };
+    const answer = ["yes", "maybe", "no"].find((a) => a === body.answer);
+    if (!answer) throw new HttpError(400, "Pick yes, maybe or no");
+    const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) || null : null;
+    const source = body.source === "landing" ? "landing" : "dashboard";
+    const [row] = await db.query<{ name: string | null; email: string | null }>(
+      `UPDATE organizers SET pricing_answer = $2, pricing_reason = COALESCE($3, pricing_reason), pricing_answered_at = now() WHERE id = $1 RETURNING name, email`,
+      [organizer.id, answer, reason],
+    );
+    await track(db, "pricing_answer", { organizerId: organizer.id, props: { answer, source, hasReason: !!reason } });
+    const admins = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+    if (answer === "yes" && admins.length) {
+      const who = row?.name || row?.email || "An organizer";
+      const title = `${who} would pay for Turnout`;
+      const body = `${who}${row?.email ? ` (${row.email})` : ""} said yes to $49/year from the ${source}.${reason ? ` They said: “${reason}”` : ""}`;
+      for (const to of admins) await sendEmail(to, title, emailHtml({ title, body, url: `${webUrl()}/admin` }, undefined, "Open metrics"), `${body}`).catch(() => {});
+    }
+    return { answer };
   });
 
   // Product metrics across all groups, for the people running Turnout (ADMIN_EMAILS).
@@ -153,7 +189,11 @@ export async function buildApp(db: Db) {
     const [row] = await db.query<{ email: string | null }>(`SELECT email FROM organizers WHERE id = $1`, [organizer.id]);
     if (!isAdminEmail(row?.email)) throw new HttpError(404, "Not found");
     const days = Math.min(365, Math.max(7, Number(req.query.days) || 90));
-    return productMetrics(db, days);
+    const pricing = await db.query<{ name: string | null; email: string | null; answer: string; reason: string | null; at: Date | string }>(
+      `SELECT name, email, pricing_answer AS answer, pricing_reason AS reason, pricing_answered_at AS at FROM organizers
+       WHERE pricing_answer IS NOT NULL ORDER BY pricing_answered_at DESC LIMIT 100`,
+    );
+    return { ...(await productMetrics(db, days)), pricing: pricing.map((p) => ({ ...p, at: new Date(p.at).toISOString() })) };
   });
 
   app.patch<SlugParams>("/groups/:slug", async (req) => {

@@ -27,7 +27,7 @@ export default function RootLayout() {
           title: "Turnout",
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false, title: "Turnout: who's in this week?" }} />
+        <Stack.Screen name="index" options={{ headerShown: false, title: "Turnout: stop asking who's playing" }} />
         {/* The dashboard has its own greeting header on web; native keeps the bar for safe-area spacing. */}
         <Stack.Screen name="dashboard" options={{ title: "Turnout", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="new" options={{ title: "New group", presentation: "modal" }} />
@@ -42,6 +42,7 @@ export default function RootLayout() {
         <Stack.Screen name="insights/[slug]" options={{ title: "Insights", presentation: "modal" }} />
         <Stack.Screen name="history/[slug]" options={{ title: "History", presentation: "modal" }} />
         <Stack.Screen name="admin" options={{ title: "Metrics" }} />
+        <Stack.Screen name="founding" options={{ title: "Founding organizers", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="organizers/[slug]" options={{ title: "Organizers", presentation: "modal" }} />
         <Stack.Screen name="organize" options={{ title: "Help run a group" }} />
         <Stack.Screen name="privacy" options={{ title: "Privacy", headerShown: Platform.OS !== "web" }} />

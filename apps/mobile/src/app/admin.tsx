@@ -19,7 +19,7 @@ const EVENT_LABELS: Record<string, string> = {
   waitlisted: "Waitlisted", waitlist_promoted: "Moved up from waitlist", player_dropped: "Dropped out", late_dropout: "Late dropouts",
   reminder_sent: "Reminders sent", reminder_opened: "Reminder links opened", spot_alert_sent: "Spot-open alerts sent",
   spot_alert_claimed: "Spot-open alerts claimed", teams_created: "Teams made", payment_marked: "Payments marked",
-  link_shared: "Links shared", invite_asked: "“Ask” taps", forecast_alert_sent: "Autopilot heads-ups", pricing_interest: "Pricing interest",
+  link_shared: "Links shared", invite_asked: "“Ask” taps", forecast_alert_sent: "Autopilot heads-ups", pricing_answer: "Pricing answers",
 };
 
 /** Product metrics across all groups. Only admins (ADMIN_EMAILS) get data; the API hides the rest. */
@@ -93,6 +93,22 @@ function Metrics() {
           </View>
         ))}
       </View>
+
+      <Card>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Would they pay $49/year?</Text>
+        <Muted>
+          {m.pricing.filter((p) => p.answer === "yes").length} yes · {m.pricing.filter((p) => p.answer === "maybe").length} maybe · {m.pricing.filter((p) => p.answer === "no").length} no
+        </Muted>
+        {m.pricing.map((p, i) => (
+          <View key={i} style={{ gap: 2, paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderColor: t.border }}>
+            <Text style={{ color: t.text, fontWeight: "700" }}>
+              {p.answer === "yes" ? "✅" : p.answer === "maybe" ? "🤔" : "❌"} {p.name || p.email || "Organizer"}
+              {p.email && p.name ? <Text style={{ color: t.muted, fontWeight: "400" }}> · {p.email}</Text> : null}
+            </Text>
+            {p.reason && <Text style={{ color: t.muted }}>“{p.reason}”</Text>}
+          </View>
+        ))}
+      </Card>
 
       <Card>
         <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Events</Text>

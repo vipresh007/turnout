@@ -6,10 +6,9 @@ import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View
 import { wakeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme, type Theme } from "@/lib/theme";
-import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView, RotatingWord } from "./motion";
+import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView } from "./motion";
 import { webTransition } from "./ui";
 
-const activities = ["pickup soccer?", "Tuesday hoops?", "poker night?", "the 6am run?", "volleyball?", "yoga class?"];
 
 const chat: { who: string; text: string; own?: boolean }[] = [
   { who: "Maya", text: "in" },
@@ -40,7 +39,7 @@ const uses = ["⚽️ Pickup soccer", "🏀 Basketball runs", "🏐 Volleyball",
 
 const faqs = [
   { q: "Do players need to download an app or make an account?", a: "No. Players open the link in any browser, type their name once, and tap in or out. Only organizers sign in." },
-  { q: "Is it free?", a: "Yes, Turnout is free for organizers and players. If we add paid extras later, what you use today stays free." },
+  { q: "Is it free?", a: "Yes, everything is free right now, and players will always be free. We're planning an optional Organizer plan ($49/year founding price). You'll hear from us well before anything changes." },
   { q: "What happens when the game is full?", a: "New players join a waitlist. If someone drops out, the next person moves up automatically and gets a heads-up." },
   { q: "How do reminders work without an account?", a: "On the group page, players can ask for a reminder by email or turn on browser notifications. Every email has a one-tap stop link." },
   { q: "Can someone else help run the group?", a: "Yes. Invite co-organizers with a private link. They can remind, cancel or move a week, make teams, and mark payments." },
@@ -59,6 +58,7 @@ export function Landing() {
   const howY = useRef(0);
   const featuresY = useRef(0);
   const faqY = useRef(0);
+  const pricingY = useRef(0);
   const scrollTo = (y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
   // Signed out, /new asks for sign-in first and comes back to the form; "Sign in" goes to the dashboard.
   const start = () => router.push("/new");
@@ -67,8 +67,8 @@ export function Landing() {
   return (
     <RevealScrollView ref={scrollRef} style={{ backgroundColor: t.bg }} contentContainerStyle={{ alignItems: "center" }}>
       <Head>
-        <title>Turnout: who's in this week?</title>
-        <meta name="description" content="One link for your weekly game. Players tap in or out, the headcount updates live, and the waitlist runs itself. Free for organizers." />
+        <title>Turnout: stop asking who's playing</title>
+        <meta name="description" content="One link for your weekly game. Players tap I'm in. Turnout handles the count, the waitlist, reminders, dropouts and teams. Free for organizers." />
       </Head>
 
       {/* ── Hero ── */}
@@ -86,6 +86,7 @@ export function Landing() {
               <>
                 <NavText label="How it works" onPress={() => scrollTo(howY.current)} />
                 <NavText label="Features" onPress={() => scrollTo(featuresY.current)} />
+                <NavText label="Pricing" onPress={() => scrollTo(pricingY.current)} />
                 <NavText label="FAQ" onPress={() => scrollTo(faqY.current)} />
               </>
             )}
@@ -104,22 +105,20 @@ export function Landing() {
               </View>
             </Pop>
             <View>
-              <Text style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>Who's in for</Text>
-              <RotatingWord
-                words={activities}
-                render={(w) => <Text style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 78 : 54, color: t.accent }]}>{w}</Text>}
-              />
+              <Text role="heading" aria-level={1} style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>
+                Stop asking <Text style={{ color: t.accent }}>who's playing.</Text>
+              </Text>
             </View>
             <Text style={s.lead}>
-              Turnout replaces the group-chat headcount. Share one link, everyone taps <Text style={s.leadStrong}>I'm in</Text> or{" "}
-              <Text style={s.leadStrong}>I'm out</Text>, and the waitlist runs itself.
+              One link for your weekly game. Players tap <Text style={s.leadStrong}>I'm in</Text>. Turnout handles the count, the waitlist,
+              reminders, dropouts and teams.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
               <CTA label="Start a group, it's free" onPress={start} />
               <CTA label="See how it works" secondary onPress={() => scrollRef.current?.scrollTo({ y: howY.current - 24, animated: true })} />
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
-              {["Set up in 60 seconds", "Works in any group chat", "Live updates"].map((x) => (
+              {["No app for players", "Free for organizers", "Set up in a minute"].map((x) => (
                 <Text key={x} style={{ color: t.muted, fontSize: 14 }}>
                   <Text style={{ color: t.accent, fontWeight: "800" }}>✓ </Text>
                   {x}
@@ -215,6 +214,34 @@ export function Landing() {
             </View>
           ))}
         </Marquee>
+      </View>
+
+      {/* ── Pricing ── */}
+      <View onLayout={(e) => (pricingY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 960 }]}>
+        <Reveal style={{ gap: 12, alignItems: "center" }}>
+          <Text style={s.kicker}>Pricing</Text>
+          <Text style={[s.h2, { textAlign: "center" }]}>Free while we're getting started</Text>
+          <Text style={[s.body, { textAlign: "center", maxWidth: 620 }]}>
+            Everything is free right now. We're planning an Organizer plan and would love to know if it's worth it to you. Nothing is charged, and you'll hear from us before anything changes.
+          </Text>
+        </Reveal>
+        <View style={{ flexDirection: wide ? "row" : "column", gap: 16 }}>
+          <PriceCard
+            name="Free"
+            price="$0"
+            per="for everyone, today"
+            items={["Live headcount and waitlist", "No app or account for players", "Share cards and link previews", "Every Organizer feature too, while we're new"]}
+          />
+          <PriceCard
+            name="Organizer"
+            price="$49"
+            per="per year · founding price"
+            featured
+            items={["Multiple groups", "Reminders and autopilot heads-ups", "Insights and game history", "Co-organizers", "Payment tracking and team maker"]}
+            cta="I'd pay for this"
+            onPress={() => router.push("/founding")}
+          />
+        </View>
       </View>
 
       {/* ── FAQ ── */}
@@ -500,5 +527,35 @@ function Faq({ q, a }: { q: string; a: string }) {
       </View>
       {open && <Text style={{ color: t.muted, fontSize: 16, lineHeight: 24 }}>{a}</Text>}
     </Pressable>
+  );
+}
+
+function PriceCard({ name, price, per, items, featured, cta, onPress }: { name: string; price: string; per: string; items: string[]; featured?: boolean; cta?: string; onPress?: () => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, backgroundColor: t.card, borderColor: featured ? t.accent : t.border, borderWidth: featured ? 2 : 1, borderRadius: 20, padding: 24, gap: 14 }}>
+      <View style={{ gap: 4 }}>
+        <Text style={{ color: featured ? t.accent : t.muted, fontWeight: "800", fontSize: 14, letterSpacing: 1, textTransform: "uppercase" }}>{name}</Text>
+        <Text style={{ color: t.text, fontSize: 44, fontWeight: "900", letterSpacing: -1.5 }}>{price}</Text>
+        <Text style={{ color: t.muted }}>{per}</Text>
+      </View>
+      <View style={{ gap: 8 }}>
+        {items.map((i) => (
+          <Text key={i} style={{ color: t.text, fontSize: 15 }}>
+            <Text style={{ color: t.accent, fontWeight: "800" }}>✓ </Text>
+            {i}
+          </Text>
+        ))}
+      </View>
+      {cta && onPress && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          style={({ hovered, pressed }: { hovered?: boolean; pressed: boolean }) => ({ marginTop: "auto", alignItems: "center", paddingVertical: 14, borderRadius: 14, backgroundColor: t.accent, opacity: hovered ? 0.9 : 1, transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.97 : 1 }], ...webTransition })}
+        >
+          <Text style={{ color: t.accentText, fontWeight: "800", fontSize: 16 }}>{cta}</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
