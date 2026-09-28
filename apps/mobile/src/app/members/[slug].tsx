@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
-import { BackLink, Button, Card, Muted, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Muted, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { useTheme } from "@/lib/theme";
@@ -22,10 +22,14 @@ function Members() {
   const api = useApi();
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [members, setMembers] = useState<MemberSummary[] | null>(null);
+  const [season, setSeason] = useState(false);
   const [merging, setMerging] = useState<MemberSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => api.members(slug).then((r) => setMembers(r.members), (e: Error) => setError(e.message)), [api, slug]);
+  const load = useCallback(() => api.members(slug).then((r) => {
+    setMembers(r.members);
+    setSeason(r.season);
+  }, (e: Error) => setError(e.message)), [api, slug]);
   useEffect(() => {
     load();
   }, [load]);
@@ -49,6 +53,11 @@ function Members() {
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Members · {members.length}</Text>
         <Muted>Everyone who has joined. Same person twice (like a new phone)? Merge them so their history stays together.</Muted>
+        {season && (
+          <Muted>
+            Season group: tick who's a season member ({members.filter((m) => m.seasonMember).length} now) and who has paid. Everyone else plays as a sub.
+          </Muted>
+        )}
       </View>
       {merging && (
         <Card>
@@ -83,6 +92,12 @@ function Members() {
                 {m.hasEmail ? " · 📧 reminders" : ""}
               </Text>
             </View>
+            {season && (
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                <Toggle label="Member" on={m.seasonMember} onPress={() => act(() => api.setSeason(slug, m.id, { member: !m.seasonMember }))} />
+                {m.seasonMember && <Toggle label="Paid" on={m.seasonPaid} onPress={() => act(() => api.setSeason(slug, m.id, { paid: !m.seasonPaid }))} />}
+              </View>
+            )}
             <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
               <Text style={{ color: t.accent, fontWeight: "700" }}>Merge</Text>
             </Pressable>
@@ -91,5 +106,21 @@ function Members() {
       </Card>
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
     </Screen>
+  );
+}
+
+function Toggle({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      hitSlop={6}
+      style={({ hovered }: { hovered?: boolean }) => ({ paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: on || hovered ? t.accent : t.border, backgroundColor: on ? t.soft : "transparent", ...webTransition })}
+    >
+      <Text style={{ color: on ? t.accent : t.muted, fontSize: 12, fontWeight: "800" }}>{on ? `✓ ${label}` : label}</Text>
+    </Pressable>
   );
 }

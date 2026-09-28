@@ -40,3 +40,10 @@ test("group chat reminder text", () => {
     "⏰ Volleyball: Wed 8pm. 9/14 in so far. We need 5 more! Tap to confirm: https://x/g/a",
   );
 });
+
+test("first reminder 24 hours before, then the final one", () => {
+  const start = new Date("2026-10-06T23:30:00Z");
+  const t = reminderTimes(start, "America/Toronto", { dayBefore: true, hoursBefore: 2, first: "24h" });
+  assert.equal(t.dayBefore!.toISOString(), "2026-10-05T23:30:00.000Z");
+  assert.equal(t.hoursBefore!.toISOString(), "2026-10-06T21:30:00.000Z");
+});

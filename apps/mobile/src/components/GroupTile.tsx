@@ -1,4 +1,4 @@
-import { ASK_WINDOW_HOURS, describeForecast, describeRecurrence, formatMoney, groupShareMessage, inviteMessage, LATE_WARNING_HOURS, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, describeForecast, describeRecurrence, formatMoney, groupShareMessage, inviteMessage, LATE_WARNING_HOURS, playerGoal, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -30,19 +30,26 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   const link = shareUrl(group.slug);
   const where = session.location ?? group.location;
   const message = groupShareMessage({
-    name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap,
+    name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap, targetPlayers: group.targetPlayers,
     startsAt: session.startsAt, confirmed: item.confirmed, cancelled: session.cancelled, link,
-    feeCents: group.feeCents, feeSplit: group.feeSplit,
+    // Season groups have paid up front; the per-game price is only for subs, so leave it out of the group message.
+    feeCents: group.seasonFeeCents ? null : group.feeCents, feeSplit: group.feeSplit,
   });
-  const share = shareCents(group, item.confirmed);
-  const fill = group.cap ? Math.min(1, item.confirmed / group.cap) : 0;
+  const season = !!group.seasonFeeCents;
+  const share = season ? null : shareCents(group, item.confirmed);
+  const goal = playerGoal(group);
+  const fill = goal ? Math.min(1, item.confirmed / goal) : 0;
   const status = session.cancelled
     ? { text: "Cancelled this week", color: t.danger }
-    : group.cap === null
+    : goal === null
       ? { text: `${item.confirmed} in`, color: t.muted }
-      : item.spotsLeft === 0
+      : group.cap && item.spotsLeft === 0
         ? { text: item.waitlist ? `Full · ${item.waitlist} waitlisted` : "Full", color: t.accent }
-        : { text: `${item.spotsLeft} ${item.spotsLeft === 1 ? "spot" : "spots"} left`, color: t.waitlist };
+        : !group.cap && item.spotsLeft === 0
+          ? { text: `${item.confirmed} in · target met`, color: t.accent }
+          : group.cap
+            ? { text: `${item.spotsLeft} ${item.spotsLeft === 1 ? "spot" : "spots"} left`, color: t.waitlist }
+            : { text: `Need ${item.spotsLeft} more`, color: t.waitlist };
   const names = new Map(players.map((p) => [p.memberId, p.name]));
   const paidCount = players.filter((p) => p.status === "in" && p.paid).length;
 
@@ -98,9 +105,9 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
               {item.confirmed}
-              <Text style={{ color: t.muted, fontSize: 15, fontWeight: "700" }}>{group.cap ? ` / ${group.cap}` : " in"}</Text>
+              <Text style={{ color: t.muted, fontSize: 15, fontWeight: "700" }}>{group.cap ? ` / ${group.cap}` : goal ? ` in · target ${goal}` : " in"}</Text>
             </Text>
-            {group.cap ? (
+            {goal ? (
               <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
                 <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: t.accent }} />
               </View>
@@ -114,7 +121,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
       <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 16 }}>
       {!session.cancelled && (
           <Text style={{ color: t.muted, fontWeight: "700", fontSize: 13, letterSpacing: 0.4 }}>
-            {item.confirmed} IN · {item.out} OUT · {item.waitlist} WAITLIST{item.confirmed ? ` · ${paidCount}/${item.confirmed} PAID` : ""}
+            {item.confirmed} IN · {item.out} OUT · {item.waitlist} WAITLIST{item.confirmed && !season ? ` · ${paidCount}/${item.confirmed} PAID` : ""}
             {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} OF ${formatMoney(item.confirmed * share)}` : ""}
           </Text>
       )}
@@ -148,7 +155,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
           <View style={{ flexDirection: "row", paddingVertical: 6, borderBottomWidth: 1, borderColor: t.border }}>
             <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", flex: 1, textTransform: "uppercase", letterSpacing: 0.6 }}>Player</Text>
             <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", width: 110, textTransform: "uppercase", letterSpacing: 0.6 }}>Status</Text>
-            <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", width: 56, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6 }}>Paid</Text>
+            {!season && <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", width: 56, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6 }}>Paid</Text>}
           </View>
           {players.map((p) => {
             const label = p.status === "in" ? "✅ In" : p.status === "waitlist" ? `⏳ Waitlist #${++waitlistPos}` : "❌ Out";
@@ -161,7 +168,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                   </Text>
                 </View>
                 <Text style={{ color: p.status === "out" ? t.muted : t.text, width: 110, fontSize: 14 }}>{label}</Text>
-                <View style={{ width: 56, alignItems: "center" }}>
+                {!season && <View style={{ width: 56, alignItems: "center" }}>
                   {p.status === "out" ? (
                     <Text style={{ color: t.muted }}>—</Text>
                   ) : (
@@ -179,7 +186,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                       <Text style={{ color: t.accent, fontWeight: "900" }}>{p.paid ? "✓" : ""}</Text>
                     </Pressable>
                   )}
-                </View>
+                </View>}
               </View>
             );
           })}
@@ -239,8 +246,9 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
   let detail: string | null = null;
   let ask = suggestions.invite;
   let askCount = Math.max(3, spotsLeft);
-  if (forecast && group.cap) {
-    ({ headline, detail } = describeForecast(forecast, confirmed, group.cap));
+  const goal = playerGoal(group);
+  if (forecast && goal) {
+    ({ headline, detail } = describeForecast(forecast, confirmed, goal));
     if (forecast.status === "full" && (hours > LATE_WARNING_HOURS || forecast.expectedLateDrops === 0)) detail = null;
     ask = forecast.status === "full" ? [] : forecast.likely;
     askCount = Math.max(2, forecast.short + 1);

@@ -79,7 +79,7 @@ export interface GroupInsights {
   invite: InviteSuggestion[];
   /** Late dropouts to expect this week, from past games (rounded). */
   expectedLateDrops: number;
-  /** Null without a cap, without enough history (3 games), or when this week is cancelled. */
+  /** Null without a cap or target, without enough history (3 games), or when this week is cancelled. */
   forecast: Forecast | null;
 }
 
@@ -100,6 +100,8 @@ const hoursBefore = (at: string, startsAt: string) => Math.max(0, (Date.parse(st
  */
 export function groupInsights(input: {
   cap: number | null;
+  /** Without a cap, the forecast aims for this many players. */
+  target?: number | null;
   timezone: string;
   games: PastGame[];
   members: { id: string; name: string; joinedAt: string }[];
@@ -167,17 +169,19 @@ export function groupInsights(input: {
 
   const expectedLateDrops = Math.round(avgLateDrops ?? 0);
   let forecast: Forecast | null = null;
-  if (input.current && !input.current.cancelled && cap && played.length >= 3) {
+  const goal = cap ?? input.target ?? null;
+  if (input.current && !input.current.cancelled && goal && played.length >= 3) {
     const { roster } = input.current;
     const answered = new Set([...roster.confirmed, ...roster.waitlist, ...roster.out].map((r) => r.memberId));
     const pending = players.filter((p) => !answered.has(p.memberId));
     const expectedYes = pending.reduce((n, p) => n + (p.games ? p.played / p.games : 0), 0);
     const uncoveredLate = Math.max(0, (avgLateDrops ?? 0) - roster.waitlist.length);
     const raw = roster.confirmed.length + roster.waitlist.length + expectedYes - uncoveredLate;
-    const projected = Math.min(cap, Math.max(roster.confirmed.length - Math.ceil(uncoveredLate), Math.round(raw)));
-    const short = Math.max(0, cap - projected);
+    const floor = Math.max(roster.confirmed.length - Math.ceil(uncoveredLate), Math.round(raw));
+    const projected = cap ? Math.min(cap, floor) : floor;
+    const short = Math.max(0, goal - projected);
     forecast = {
-      status: roster.spotsLeft === 0 && short === 0 ? "full" : short > 0 ? "short" : "good",
+      status: cap && roster.spotsLeft === 0 && short === 0 ? "full" : short > 0 ? "short" : "good",
       projected,
       short,
       unanswered: pending.length,

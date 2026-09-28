@@ -1,11 +1,12 @@
-import { buildRoster, groupInsights, shareCents, type GameRecord, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, groupInsights, playersNeeded, seasonShareCents, shareCents, type GameRecord, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
 export const groupColumns = `id, slug, name, activity, location, weekdays, interval_weeks AS "intervalWeeks",
   to_char(starts_on, 'YYYY-MM-DD') AS "startsOn", to_char(ends_on, 'YYYY-MM-DD') AS "endsOn",
   start_time AS "startTime", duration_minutes AS "durationMinutes", timezone, cap,
-  fee_cents AS "feeCents", fee_split AS "feeSplit", pay_note AS "payNote", reminders`;
+  fee_cents AS "feeCents", fee_split AS "feeSplit", pay_note AS "payNote",
+  season_fee_cents AS "seasonFeeCents", target_players AS "targetPlayers", reminders`;
 
 const sessionColumns = `id, group_id AS "groupId", starts_at AS "scheduledAt", starts_at_override AS "startsAtOverride",
   cancelled, location_override AS "location", note, teams`;
@@ -102,16 +103,26 @@ export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: stri
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
   const role = await groupRole(db, group, viewerOrganizerId);
   const isOrganizer = role !== null;
-  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer } };
+  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer }, season: await seasonOf(db, group) };
   if (isOrganizer) {
     const { forecast } = await groupInsightsFor(db, group, { roster, cancelled: session.cancelled });
-    page.organizer = { ...(await organizerDetails(db, group.id, session.id)), forecast };
+    const seasonPaid = page.season
+      ? (await db.query<{ id: string }>(`SELECT id FROM members WHERE group_id = $1 AND season_member AND season_paid_at IS NOT NULL`, [group.id])).map((m) => m.id)
+      : [];
+    page.organizer = { ...(await organizerDetails(db, group.id, session.id)), forecast, seasonPaid };
   }
   return page;
 }
 
 /** Payment status and skill ratings: visible to the group's organizers only. */
-async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<Omit<NonNullable<GroupPage["organizer"]>, "forecast">> {
+/** Season members and each one's share, when the group has an upfront season fee. */
+export async function seasonOf(db: Db, group: GroupRow): Promise<GroupPage["season"]> {
+  if (!group.seasonFeeCents) return null;
+  const members = await db.query<{ id: string }>(`SELECT id FROM members WHERE group_id = $1 AND season_member ORDER BY created_at`, [group.id]);
+  return { memberIds: members.map((m) => m.id), shareCents: seasonShareCents(group.seasonFeeCents, members.length) };
+}
+
+async function organizerDetails(db: Db, groupId: string, sessionId: string): Promise<Omit<NonNullable<GroupPage["organizer"]>, "forecast" | "seasonPaid">> {
   const paid = await db.query<{ memberId: string }>(
     `SELECT member_id AS "memberId" FROM rsvps WHERE session_id = $1 AND paid_at IS NOT NULL`,
     [sessionId],
@@ -141,7 +152,7 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
         confirmed: roster.confirmed.length,
         waitlist: roster.waitlist.length,
         out: roster.out.length,
-        spotsLeft: roster.spotsLeft,
+        spotsLeft: row.cap ? roster.spotsLeft : playersNeeded(row, roster.confirmed.length),
         players: [...roster.confirmed.map(player("in")), ...roster.waitlist.map(player("waitlist")), ...roster.out.map(player("out"))],
         weeks: await upcomingWeeks(db, row, 12),
         suggestions: await groupInsightsFor(db, row, { roster, cancelled: session.cancelled }).then((i) => ({
@@ -264,6 +275,7 @@ export async function groupInsightsFor(db: Db, group: GroupRow, current?: { rost
   }));
   return groupInsights({
     cap: group.cap,
+    target: group.targetPlayers,
     timezone: group.timezone,
     games,
     members: members.map((m) => ({ ...m, joinedAt: iso(m.joinedAt) })),

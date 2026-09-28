@@ -19,6 +19,8 @@ export interface ShareInput {
   location: string | null;
   timezone: string;
   cap: number | null;
+  /** Without a cap: the number of players the group aims for. */
+  targetPlayers?: number | null;
   startsAt: string;
   confirmed: number;
   cancelled?: boolean;
@@ -44,6 +46,8 @@ export function groupShareMessage(g: ShareInput): string {
   } else if (g.cap) {
     const need = g.cap - g.confirmed;
     lines.push(need > 0 ? `👥 ${g.confirmed}/${g.cap} in · need ${need} more!` : `👥 ${g.cap}/${g.cap} in · full, join the waitlist`);
+  } else if (g.targetPlayers && g.confirmed < g.targetPlayers) {
+    lines.push(`👥 ${g.confirmed} in · need ${g.targetPlayers - g.confirmed} more!`);
   } else {
     lines.push(`👥 ${g.confirmed} in so far`);
   }

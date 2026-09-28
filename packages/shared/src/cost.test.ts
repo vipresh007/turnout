@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeCost, formatMoney, parseMoney, shareCents } from "./cost.ts";
+import { describeCost, formatMoney, parseMoney, playerGoal, playersNeeded, seasonShareCents, shareCents } from "./cost.ts";
 
 test("per player cost is the same for everyone", () => {
   assert.equal(shareCents({ feeCents: 1000, feeSplit: false }, 7), 1000);
@@ -21,8 +21,21 @@ test("no cost", () => {
 test("money parsing and formatting", () => {
   assert.equal(parseMoney("$7.50"), 750);
   assert.equal(parseMoney("7,5"), 750);
+  assert.equal(parseMoney("2,500"), 250000);
   assert.equal(parseMoney(" "), null);
   assert.equal(parseMoney("abc"), undefined);
   assert.equal(formatMoney(750), "$7.50");
   assert.equal(formatMoney(1000), "$10");
+  assert.equal(formatMoney(250000), "$2,500");
+  assert.equal(formatMoney(15625), "$156.25");
+});
+
+test("season fee split and player goals", () => {
+  assert.equal(seasonShareCents(250000, 16), 15625); // $2,500 / 16 = $156.25
+  assert.equal(seasonShareCents(250000, 0), null);
+  assert.equal(seasonShareCents(null, 16), null);
+  assert.equal(playerGoal({ cap: 14, targetPlayers: 12 }), 14);
+  assert.equal(playerGoal({ cap: null, targetPlayers: 12 }), 12);
+  assert.equal(playersNeeded({ cap: null, targetPlayers: 12 }, 9), 3);
+  assert.equal(playersNeeded({ cap: null, targetPlayers: null }, 9), 0);
 });

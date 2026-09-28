@@ -551,3 +551,38 @@ test("pricing test: asked after 3 games, answer recorded once, shown to admins",
   assert.equal(metrics.pricing[0].reason, "Saves me an hour a week");
   delete process.env.ADMIN_EMAILS;
 });
+
+test("season groups: upfront fee split between members, season payments, subs, target players", async () => {
+  const org = { "x-dev-user": "season-org" };
+  const created = (await app.inject({
+    method: "POST", url: "/groups", headers: org,
+    payload: { name: "Fall Volleyball", weekdays: [1], startTime: "19:30", timezone: "UTC", cap: null, targetPlayers: 12, seasonFeeCents: 250000, feeCents: 1000, payNote: "e-Transfer to org@example.com",
+      reminders: { dayBefore: true, hoursBefore: 2, first: "24h", nudgeAgain: true } },
+  })).json().group;
+  assert.equal(created.seasonFeeCents, 250000);
+  assert.equal(created.targetPlayers, 12);
+  assert.equal(created.reminders.first, "24h");
+  const slug = created.slug;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json() as { member: { id: string }; token: string };
+  const [a, b, sub] = [await join("Ann"), await join("Bo"), await join("Sub Sam")];
+
+  // Two season members → $1,250 each; Ann has paid.
+  await app.inject({ method: "PUT", url: `/groups/${slug}/members/${a.member.id}/season`, headers: org, payload: { member: true } });
+  const page = (await app.inject({ method: "PUT", url: `/groups/${slug}/members/${b.member.id}/season`, headers: org, payload: { member: true } })).json();
+  assert.deepEqual(page.season.memberIds.sort(), [a.member.id, b.member.id].sort());
+  assert.equal(page.season.shareCents, 125000);
+  await app.inject({ method: "PUT", url: `/groups/${slug}/members/${a.member.id}/season`, headers: org, payload: { paid: true } });
+  const orgPage = (await app.inject({ url: `/groups/${slug}`, headers: org })).json();
+  assert.deepEqual(orgPage.organizer.seasonPaid, [a.member.id]);
+  // Players see their own status; subs aren't season members.
+  assert.deepEqual((await app.inject({ url: `/groups/${slug}/me`, headers: { "x-member-token": a.token } })).json().season, { member: true, paid: true });
+  assert.deepEqual((await app.inject({ url: `/groups/${slug}/me`, headers: { "x-member-token": sub.token } })).json().season, { member: false, paid: false });
+  // Remind unpaid: Bo.
+  const remind = (await app.inject({ method: "POST", url: `/groups/${slug}/season/remind`, headers: org, payload: {} })).json();
+  assert.equal(remind.unpaid, 1);
+  assert.match(remind.message, /\$1,250 each.*Still to pay: Bo/);
+  // Without a cap, "need N more" counts toward the target.
+  await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": a.token }, payload: { status: "in" } });
+  const dash = (await app.inject({ url: "/me/dashboard", headers: org })).json();
+  assert.equal(dash.groups.find((g: { group: { slug: string } }) => g.group.slug === slug).spotsLeft, 11);
+});

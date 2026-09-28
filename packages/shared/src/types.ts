@@ -20,6 +20,10 @@ export interface Group {
   feeCents: number | null;
   feeSplit: boolean;
   payNote: string | null;
+  /** Upfront season fee (cents) split between season members; with it, feeCents is the drop-in price for subs. */
+  seasonFeeCents: number | null;
+  /** Without a cap: how many players the group aims for. */
+  targetPlayers: number | null;
   reminders: ReminderSettings;
 }
 
@@ -60,14 +64,18 @@ export interface GroupPage {
   /** What the requester may do. Only set from a verified organizer identity. */
   /** isOrganizer: owner or admin, who get the organizer controls. */
   viewer: { isOrganizer: boolean; role?: GroupRole };
-  /** Organizer-only details: who has paid, skill ratings, and who dropped out late this week. */
-  organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[]; forecast: Forecast | null };
+  /** Season members (ids) when the group has a season fee; anyone else who plays is a sub. */
+  season: { memberIds: string[]; shareCents: number | null } | null;
+  /** Organizer-only details: who has paid (this game), skill ratings, who dropped out late, season payments. */
+  organizer?: { paid: string[]; skills: Record<string, number>; lateDrops: string[]; forecast: Forecast | null; seasonPaid: string[] };
 }
 
 /** A member's own settings, seen only with their member token. */
 export interface MemberSelf {
   member: { id: string; name: string };
   channels: { push: number; email: string | null; emailConfirmed: boolean };
+  /** Your season status when the group has a season fee. */
+  season: { member: boolean; paid: boolean } | null;
 }
 
 /** One group as the organizer's dashboard shows it: this week's session and counts. */
@@ -146,6 +154,8 @@ export interface MemberSummary {
   devices: number;
   gamesIn: number;
   joinedAt: string;
+  seasonMember: boolean;
+  seasonPaid: boolean;
 }
 
 /** Owner: created the group (or had it handed over); the only one who manages admins. Admins run everything else. */

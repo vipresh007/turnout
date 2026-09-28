@@ -21,10 +21,19 @@ export const groupFields = z.object({
   /** Optional cost in cents: per player, or the total split between everyone in. */
   feeCents: z.number().int().min(1).max(10_000_000).nullable().optional(),
   feeSplit: z.boolean().optional(),
+  /** Upfront season fee in cents, split between the season members. */
+  seasonFeeCents: z.number().int().min(1).max(100_000_000).nullable().optional(),
+  /** Without a cap: how many players the group aims for ("need N more" counts toward it). */
+  targetPlayers: z.number().int().min(2).max(500).nullable().optional(),
   /** How to pay, e.g. "e-Transfer to sam@example.com". */
   payNote: z.string().trim().max(200).nullable().optional(),
   reminders: z
-    .object({ dayBefore: z.boolean(), hoursBefore: z.number().int().min(1).max(48).nullable() })
+    .object({
+      dayBefore: z.boolean(),
+      hoursBefore: z.number().int().min(1).max(48).nullable(),
+      first: z.enum(["evening", "24h"]).optional(),
+      nudgeAgain: z.boolean().optional(),
+    })
     .default({ dayBefore: true, hoursBefore: 2 }),
 });
 
@@ -83,3 +92,6 @@ export const saveTeamsSchema = z.object({ teams: z.array(z.array(z.string().uuid
 
 export const transferOwnerSchema = z.object({ organizerId: z.string().uuid() });
 export const acceptAdminInviteSchema = z.object({ token: z.string().min(10).max(100) });
+
+/** Organizer: mark someone a season member, and whether they've paid the season fee. */
+export const seasonMemberSchema = z.object({ member: z.boolean().optional(), paid: z.boolean().optional() }).refine((v) => v.member !== undefined || v.paid !== undefined, "Nothing to update");

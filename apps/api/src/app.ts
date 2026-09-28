@@ -8,6 +8,7 @@ import {
   cancelSessionSchema,
   createGroupSchema,
   emailSchema,
+  formatMoney,
   joinGroupSchema,
   mergeMemberSchema,
   paidSchema,
@@ -16,6 +17,7 @@ import {
   pushSubscriptionSchema,
   rsvpSchema,
   saveTeamsSchema,
+  seasonMemberSchema,
   sessionUpdateSchema,
   skillSchema,
   tokenSchema,
@@ -36,9 +38,9 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
-import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
+import { emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
 import { atLocal, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
@@ -120,13 +122,13 @@ export async function buildApp(db: Db) {
     if (!isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const [group] = await db.query<Group>(
       `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, weekdays, interval_weeks, starts_on, ends_on,
-                           start_time, duration_minutes, timezone, cap, reminders, fee_cents, fee_split, pay_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                           start_time, duration_minutes, timezone, cap, reminders, fee_cents, fee_split, pay_note, season_fee_cents, target_players)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
        RETURNING ${groupColumns}`,
       [randomSlug(), organizer.id, input.name, input.activity ?? null, input.location ?? null, input.weekdays[0], input.weekdays,
        input.intervalWeeks, input.startsOn ?? todayIn(input.timezone), input.endsOn ?? null,
        input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders),
-       input.feeCents ?? null, input.feeSplit ?? false, input.payNote || null],
+       input.feeCents ?? null, input.feeSplit ?? false, input.payNote || null, input.seasonFeeCents ?? null, input.targetPlayers ?? null],
     );
     await track(db, "group_created", { groupId: group!.id, organizerId: organizer.id, props: { cap: input.cap, weekdays: input.weekdays.length, fee: !!input.feeCents } });
     return reply.status(201).send({ group });
@@ -214,6 +216,7 @@ export async function buildApp(db: Db) {
       start_time: input.startTime, duration_minutes: input.durationMinutes, timezone: input.timezone, cap: input.cap,
       reminders: input.reminders && JSON.stringify(input.reminders),
       fee_cents: input.feeCents, fee_split: input.feeSplit, pay_note: input.payNote === "" ? null : input.payNote,
+      season_fee_cents: input.seasonFeeCents, target_players: input.targetPlayers,
     };
     const entries = Object.entries(columns).filter(([, v]) => v !== undefined);
     await db.query(
@@ -368,11 +371,12 @@ export async function buildApp(db: Db) {
     const members = await db.query<MemberSummary & { joinedAt: Date | string }>(
       `SELECT m.id, m.name, m.email_confirmed_at IS NOT NULL AS "hasEmail", m.created_at AS "joinedAt",
               (SELECT count(*)::int FROM member_tokens t WHERE t.member_id = m.id) AS devices,
-              (SELECT count(*)::int FROM rsvps r WHERE r.member_id = m.id AND r.status = 'in') AS "gamesIn"
+              (SELECT count(*)::int FROM rsvps r WHERE r.member_id = m.id AND r.status = 'in') AS "gamesIn",
+              m.season_member AS "seasonMember", m.season_paid_at IS NOT NULL AS "seasonPaid"
        FROM members m WHERE m.group_id = $1 ORDER BY lower(m.name), m.created_at`,
       [group.id],
     );
-    return { members: members.map((m) => ({ ...m, joinedAt: new Date(m.joinedAt).toISOString() })) };
+    return { members: members.map((m) => ({ ...m, joinedAt: new Date(m.joinedAt).toISOString() })), season: !!group.seasonFeeCents };
   });
 
   // Two entries for one person (e.g. a new phone): move everything onto one and remove the other.
@@ -471,6 +475,35 @@ export async function buildApp(db: Db) {
     const { skill } = skillSchema.parse(req.body);
     await db.query(`UPDATE members SET skill = $2 WHERE id = $1`, [req.params.memberId, skill]);
     return groupPage(db, group, organizer.id);
+  });
+
+  // Season groups: who's a season member, and who has paid the season fee.
+  app.put<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/season", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    await ownedMember(group, req.params.memberId);
+    const { member, paid } = seasonMemberSchema.parse(req.body);
+    if (member !== undefined) await db.query(`UPDATE members SET season_member = $2, season_paid_at = CASE WHEN $2 THEN season_paid_at END WHERE id = $1`, [req.params.memberId, member]);
+    if (paid !== undefined) {
+      await db.query(`UPDATE members SET season_member = season_member OR $2, season_paid_at = ${paid ? "COALESCE(season_paid_at, now())" : "NULL"} WHERE id = $1`, [req.params.memberId, paid]);
+      if (paid) await track(db, "payment_marked", { groupId: group.id, memberId: req.params.memberId, organizerId: organizer.id, props: { season: true } });
+    }
+    return groupPage(db, group, organizer.id);
+  });
+
+  // Nudge season members who haven't paid: notify those with reminders on, and give text for the group chat.
+  app.post<SlugParams>("/groups/:slug/season/remind", strict(10), async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    const season = await seasonOf(db, group);
+    if (!season?.shareCents) throw new HttpError(409, "This group doesn't have a season fee");
+    const unpaid = await db.query<{ id: string; name: string }>(`SELECT id, name FROM members WHERE group_id = $1 AND season_member AND season_paid_at IS NULL`, [group.id]);
+    const amount = formatMoney(season.shareCents);
+    const how = group.payNote ? ` ${group.payNote}.` : "";
+    let notified = 0;
+    for (const m of unpaid) {
+      notified += (await notifyMember(db, m.id, { title: `Season fee for ${group.name}: ${amount}`, body: `Your share of the season is ${amount}.${how} Thanks!`, url: `${webUrl()}/g/${group.slug}?from=season` }).catch(() => 0)) > 0 ? 1 : 0;
+    }
+    const message = `💵 ${group.name} season fee: ${amount} each.${how} Still to pay: ${unpaid.map((m) => m.name).join(", ") || "nobody 🎉"}`;
+    return { unpaid: unpaid.length, notified, message };
   });
 
   app.put<SlugParams>("/groups/:slug/session/teams", async (req) => {
@@ -599,13 +632,18 @@ export async function buildApp(db: Db) {
   app.get("/push/key", async () => ({ publicKey: pushPublicKey(), email: emailEnabled() }));
 
   const memberSelf = async (memberId: string): Promise<MemberSelf> => {
-    const [row] = await db.query<{ id: string; name: string; email: string | null; confirmed: boolean; push: number }>(
+    const [row] = await db.query<{ id: string; name: string; email: string | null; confirmed: boolean; push: number; season: boolean; seasonMember: boolean; seasonPaid: boolean }>(
       `SELECT m.id, m.name, m.email, m.email_confirmed_at IS NOT NULL AS confirmed,
-              (SELECT count(*)::int FROM push_subscriptions p WHERE p.member_id = m.id) AS push
-       FROM members m WHERE m.id = $1`,
+              (SELECT count(*)::int FROM push_subscriptions p WHERE p.member_id = m.id) AS push,
+              g.season_fee_cents IS NOT NULL AS season, m.season_member AS "seasonMember", m.season_paid_at IS NOT NULL AS "seasonPaid"
+       FROM members m JOIN groups g ON g.id = m.group_id WHERE m.id = $1`,
       [memberId],
     );
-    return { member: { id: row!.id, name: row!.name }, channels: { push: row!.push, email: row!.email, emailConfirmed: row!.confirmed } };
+    return {
+      member: { id: row!.id, name: row!.name },
+      channels: { push: row!.push, email: row!.email, emailConfirmed: row!.confirmed },
+      season: row!.season ? { member: row!.seasonMember, paid: row!.seasonPaid } : null,
+    };
   };
 
   app.get<SlugParams>("/groups/:slug/me", async (req) => {

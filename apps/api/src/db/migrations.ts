@@ -167,4 +167,12 @@ export const migrations: string[] = [
   ALTER TABLE organizers ADD COLUMN pricing_reason text;
   ALTER TABLE organizers ADD COLUMN pricing_answered_at timestamptz;
   `,
+  // Season groups: an upfront season fee split between season members (subs pay a drop-in price), and a target
+  // number of players for groups without a cap.
+  `
+  ALTER TABLE groups ADD COLUMN season_fee_cents integer;
+  ALTER TABLE groups ADD COLUMN target_players integer;
+  ALTER TABLE members ADD COLUMN season_member boolean NOT NULL DEFAULT false;
+  ALTER TABLE members ADD COLUMN season_paid_at timestamptz;
+  `,
 ];

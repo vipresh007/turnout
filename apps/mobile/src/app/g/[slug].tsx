@@ -1,4 +1,4 @@
-import { ASK_WINDOW_HOURS, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
@@ -117,13 +117,17 @@ export default function GroupScreen() {
   const where = session.location ?? group.location;
   const moved = session.startsAt !== session.scheduledAt;
   const shareInput = {
-    name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap,
+    name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap, targetPlayers: group.targetPlayers,
     startsAt: session.startsAt, confirmed: roster.confirmed.length, cancelled: session.cancelled, link,
-    feeCents: group.feeCents, feeSplit: group.feeSplit,
+    feeCents: page.season ? null : group.feeCents, feeSplit: group.feeSplit,
   };
+  const goal = playerGoal(group);
+  const needed = group.cap ? roster.spotsLeft : playersNeeded(group, roster.confirmed.length);
+  // Season groups: members paid up front, so only subs pay per game.
+  const seasonMembers = page.season ? new Set(page.season.memberIds) : null;
   const needsName = !me && name.trim().length === 0;
   const paidSet = viewer.isOrganizer ? new Set(page.organizer?.paid ?? []) : undefined;
-  const onTogglePaid = viewer.isOrganizer
+  const onTogglePaid = viewer.isOrganizer && (!seasonMembers || group.feeCents)
     ? (p: Rsvp) => run(`paid:${p.memberId}`, () => api.setPaid(slug, p.memberId, !paidSet!.has(p.memberId)))
     : undefined;
   const onRemove = viewer.isOrganizer
@@ -181,18 +185,22 @@ export default function GroupScreen() {
             <Bump value={roster.confirmed.length}>
               <Text style={{ color: t.text, fontSize: 56, fontWeight: "800", letterSpacing: -2 }}>{roster.confirmed.length}</Text>
             </Bump>
-            <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : "in"}</Text>
+            <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : goal ? `in · aiming for ${goal}` : "in"}</Text>
           </View>
-          {group.cap && (
+          {goal && (
             <View style={{ height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
-              <View style={{ height: "100%", borderRadius: 4, backgroundColor: t.accent, width: `${Math.min(100, (roster.confirmed.length / group.cap) * 100)}%` }} />
+              <View style={{ height: "100%", borderRadius: 4, backgroundColor: t.accent, width: `${Math.min(100, (roster.confirmed.length / goal) * 100)}%` }} />
             </View>
           )}
           {roster.waitlist.length > 0 && <Text style={{ color: t.waitlist, fontWeight: "600" }}>{roster.waitlist.length} on the waitlist</Text>}
-          {roster.spotsLeft > 0 && <Muted>{roster.spotsLeft} {roster.spotsLeft === 1 ? "spot" : "spots"} left</Muted>}
+          {needed > 0 && <Muted>{group.cap ? `${needed} ${needed === 1 ? "spot" : "spots"} left` : `Need ${needed} more to get to ${goal}`}</Muted>}
 
           <StatusLine place={place} name={me?.name} />
-          <CostLine cost={describeCost(group, roster.confirmed.length)} payNote={group.payNote} />
+          {page.season ? (
+            <SeasonLine page={page} me={me} />
+          ) : (
+            <CostLine cost={describeCost(group, roster.confirmed.length)} payNote={group.payNote} />
+          )}
 
           {!me && nameTaken ? (
             <IdentityPrompt
@@ -228,9 +236,9 @@ export default function GroupScreen() {
 
       {session.teams && <TeamsCard teams={session.teams.teams} roster={[...roster.confirmed, ...roster.waitlist, ...roster.out]} onShare={share} groupName={group.name} />}
 
-      <PeopleList title="In" people={roster.confirmed} numbered onRemove={onRemove} paid={paidSet} onTogglePaid={onTogglePaid} />
-      {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} />}
-      {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} lateDrops={viewer.isOrganizer ? new Set(page.organizer?.lateDrops ?? []) : undefined} />}
+      <PeopleList title="In" people={roster.confirmed} numbered onRemove={onRemove} paid={paidSet} onTogglePaid={onTogglePaid} seasonMembers={seasonMembers} />
+      {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} seasonMembers={seasonMembers} />}
+      {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} lateDrops={viewer.isOrganizer ? new Set(page.organizer?.lateDrops ?? []) : undefined} seasonMembers={seasonMembers} />}
 
       <ShareCard input={shareInput} />
       {notice && <Muted>{notice}</Muted>}
@@ -303,7 +311,8 @@ export default function GroupScreen() {
               </View>
             </Pop>
           )}
-          {paidSet && roster.confirmed.length > 0 && (
+          {page.season && <SeasonCard page={page} onShare={share} />}
+          {paidSet && roster.confirmed.length > 0 && !page.season && (
             <Text style={{ color: t.muted }}>
               💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))} · tap “Paid” next to a name to mark it
             </Text>
@@ -341,8 +350,9 @@ function ForecastCard({ page, onAsk }: { page: GroupPage; onAsk: (name: string) 
   const forecast = page.organizer?.forecast;
   const { group, session, roster } = page;
   const hours = hoursUntil(session.startsAt);
-  if (!forecast || !group.cap || session.cancelled || hours <= 0 || hours > ASK_WINDOW_HOURS) return null;
-  const { headline, detail } = describeForecast(forecast, roster.confirmed.length, group.cap);
+  const goal = playerGoal(group);
+  if (!forecast || !goal || session.cancelled || hours <= 0 || hours > ASK_WINDOW_HOURS) return null;
+  const { headline, detail } = describeForecast(forecast, roster.confirmed.length, goal);
   const showDetail = forecast.status !== "full" || (hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0);
   const ask = forecast.status === "full" ? [] : forecast.likely.slice(0, Math.max(2, forecast.short + 1));
   return (
@@ -372,6 +382,83 @@ function ForecastCard({ page, onAsk }: { page: GroupPage; onAsk: (name: string) 
 const paidLine = (paid: number, total: number, share: number | null) =>
   `${paid} of ${total} paid${share !== null ? ` · ${formatMoney(paid * share)} of ${formatMoney(total * share)} collected` : ""}`;
 
+/** What a player sees about money in a season group: their season fee and whether it's paid, or the sub price. */
+function SeasonLine({ page, me }: { page: GroupPage; me: Membership | null }) {
+  const t = useTheme();
+  const api = useApi();
+  const { group, season } = page;
+  const [status, setStatus] = useState<{ member: boolean; paid: boolean } | null>(null);
+  useEffect(() => {
+    if (me) api.memberSelf(group.slug, me.token).then((s) => setStatus(s.season), () => {});
+  }, [api, group.slug, me]);
+  if (!season) return null;
+  const fee = season.shareCents !== null ? formatMoney(season.shareCents) : null;
+  const drop = group.feeCents ? formatMoney(group.feeCents) : null;
+  let line: string | null;
+  if (status?.member) line = fee ? `Season fee ${fee} · ${status.paid ? "✅ paid, thanks!" : "due before the first game"}` : null;
+  else if (status) line = drop ? `Playing as a sub: ${drop} this game` : "Playing as a sub this game";
+  else line = [fee && `Season members: ${fee} for the season`, drop && `subs ${drop} a game`].filter(Boolean).join(" · ") || null;
+  if (!line) return null;
+  return (
+    <View style={{ gap: 2 }}>
+      <Text style={{ color: t.text, fontWeight: "700" }}>💵 {line}</Text>
+      {group.payNote && !status?.paid && <Text style={{ color: t.muted }}>{group.payNote}</Text>}
+    </View>
+  );
+}
+
+/** Organizer: the season at a glance, who still owes, and a nudge. */
+function SeasonCard({ page, onShare }: { page: GroupPage; onShare: (text: string) => void }) {
+  const t = useTheme();
+  const api = useApi();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ notified: number; unpaid: number; message: string } | null>(null);
+  const { group, season } = page;
+  if (!season) return null;
+  const members = season.memberIds.length;
+  const paid = page.organizer?.seasonPaid.length ?? 0;
+  const share = season.shareCents;
+  return (
+    <View style={{ backgroundColor: t.soft, borderRadius: 12, padding: 12, gap: 8 }}>
+      <Text style={{ color: t.text, fontWeight: "800" }}>
+        Season · {formatMoney(group.seasonFeeCents!)}{members ? ` · ${members} members · ${formatMoney(share!)} each` : ""}
+      </Text>
+      <Text style={{ color: t.text }}>
+        {members
+          ? `${paid} of ${members} paid · ${formatMoney((share ?? 0) * paid)} collected`
+          : "No season members yet. Mark them on the Members screen."}
+      </Text>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button label="Season members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug: group.slug } })} />
+        {members > paid && (
+          <Button
+            label="Remind unpaid"
+            variant="secondary"
+            loading={busy}
+            onPress={async () => {
+              setBusy(true);
+              try {
+                setResult(await api.remindSeason(group.slug));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+        )}
+      </View>
+      {result && (
+        <Pop style={{ gap: 6 }}>
+          <Text style={{ color: t.text }}>{result.notified ? `Reminded ${result.notified} of ${result.unpaid} with reminders on.` : "Nobody unpaid has reminders on."} Post this too:</Text>
+          <Pressable onPress={() => onShare(result.message)} style={{ backgroundColor: t.bg, borderRadius: 10, padding: 10 }}>
+            <Text style={{ color: t.muted }}>{result.message}</Text>
+            <Text style={{ color: t.accent, fontWeight: "700", marginTop: 4 }}>Tap to share</Text>
+          </Pressable>
+        </Pop>
+      )}
+    </View>
+  );
+}
+
 function CostLine({ cost, payNote }: { cost: string | null; payNote: string | null }) {
   const t = useTheme();
   if (!cost) return null;
@@ -383,8 +470,10 @@ function CostLine({ cost, payNote }: { cost: string | null; payNote: string | nu
   );
 }
 
-function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lateDrops }: {
+function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lateDrops, seasonMembers }: {
   lateDrops?: Set<string>;
+  /** Season groups: members paid up front; everyone else is tagged a sub and pays per game. */
+  seasonMembers?: Set<string> | null;
   title: string;
   people: Rsvp[];
   numbered?: boolean;
@@ -407,13 +496,18 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lat
             <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
               {p.name}
             </Text>
+            {seasonMembers && !seasonMembers.has(p.memberId) && (
+              <View style={{ borderWidth: 1, borderColor: t.border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                <Text style={{ color: t.muted, fontSize: 11, fontWeight: "800" }}>sub</Text>
+              </View>
+            )}
             {lateDrops?.has(p.memberId) && (
               <View style={{ borderWidth: 1, borderColor: t.waitlist, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
                 <Text style={{ color: t.waitlist, fontSize: 11, fontWeight: "800" }}>late drop</Text>
               </View>
             )}
           </View>
-          {onTogglePaid && paid && (
+          {onTogglePaid && paid && !seasonMembers?.has(p.memberId) && (
             <Pressable
               accessibilityRole="checkbox"
               accessibilityState={{ checked: paid.has(p.memberId) }}

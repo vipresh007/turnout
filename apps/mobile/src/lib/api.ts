@@ -109,6 +109,10 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/owner`, await asOrganizer({ method: "PUT", body: { organizerId } })),
     organizerInvite: (token: string) => request<{ groupName: string }>(`/organizer-invites/${encodeURIComponent(token)}`),
     acceptOrganizerInvite: async (token: string) => request<{ slug: string }>("/organizer-invites/accept", await asOrganizer({ method: "POST", body: { token } })),
+    setSeason: async (slug: string, memberId: string, change: { member?: boolean; paid?: boolean }) =>
+      request<GroupPage>(`/groups/${slug}/members/${memberId}/season`, await asOrganizer({ method: "PUT", body: change })),
+    remindSeason: async (slug: string) =>
+      request<{ unpaid: number; notified: number; message: string }>(`/groups/${slug}/season/remind`, await asOrganizer({ method: "POST", body: {} })),
     remind: async (slug: string) =>
       request<{ notified: number; reachable: number; message: string }>(`/groups/${slug}/remind`, await asOrganizer({ method: "POST", body: {} })),
 
@@ -152,7 +156,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
       await memberships.set(r.slug, { memberId: r.member.id, name: r.member.name, token: r.token });
       return r;
     },
-    members: async (slug: string) => request<{ members: MemberSummary[] }>(`/groups/${slug}/members`, await asOrganizer()),
+    members: async (slug: string) => request<{ members: MemberSummary[]; season: boolean }>(`/groups/${slug}/members`, await asOrganizer()),
     mergeMember: async (slug: string, memberId: string, intoId: string) =>
       request<{ ok: true }>(`/groups/${slug}/members/${memberId}/merge`, await asOrganizer({ method: "POST", body: { intoId } })),
     confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),

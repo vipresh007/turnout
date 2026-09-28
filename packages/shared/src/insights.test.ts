@@ -97,3 +97,11 @@ test("forecast wording", () => {
   assert.deepEqual(describeForecast(f, 11, 14), { headline: "⚠️ You may be 2 short", detail: "11 of 14 in. You usually lose one close to game time. Mike and Raj usually play but haven't answered." });
   assert.equal(describeForecast({ ...f, status: "good", short: 0 }, 12, 14).headline, "✅ You're probably good");
 });
+
+test("forecast works toward a target without a cap", () => {
+  const rsvp = (id: string) => ({ memberId: id, name: id, status: "in" as const, respondedAt: "2026-09-28T00:00:00Z" });
+  const three = [...games.filter((g) => !g.cancelled), game("2026-09-29T23:00:00Z", [["mike", "in", 5], ["raj", "in", 5]])];
+  const f = groupInsights({ cap: null, target: 6, timezone: "UTC", games: three, members, current: { roster: buildRoster([rsvp("ana")], null), cancelled: false } }).forecast!;
+  assert.equal(f.status, "short");
+  assert.ok(f.short > 0);
+});

@@ -1,8 +1,12 @@
 export interface ReminderSettings {
-  /** Send at 6pm (group time) the evening before the game. */
+  /** Send a first reminder the day before: at 6pm (group time) the evening before, or 24 hours before the start (`first`). */
   dayBefore: boolean;
   /** Hours before the start to send the final reminder; null turns it off. */
   hoursBefore: number | null;
+  /** When the day-before reminder goes out. Default "evening" (6pm the day before). */
+  first?: "evening" | "24h";
+  /** The final reminder also nudges people who still haven't answered. */
+  nudgeAgain?: boolean;
 }
 
 export const defaultReminderSettings: ReminderSettings = { dayBefore: true, hoursBefore: 2 };
@@ -21,7 +25,10 @@ export function reminderTimes(startsAt: Date, timezone: string, settings: Remind
   if (settings.hoursBefore !== null) {
     times.hoursBefore = new Date(startsAt.getTime() - settings.hoursBefore * 3_600_000);
   }
-  if (settings.dayBefore) {
+  if (settings.dayBefore && settings.first === "24h") {
+    const at = new Date(startsAt.getTime() - 24 * 3_600_000);
+    if (!times.hoursBefore || at.getTime() < times.hoursBefore.getTime() - 60 * 60_000) times.dayBefore = at;
+  } else if (settings.dayBefore) {
     const local = localParts(startsAt, timezone);
     // Noon UTC on the previous local day, then walk to 18:00 in the group's zone.
     const prevDay = new Date(Date.UTC(local.year, local.month - 1, local.day - 1, 12));
@@ -63,7 +70,7 @@ function zonedTime(year: number, month: number, day: number, hour: number, minut
 
 /** Messages, kept here so every channel (push, email, group chat) says the same thing. */
 export function reminderText(kind: ReminderKind | "nudge", groupName: string, whenLabel: string, confirmed: number, cap: number | null) {
-  const count = cap ? `${confirmed}/${cap} in` : `${confirmed} in`;
+  const count = cap ? `${confirmed}/${cap} in` : `${confirmed} in`; // pass the target as `cap` for groups without one
   switch (kind) {
     case "dayBefore":
       return { title: `${groupName} is tomorrow`, body: `${whenLabel} · ${count}. See you there!` };

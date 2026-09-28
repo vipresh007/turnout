@@ -34,15 +34,15 @@ function messageBody(kind: "dayBefore" | "hoursBefore" | "manual", group: GroupR
   const place = placeOf(roster, memberId);
   const count = roster.confirmed.length;
   if (place.kind === "confirmed") {
-    const text = reminderText(kind === "manual" ? "dayBefore" : kind, group.name, when, count, group.cap);
+    const text = reminderText(kind === "manual" ? "dayBefore" : kind, group.name, when, count, group.cap ?? group.targetPlayers);
     return { ...text, url, rsvpActions: kind === "hoursBefore" };
   }
   if (place.kind === "waitlist") {
     return { title: `You're #${place.position} on the waitlist for ${group.name}`, body: `${when}. We'll tell you the moment a spot opens.`, url };
   }
-  // Nudge people who haven't answered, once (the evening before, or when the organizer asks).
-  if (place.kind === "none" && kind !== "hoursBefore") {
-    return { ...reminderText("nudge", group.name, when, count, group.cap), url, rsvpActions: true };
+  // Nudge people who haven't answered: the day before, when the organizer asks, and (if the group wants) once more near the start.
+  if (place.kind === "none" && (kind !== "hoursBefore" || group.reminders.nudgeAgain)) {
+    return { ...reminderText("nudge", group.name, when, count, group.cap ?? group.targetPlayers), url, rsvpActions: true };
   }
   return null;
 }

@@ -33,6 +33,9 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
         <Field label="Activity" placeholder="soccer" value={value.activity} onChangeText={set("activity")} />
         <Field label="Max players" placeholder="No limit" value={value.cap} onChangeText={(v) => set("cap")(v.replace(/\D/g, ""))} keyboardType="number-pad" />
       </View>
+      {!value.cap && (
+        <Field label="Target players (optional, when there's no max)" placeholder="e.g. 12. We'll say how many more you need" value={value.target} onChangeText={(v) => set("target")(v.replace(/\D/g, ""))} keyboardType="number-pad" />
+      )}
       <Field label="Location" placeholder="Riverside Park" value={value.location} onChangeText={set("location")} />
       <View style={{ gap: 6 }}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Days (pick one or more)</Text>
@@ -71,29 +74,47 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
       <View style={{ gap: 8, marginTop: 4 }}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Cost (optional)</Text>
         <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <Chip label="Per player" selected={!value.feeSplit} onPress={() => set("feeSplit")(false)} />
-          <Chip label="Total, split between everyone in" selected={value.feeSplit} onPress={() => set("feeSplit")(true)} />
+          <Chip label="Per player, each game" selected={value.costMode === "per"} onPress={() => onChange({ ...value, costMode: "per", feeSplit: false })} />
+          <Chip label="Total split, each game" selected={value.costMode === "split"} onPress={() => onChange({ ...value, costMode: "split", feeSplit: true })} />
+          <Chip label="Season, paid up front" selected={value.costMode === "season"} onPress={() => onChange({ ...value, costMode: "season", feeSplit: false })} />
         </View>
+        {value.costMode === "season" && (
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Field label="Season total ($)" placeholder="2500" value={value.seasonFee} onChangeText={(v) => set("seasonFee")(v.replace(/[^\d.,]/g, ""))} keyboardType="decimal-pad" />
+            <Field label="Drop-in for subs ($, optional)" placeholder="10" value={value.fee} onChangeText={(v) => set("fee")(v.replace(/[^\d.,]/g, ""))} keyboardType="decimal-pad" />
+          </View>
+        )}
         <View style={{ flexDirection: "row", gap: 12 }}>
-          <Field label={value.feeSplit ? "Total ($)" : "Each ($)"} placeholder={value.feeSplit ? "120" : "10"} value={value.fee} onChangeText={(v) => set("fee")(v.replace(/[^\d.,]/g, ""))} keyboardType="decimal-pad" />
+          {value.costMode !== "season" && (
+            <Field label={value.costMode === "split" ? "Total ($)" : "Each ($)"} placeholder={value.costMode === "split" ? "120" : "10"} value={value.fee} onChangeText={(v) => set("fee")(v.replace(/[^\d.,]/g, ""))} keyboardType="decimal-pad" />
+          )}
           <Field label="How to pay" placeholder="e-Transfer to sam@example.com" value={value.payNote} onChangeText={set("payNote")} />
         </View>
-        {value.feeSplit && <Muted>Each player's share updates as people join.</Muted>}
+        {value.costMode === "split" && <Muted>Each player's share updates as people join.</Muted>}
+        {value.costMode === "season" && <Muted>Split between your season members (you'll tick them on the Members screen). Anyone else plays as a sub.</Muted>}
       </View>
 
       <View style={{ gap: 8, marginTop: 4 }}>
         <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Reminders for players who turn them on</Text>
-        <Chip
-          label="🌙 Evening before (6pm)"
-          selected={value.reminders.dayBefore}
-          onPress={() => set("reminders")({ ...value.reminders, dayBefore: !value.reminders.dayBefore })}
-        />
+        <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <Text style={{ color: t.text, marginRight: 4 }}>First reminder:</Text>
+          <Chip label="🌙 Evening before (6pm)" selected={value.reminders.dayBefore && value.reminders.first !== "24h"} onPress={() => set("reminders")({ ...value.reminders, dayBefore: true, first: "evening" })} />
+          <Chip label="24 hours before" selected={value.reminders.dayBefore && value.reminders.first === "24h"} onPress={() => set("reminders")({ ...value.reminders, dayBefore: true, first: "24h" })} />
+          <Chip label="Off" selected={!value.reminders.dayBefore} onPress={() => set("reminders")({ ...value.reminders, dayBefore: false })} />
+        </View>
         <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <Text style={{ color: t.text, marginRight: 4 }}>⏰ Before the game:</Text>
           {[null, 1, 2, 3, 6].map((h) => (
             <Chip key={String(h)} label={h ? `${h}h` : "Off"} selected={value.reminders.hoursBefore === h} onPress={() => set("reminders")({ ...value.reminders, hoursBefore: h })} />
           ))}
         </View>
+        {value.reminders.hoursBefore !== null && (
+          <Chip
+            label="Also nudge people who haven't answered yet"
+            selected={!!value.reminders.nudgeAgain}
+            onPress={() => set("reminders")({ ...value.reminders, nudgeAgain: !value.reminders.nudgeAgain })}
+          />
+        )}
       </View>
     </Card>
   );
