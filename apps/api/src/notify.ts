@@ -85,15 +85,30 @@ export async function sendEmail(
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export function emailHtml(m: { title: string; body: string; url: string }, unsubscribeUrl?: string, buttonLabel = "Open Turnout"): string {
-  return `<!doctype html><html><body style="margin:0;background:#f7f7f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
-    <table width="100%" style="max-width:480px;background:#fff;border-radius:16px;padding:28px" cellpadding="0" cellspacing="0">
-      <tr><td style="font-size:22px;font-weight:900;color:#111418;letter-spacing:-0.5px">turnout<span style="color:#16a34a">.</span></td></tr>
-      <tr><td style="padding-top:20px;font-size:20px;font-weight:800;color:#111418">${escape(m.title)}</td></tr>
-      <tr><td style="padding-top:8px;font-size:16px;line-height:24px;color:#4b5563">${escape(m.body)}</td></tr>
-      <tr><td style="padding-top:24px"><a href="${escape(m.url)}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">${escape(buttonLabel)}</a></td></tr>
-      ${unsubscribeUrl ? `<tr><td style="padding-top:28px;font-size:12px;color:#9ca3af">Sent by Turnout because this address was entered for reminders on the group's page. <a href="${escape(unsubscribeUrl)}" style="color:#6b7280;font-weight:700">Stop these emails</a></td></tr>` : ""}
+/** The one look for every Turnout email: dark card, green accents, the same logo and footer. */
+export const EMAIL = { bg: "#0E1113", card: "#171B1F", border: "#262B31", text: "#F3F4F6", muted: "#9CA3AF", faint: "#6B7280", accent: "#22C55E", button: "#16A34A" };
+
+/** Wraps email content (table rows) in the shared layout. `footer` is extra small print inside the card. */
+export function emailShell(rows: string, footer = ""): string {
+  const c = EMAIL;
+  return `<!doctype html><html><head><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"></head>
+  <body style="margin:0;background:${c.bg};font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:${c.bg}"><tr><td align="center" style="padding:40px 16px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:${c.card};border:1px solid ${c.border};border-radius:24px">
+      <tr><td style="padding:32px 32px 0;font-size:26px;font-weight:900;color:${c.text};letter-spacing:-1px">turnout<span style="color:${c.accent}">.</span></td></tr>
+      ${rows}
+      ${footer ? `<tr><td style="padding:0 32px 32px;font-size:12px;line-height:18px;color:${c.faint}">${footer}</td></tr>` : `<tr><td style="padding-bottom:32px"></td></tr>`}
     </table>
+    <p style="font-size:12px;color:${c.faint};margin:16px 0 0">Turnout · stop asking who's playing</p>
   </td></tr></table></body></html>`;
+}
+
+export function emailHtml(m: { title: string; body: string; url: string }, unsubscribeUrl?: string, buttonLabel = "Open Turnout"): string {
+  const c = EMAIL;
+  return emailShell(
+    `<tr><td style="padding:24px 32px 0;font-size:22px;font-weight:800;color:${c.text}">${escape(m.title)}</td></tr>
+      <tr><td style="padding:8px 32px 0;font-size:16px;line-height:24px;color:${c.muted}">${escape(m.body)}</td></tr>
+      <tr><td style="padding:24px 32px 24px"><a href="${escape(m.url)}" style="display:inline-block;background:${c.button};color:#FFFFFF;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">${escape(buttonLabel)}</a></td></tr>`,
+    unsubscribeUrl ? `Sent by Turnout because this address was entered for reminders on the group's page. <a href="${escape(unsubscribeUrl)}" style="color:${c.muted};font-weight:700">Stop these emails</a>` : "",
+  );
 }

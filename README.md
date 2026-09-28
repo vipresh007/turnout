@@ -4,6 +4,43 @@ Stop asking who's playing. One link for any recurring game or gathering with lim
 
 - Live: https://turnout.dataeaver.ca · Test: https://turnout-test.dataeaver.ca
 
+## How it works
+
+```mermaid
+flowchart LR
+  A([Organizer signs in]) --> B[Creates a group<br/>one sentence or a form]
+  B --> C[Shares one link<br/>in the group chat]
+  C --> D([Players tap the link<br/>no app, no account])
+  D --> E{I'm in or I'm out}
+  E -->|in, spots left| F[Confirmed]
+  E -->|in, full| G[Waitlist]
+  E -->|out| H[Out]
+  F -->|drops out| I[Spot opens]
+  I --> G
+  G -->|moves up automatically| F
+  R[Reminders<br/>email or notification] -.-> D
+  AP[Autopilot<br/>'probably good' or 'may be 2 short'] -.->|Ask the regulars| D
+  F --> J([Game day])
+  J --> K[History, insights,<br/>payments and teams]
+  K -.->|next week| C
+```
+
+```mermaid
+flowchart LR
+  subgraph Web["turnout.dataeaver.ca (Azure Static Web Apps)"]
+    APP[Expo web app]
+  end
+  APP -->|HTTPS| API[Node API<br/>Azure Container Apps]
+  APP <-->|live updates| PS[Azure Web PubSub]
+  API --> DB[(Postgres)]
+  API --> PS
+  API --> MAIL[Azure email]
+  JOB[Reminder + autopilot job<br/>every 15 min] --> DB
+  JOB --> MAIL
+  APP -->|organizer sign-in| ENTRA[Entra External ID<br/>email · Google · Microsoft · Apple]
+  ENTRA -->|sign-in codes| API
+```
+
 ## Layout
 
 | Path | What |
