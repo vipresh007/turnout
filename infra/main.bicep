@@ -20,6 +20,12 @@ param apiImages object = { test: '', live: '' }
 @description('Custom web domains per environment (CNAME to the static web app must exist first). Empty = Azure default hostname.')
 param webDomains object = { test: '', live: '' }
 
+@description('Send email from this domain (DNS verified in ACS), e.g. dataeaver.ca. Empty = Azure-managed sender.')
+param customEmailDomain string = ''
+
+@description('The part before @ for the custom email sender.')
+param emailSenderUsername string = 'contact'
+
 @description('Organizer emails that can see product metrics, comma-separated')
 param adminEmails string = ''
 
@@ -115,8 +121,8 @@ resource aiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-
   properties: { model: { format: 'OpenAI', name: aiModel, version: aiModelVersion } }
 }
 
-// Email through Azure Communication Services, from an Azure-managed sender domain for now.
-// TODO: send from a dataeaver.ca address (needs SPF/DKIM DNS records).
+// Email through Azure Communication Services. With customEmailDomain set (its DNS records verified in ACS),
+// Turnout sends as "Turnout <contact@that domain>"; otherwise from the Azure-managed DoNotReply address.
 resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
   name: 'ecs-turnout-${suffix}'
   location: 'global'
@@ -139,11 +145,25 @@ resource emailSender 'Microsoft.Communication/emailServices/domains/senderUserna
   properties: { username: 'DoNotReply', displayName: 'Turnout' }
 }
 
+resource customEmailDomainRes 'Microsoft.Communication/emailServices/domains@2023-04-01' = if (!empty(customEmailDomain)) {
+  parent: emailService
+  name: empty(customEmailDomain) ? 'unused' : customEmailDomain
+  location: 'global'
+  tags: tags
+  properties: { domainManagement: 'CustomerManaged', userEngagementTracking: 'Disabled' }
+}
+
+resource customEmailSender 'Microsoft.Communication/emailServices/domains/senderUsernames@2023-04-01' = if (!empty(customEmailDomain)) {
+  parent: customEmailDomainRes
+  name: emailSenderUsername
+  properties: { username: emailSenderUsername, displayName: 'Turnout' }
+}
+
 resource acs 'Microsoft.Communication/communicationServices@2023-04-01' = {
   name: 'acs-turnout-${suffix}'
   location: 'global'
   tags: tags
-  properties: { dataLocation: 'Canada', linkedDomains: [emailDomain.id] }
+  properties: { dataLocation: 'Canada', linkedDomains: empty(customEmailDomain) ? [emailDomain.id] : [emailDomain.id, customEmailDomainRes.id] }
 }
 
 module environments 'environment.bicep' = [for env in ['test', 'live']: {
@@ -173,7 +193,7 @@ module environments 'environment.bicep' = [for env in ['test', 'live']: {
     vapidPublicKey: vapidPublicKey
     vapidPrivateKey: vapidPrivateKey
     acsConnectionString: acs.listKeys().primaryConnectionString
-    emailSender: 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}'
+    emailSender: empty(customEmailDomain) ? 'DoNotReply@${emailDomain.properties.mailFromSenderDomain}' : '${emailSenderUsername}@${customEmailDomain}'
   }
 }]
 
