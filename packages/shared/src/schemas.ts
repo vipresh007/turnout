@@ -95,3 +95,8 @@ export const acceptAdminInviteSchema = z.object({ token: z.string().min(10).max(
 
 /** Organizer: mark someone a season member, and whether they've paid the season fee. */
 export const seasonMemberSchema = z.object({ member: z.boolean().optional(), paid: z.boolean().optional() }).refine((v) => v.member !== undefined || v.paid !== undefined, "Nothing to update");
+
+/** Organizer adds players up front (e.g. a season roster): names, and an email for reminders if they have one. */
+export const addPlayersSchema = z.object({
+  players: z.array(z.object({ name: z.string().trim().min(1).max(40), email: z.string().trim().email().max(254).optional() })).min(1).max(60),
+});

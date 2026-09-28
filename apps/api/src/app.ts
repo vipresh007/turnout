@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import {
   acceptAdminInviteSchema,
+  addPlayersSchema,
   buildRoster,
   cancelSessionSchema,
   createGroupSchema,
@@ -310,8 +311,9 @@ export async function buildApp(db: Db) {
     const group = await groupOr404(req.params.slug);
     const { name, confirmNew } = joinGroupSchema.parse(req.body);
     // Same name already here? Ask "is that you?" before creating a second one.
-    const [existing] = await db.query<{ id: string; name: string; hasEmail: boolean }>(
-      `SELECT id, name, email_confirmed_at IS NOT NULL AS "hasEmail" FROM members
+    const [existing] = await db.query<{ id: string; name: string; hasEmail: boolean; claimable: boolean }>(
+      `SELECT id, name, email_confirmed_at IS NOT NULL AS "hasEmail",
+              NOT EXISTS (SELECT 1 FROM member_tokens t WHERE t.member_id = members.id) AS claimable FROM members
        WHERE group_id = $1 AND lower(trim(name)) = lower($2) ORDER BY created_at LIMIT 1`,
       [group.id, name],
     );
@@ -325,11 +327,62 @@ export async function buildApp(db: Db) {
     return reply.status(201).send({ member, token });
   });
 
+  /**
+   * Turn on email reminders and send the welcome email: who we are, what to expect, and a one-tap stop
+   * (CASL: identify the sender, include an unsubscribe). `addedBy` when the organizer entered the address.
+   */
+  const startEmailReminders = async (group: GroupRow, memberId: string, email: string, addedBy?: string) => {
+    const token = newMemberToken();
+    await db.query(`UPDATE members SET email = $2, email_confirmed_at = now(), email_token = $3 WHERE id = $1`, [memberId, email, token]);
+    const stopUrl = `${webUrl()}/email?unsubscribe=${token}`;
+    const title = addedBy ? `${addedBy} added you to ${group.name}` : `You'll get reminders for ${group.name}`;
+    const body = addedBy
+      ? `${group.name} uses Turnout to see who's in each week. We'll email you before each game so you can tap in or out, no app or account needed. Not you, or rather not? Tap “Stop these emails” below.`
+      : `We'll email you before each game, and that's all. Not you, or changed your mind? Tap “Stop these emails” below.`;
+    await sendEmail(email, addedBy ? title : `You're set for ${group.name} reminders`, emailHtml({ title, body, url: `${webUrl()}/g/${group.slug}` }, stopUrl, `Open ${group.name}`), `${title}. ${body} Stop these emails: ${stopUrl}`, stopUrl)
+      .catch((err) => app.log.warn({ err }, "welcome email failed"));
+  };
+
   const issueDeviceToken = async (memberId: string) => {
     const token = newMemberToken();
     await db.query(`INSERT INTO member_tokens (token_hash, member_id) VALUES ($1, $2)`, [hashToken(token), memberId]);
     return token;
   };
+
+  // Organizer adds players up front (a season roster). Names already in the group are skipped.
+  app.post<SlugParams>("/groups/:slug/members/add", strict(20), async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    const { players } = addPlayersSchema.parse(req.body);
+    const [who] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizer.id]);
+    const addedBy = who?.name || "Your organizer";
+    const added: string[] = [];
+    const skipped: string[] = [];
+    for (const p of players) {
+      const [dupe] = await db.query(`SELECT 1 FROM members WHERE group_id = $1 AND lower(trim(name)) = lower($2)`, [group.id, p.name]);
+      if (dupe) {
+        skipped.push(p.name);
+        continue;
+      }
+      const [m] = await db.query<{ id: string }>(`INSERT INTO members (group_id, name, season_member) VALUES ($1, $2, $3) RETURNING id`, [group.id, p.name, !!group.seasonFeeCents]);
+      await track(db, "player_joined", { groupId: group.id, memberId: m!.id, organizerId: organizer.id, props: { addedByOrganizer: true, email: !!p.email } });
+      if (p.email) await startEmailReminders(group, m!.id, p.email, addedBy);
+      added.push(p.name);
+    }
+    await events.rosterChanged(group.slug);
+    return { added, skipped };
+  });
+
+  // A player the organizer added opens the link on their phone: tap your name to claim it.
+  // Only while nobody has claimed it yet; after that, a new phone uses the email restore link.
+  app.post<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/claim", strict(10), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const [m] = await db.query<{ id: string; name: string }>(
+      `SELECT id, name FROM members m WHERE id = $1 AND group_id = $2 AND NOT EXISTS (SELECT 1 FROM member_tokens t WHERE t.member_id = m.id)`,
+      [req.params.memberId, group.id],
+    );
+    if (!m) throw new HttpError(409, "That name is already set up on another phone. Use “That's me” to get a link by email.");
+    return { member: m, token: await issueDeviceToken(m.id) };
+  });
 
   // "That's me" on a new phone: email a one-time link to the address they use for reminders.
   // The response never reveals the address or whether one exists beyond sent/not sent.
@@ -678,19 +731,7 @@ export async function buildApp(db: Db) {
     // Typing your own email on the page is the consent; reminders start right away. The welcome
     // email says who we are and has a one-tap stop, so a mistyped or someone-else's address is
     // stopped by its owner with one tap (CASL: identify the sender, include an unsubscribe).
-    await db.query(`UPDATE members SET email = $2, email_confirmed_at = now(), email_token = $3 WHERE id = $1`, [member.id, email, token]);
-    const stopUrl = `${webUrl()}/email?unsubscribe=${token}`;
-    await sendEmail(
-      email,
-      `You're set for ${group.name} reminders`,
-      emailHtml(
-        { title: `You'll get reminders for ${group.name}`, body: `We'll email you before each game, and that's all. Not you, or changed your mind? Tap “Stop these emails” below.`, url: `${webUrl()}/g/${group.slug}` },
-        stopUrl,
-        `Open ${group.name}`,
-      ),
-      `You'll get reminders for ${group.name}. Not you? Stop these emails: ${stopUrl}`,
-      stopUrl,
-    ).catch((err) => req.log.warn({ err }, "welcome email failed"));
+    await startEmailReminders(group, member.id, email);
     return memberSelf(member.id);
   });
 

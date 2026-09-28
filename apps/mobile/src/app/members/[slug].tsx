@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
-import { BackLink, Button, Card, Muted, Screen, webTransition } from "@/components/ui";
+import { BackLink, Button, Card, Field, Muted, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { useTheme } from "@/lib/theme";
@@ -59,6 +59,7 @@ function Members() {
           </Muted>
         )}
       </View>
+      <AddPlayers slug={slug} season={season} onAdded={load} />
       {merging && (
         <Card>
           <Text style={{ color: t.text, fontWeight: "800" }}>Merge {merging.name} into…</Text>
@@ -88,7 +89,7 @@ function Members() {
             <View style={{ flex: 1 }}>
               <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>{m.name}</Text>
               <Text style={{ color: t.muted, fontSize: 13 }}>
-                {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices} {m.devices === 1 ? "device" : "devices"}
+                {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices ? `${m.devices} ${m.devices === 1 ? "device" : "devices"}` : "hasn't opened the link yet"}
                 {m.hasEmail ? " · 📧 reminders" : ""}
               </Text>
             </View>
@@ -122,5 +123,71 @@ function Toggle({ label, on, onPress }: { label: string; on: boolean; onPress: (
     >
       <Text style={{ color: on ? t.accent : t.muted, fontSize: 12, fontWeight: "800" }}>{on ? `✓ ${label}` : label}</Text>
     </Pressable>
+  );
+}
+
+/** "Ann, ann@example.com" per line → players. The email is optional and turns on email reminders. */
+function parsePlayers(text: string): { name: string; email?: string }[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const email = line.match(/[^\s,;<>]+@[^\s,;<>]+\.[^\s,;<>]+/)?.[0];
+      const name = (email ? line.replace(email, "") : line).replace(/[<>,;]+/g, " ").trim();
+      return email ? { name: name || email.split("@")[0]!, email } : { name };
+    });
+}
+
+function AddPlayers({ slug, season, onAdded }: { slug: string; season: boolean; onAdded: () => void }) {
+  const t = useTheme();
+  const api = useApi();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const players = parsePlayers(text);
+
+  if (!open) {
+    return (
+      <View style={{ flexDirection: "row" }}>
+        <Button label={season ? "+ Add season members" : "+ Add players"} variant="secondary" onPress={() => setOpen(true)} />
+      </View>
+    );
+  }
+  return (
+    <Card>
+      <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>{season ? "Add season members" : "Add players"}</Text>
+      <Muted>
+        One per line: a name, and an email if you have it. People with an email get reminders right away (with a one-tap stop).
+        Everyone else taps their name the first time they open the group link.
+      </Muted>
+      <Field label="Players" placeholder={"Ann, ann@example.com\nBo\nChris chris@example.com"} value={text} onChangeText={setText} multiline style={{ minHeight: 120, textAlignVertical: "top" }} />
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button
+          label={players.length ? `Add ${players.length} ${players.length === 1 ? "player" : "players"}` : "Add"}
+          disabled={!players.length}
+          loading={busy}
+          onPress={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              const r = await api.addPlayers(slug, players);
+              setResult(`Added ${r.added.length}.${r.skipped.length ? ` Already here: ${r.skipped.join(", ")}.` : ""}`);
+              setText("");
+              onAdded();
+            } catch (e) {
+              setError((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+        <Button label="Done" variant="secondary" onPress={() => { setOpen(false); setResult(null); }} />
+      </View>
+      {result && <Text style={{ color: t.accent, fontWeight: "700" }}>{result}</Text>}
+      {error && <Text style={{ color: t.danger }}>{error}</Text>}
+    </Card>
   );
 }

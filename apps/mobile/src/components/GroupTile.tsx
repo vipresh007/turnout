@@ -32,8 +32,8 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   const message = groupShareMessage({
     name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap, targetPlayers: group.targetPlayers,
     startsAt: session.startsAt, confirmed: item.confirmed, cancelled: session.cancelled, link,
-    // Season groups have paid up front; the per-game price is only for subs, so leave it out of the group message.
-    feeCents: group.seasonFeeCents ? null : group.feeCents, feeSplit: group.feeSplit,
+    // Season groups paid up front; their per-game price is a drop-in for subs.
+    feeCents: group.feeCents, feeSplit: group.feeSplit, dropIn: !!group.seasonFeeCents,
   });
   const season = !!group.seasonFeeCents;
   const share = season ? null : shareCents(group, item.confirmed);

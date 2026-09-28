@@ -586,3 +586,32 @@ test("season groups: upfront fee split between members, season payments, subs, t
   const dash = (await app.inject({ url: "/me/dashboard", headers: org })).json();
   assert.equal(dash.groups.find((g: { group: { slug: string } }) => g.group.slug === slug).spotsLeft, 11);
 });
+
+test("organizer adds players up front; players claim their name on their phone", async () => {
+  const org = { "x-dev-user": "roster-org" };
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Roster Volley", weekdays: [3], startTime: "20:00", timezone: "UTC", cap: null, targetPlayers: 12, seasonFeeCents: 250000 } })).json().group;
+  const added = (await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: org, payload: { players: [{ name: "Ann", email: "ann@example.com" }, { name: "Bo" }] } })).json();
+  assert.deepEqual(added, { added: ["Ann", "Bo"], skipped: [] });
+  assert.deepEqual((await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: org, payload: { players: [{ name: "bo" }] } })).json().skipped, ["bo"]);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: { "x-dev-user": "nosy" }, payload: { players: [{ name: "X" }] } })).statusCode, 403);
+
+  // Added players are season members, show up as unclaimed, and Ann already has email reminders.
+  const page = (await app.inject({ url: `/groups/${slug}` })).json();
+  assert.deepEqual(page.unclaimed.map((m: { name: string }) => m.name), ["Ann", "Bo"]);
+  assert.equal(page.season.memberIds.length, 2);
+  assert.equal(page.season.shareCents, 125000);
+  const bo = page.unclaimed.find((m: { name: string }) => m.name === "Bo");
+
+  // Bo taps his name: his phone becomes Bo, he can answer, and he's no longer claimable.
+  const claimed = (await app.inject({ method: "POST", url: `/groups/${slug}/members/${bo.id}/claim`, payload: {} })).json();
+  assert.equal(claimed.member.name, "Bo");
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": claimed.token }, payload: { status: "in" } })).statusCode, 200);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/${bo.id}/claim`, payload: {} })).statusCode, 409);
+  assert.deepEqual((await app.inject({ url: `/groups/${slug}` })).json().unclaimed.map((m: { name: string }) => m.name), ["Ann"]);
+
+  // Typing "Ann" offers the claim instead of a duplicate.
+  const typed = await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "ann" } });
+  assert.equal(typed.statusCode, 409);
+  assert.equal(typed.json().existing.claimable, true);
+  assert.equal(typed.json().existing.hasEmail, true);
+});

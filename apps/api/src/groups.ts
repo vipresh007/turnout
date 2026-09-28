@@ -103,7 +103,13 @@ export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: stri
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
   const role = await groupRole(db, group, viewerOrganizerId);
   const isOrganizer = role !== null;
-  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer }, season: await seasonOf(db, group) };
+  const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer },
+    season: await seasonOf(db, group),
+    unclaimed: await db.query<{ id: string; name: string }>(
+      `SELECT id, name FROM members m WHERE group_id = $1 AND NOT EXISTS (SELECT 1 FROM member_tokens t WHERE t.member_id = m.id) ORDER BY lower(name)`,
+      [group.id],
+    ),
+  };
   if (isOrganizer) {
     const { forecast } = await groupInsightsFor(db, group, { roster, cancelled: session.cancelled });
     const seasonPaid = page.season

@@ -24,7 +24,7 @@ export class ApiError extends Error {
 
 /** Joining with a name someone in the group already has. */
 export class NameTakenError extends Error {
-  existing: { id: string; name: string; hasEmail: boolean };
+  existing: { id: string; name: string; hasEmail: boolean; claimable: boolean };
   constructor(existing: NameTakenError["existing"]) {
     super(`There's already a ${existing.name} in this group`);
     this.existing = existing;
@@ -135,6 +135,13 @@ function createApi(authHeaders: () => Promise<Headers>) {
       await storage.set(membershipKey(slug), JSON.stringify(membership));
       return membership;
     },
+    /** Claim a player the organizer added (nobody has opened the link as them yet). */
+    claim: async (slug: string, memberId: string): Promise<Membership> => {
+      const { member, token } = await request<{ member: { id: string; name: string }; token: string }>(`/groups/${slug}/members/${memberId}/claim`, { method: "POST", body: {} });
+      const membership = { memberId: member.id, name: member.name, token };
+      await memberships.set(slug, membership);
+      return membership;
+    },
     rsvp: (slug: string, token: string, status: RsvpStatus) =>
       request<GroupPage>(`/groups/${slug}/rsvp`, { method: "PUT", body: { status }, headers: { "x-member-token": token } }),
 
@@ -157,6 +164,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
       return r;
     },
     members: async (slug: string) => request<{ members: MemberSummary[]; season: boolean }>(`/groups/${slug}/members`, await asOrganizer()),
+    addPlayers: async (slug: string, players: { name: string; email?: string }[]) =>
+      request<{ added: string[]; skipped: string[] }>(`/groups/${slug}/members/add`, await asOrganizer({ method: "POST", body: { players } })),
     mergeMember: async (slug: string, memberId: string, intoId: string) =>
       request<{ ok: true }>(`/groups/${slug}/members/${memberId}/merge`, await asOrganizer({ method: "POST", body: { intoId } })),
     confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),

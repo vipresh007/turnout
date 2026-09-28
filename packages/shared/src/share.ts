@@ -1,4 +1,4 @@
-import { formatMoney, shareCents } from "./cost.ts";
+import { formatMoney } from "./cost.ts";
 
 const emoji: [RegExp, string][] = [
   [/soccer|football|futsal/i, "⚽"], [/basketball|hoops/i, "🏀"], [/volleyball/i, "🏐"], [/hockey|shinny/i, "🏒"],
@@ -27,6 +27,8 @@ export interface ShareInput {
   link: string;
   feeCents?: number | null;
   feeSplit?: boolean;
+  /** Season groups: feeCents is the drop-in price for subs. */
+  dropIn?: boolean;
 }
 
 /** "Wed, Sep 30 · 8:00 PM" in the group's timezone. */
@@ -51,8 +53,8 @@ export function groupShareMessage(g: ShareInput): string {
   } else {
     lines.push(`👥 ${g.confirmed} in so far`);
   }
-  const share = g.cancelled ? null : shareCents({ feeCents: g.feeCents ?? null, feeSplit: !!g.feeSplit }, g.confirmed);
-  if (share !== null) lines.push(g.feeSplit ? `💵 ${formatMoney(g.feeCents!)} split · ${formatMoney(share)} each so far` : `💵 ${formatMoney(share)} each`);
+  // Only a fixed price goes in the group chat. A split depends on turnout and would read as the bill.
+  if (!g.cancelled && g.feeCents && !g.feeSplit) lines.push(g.dropIn ? `💵 Subs: ${formatMoney(g.feeCents)} drop-in` : `💵 ${formatMoney(g.feeCents)} each`);
   lines.push("", `Tap to join: ${g.link}`);
   return lines.join("\n");
 }

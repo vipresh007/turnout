@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { describeCost, formatMoney, parseMoney, playerGoal, playersNeeded, seasonShareCents, shareCents } from "./cost.ts";
+import { describeCost, formatMoney, looksLikeSeasonTotal, parseMoney, playerGoal, playersNeeded, seasonShareCents, shareCents } from "./cost.ts";
 
 test("per player cost is the same for everyone", () => {
   assert.equal(shareCents({ feeCents: 1000, feeSplit: false }, 7), 1000);
   assert.equal(describeCost({ feeCents: 1000, feeSplit: false }, 7), "$10 each");
+  assert.equal(describeCost({ feeCents: 1000, feeSplit: false }, null), "$10 each");
 });
 
 test("a split total divides between everyone in, rounding up", () => {
   assert.equal(shareCents({ feeCents: 10000, feeSplit: true }, 3), 3334);
   assert.equal(shareCents({ feeCents: 12000, feeSplit: true }, 0), 12000);
-  assert.equal(describeCost({ feeCents: 12000, feeSplit: true }, 12), "$120 split between everyone in · $10 each so far");
+  assert.equal(describeCost({ feeCents: 15000, feeSplit: true }, 12), "$150 for the game, split between everyone playing · about $12.50 each with 12");
+  assert.equal(describeCost({ feeCents: 15000, feeSplit: true }, null), "$150 for the game, split between everyone playing");
 });
 
 test("no cost", () => {
@@ -38,4 +40,10 @@ test("season fee split and player goals", () => {
   assert.equal(playerGoal({ cap: null, targetPlayers: 12 }), 12);
   assert.equal(playersNeeded({ cap: null, targetPlayers: 12 }, 9), 3);
   assert.equal(playersNeeded({ cap: null, targetPlayers: null }, 9), 0);
+});
+
+test("a huge per-game split is flagged as a likely season total", () => {
+  assert.equal(looksLikeSeasonTotal(250000, 16), true);
+  assert.equal(looksLikeSeasonTotal(15000, 12), false);
+  assert.equal(looksLikeSeasonTotal(null, 12), false);
 });

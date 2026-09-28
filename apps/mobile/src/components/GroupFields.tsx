@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from "react-native";
+import { looksLikeSeasonTotal, parseMoney } from "@turnout/shared";
 import type { GroupFormValues } from "@/lib/groupForm";
 import { useTheme } from "@/lib/theme";
 import { Card, Field, Muted } from "./ui";
@@ -21,6 +22,9 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
     </Pressable>
   );
 }
+
+/** The player goal as typed: the max if set, otherwise the target. */
+const goalFromForm = (v: GroupFormValues) => Number(v.cap) || Number(v.target) || null;
 
 export function GroupFields({ value, onChange, timezone }: { value: GroupFormValues; onChange: (v: GroupFormValues) => void; timezone: string }) {
   const t = useTheme();
@@ -90,7 +94,14 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
           )}
           <Field label="How to pay" placeholder="e-Transfer to sam@example.com" value={value.payNote} onChangeText={set("payNote")} />
         </View>
-        {value.costMode === "split" && <Muted>Each player's share updates as people join.</Muted>}
+        {value.costMode === "split" && !looksLikeSeasonTotal(parseMoney(value.fee) ?? null, goalFromForm(value)) && <Muted>Each player's share depends on how many play that night.</Muted>}
+        {value.costMode === "split" && looksLikeSeasonTotal(parseMoney(value.fee) ?? null, goalFromForm(value)) && (
+          <Pressable accessibilityRole="button" onPress={() => onChange({ ...value, costMode: "season", feeSplit: false, seasonFee: value.fee, fee: "" })}>
+            <Text style={{ color: t.waitlist, fontWeight: "700" }}>
+              ⚠️ That's a lot for one game. Is it the whole season's cost? Tap to switch to “Season, paid up front”.
+            </Text>
+          </Pressable>
+        )}
         {value.costMode === "season" && <Muted>Split between your season members (you'll tick them on the Members screen). Anyone else plays as a sub.</Muted>}
       </View>
 

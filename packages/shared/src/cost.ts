@@ -19,14 +19,22 @@ export function formatMoney(cents: number): string {
   return `$${dollars.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
-/** "$10 each" or "$120 split between everyone in · $10 each so far". */
-export function describeCost(cost: GroupCost, confirmed: number): string | null {
-  const share = shareCents(cost, confirmed);
-  if (share === null) return null;
-  if (!cost.feeSplit) return `${formatMoney(share)} each`;
-  return confirmed > 0
-    ? `${formatMoney(cost.feeCents!)} split between everyone in · ${formatMoney(share)} each so far`
-    : `${formatMoney(cost.feeCents!)} split between everyone in`;
+/**
+ * "$10 each", or for a split: "$150 for the game, split between everyone playing · about $12.50 each with 12".
+ * The estimate uses the group's goal (cap or target), never the count so far: 3 answers early on would make
+ * the share look scary.
+ */
+export function describeCost(cost: GroupCost, goal: number | null): string | null {
+  if (!cost.feeCents) return null;
+  if (!cost.feeSplit) return `${formatMoney(cost.feeCents)} each`;
+  const base = `${formatMoney(cost.feeCents)} for the game, split between everyone playing`;
+  return goal ? `${base} · about ${formatMoney(Math.ceil(cost.feeCents / goal))} each with ${goal}` : base;
+}
+
+/** A per-game split this big per player is probably a whole season's cost entered as one game. */
+export function looksLikeSeasonTotal(totalCents: number | null, goal: number | null): boolean {
+  if (!totalCents) return false;
+  return totalCents / (goal ?? 10) > 5000;
 }
 
 /** Parses "10", "$7.50", "7,5" into cents; empty is null; anything else is undefined (invalid). */

@@ -61,6 +61,15 @@ export default function GroupScreen() {
     }
   };
 
+  /** Take over a player the organizer added, then answer if they were answering. */
+  const claimAs = (memberId: string, status?: RsvpStatus) =>
+    run(status ?? "claim", async () => {
+      const membership = await api.claim(slug, memberId);
+      setNameTaken(null);
+      setMe(membership);
+      return status ? api.rsvp(slug, membership.token, status) : api.groupPage(slug);
+    });
+
   const respond = (status: RsvpStatus, joinAs?: { name: string; confirmNew: boolean }) =>
     run(status, async () => {
       let membership = me;
@@ -119,7 +128,7 @@ export default function GroupScreen() {
   const shareInput = {
     name: group.name, activity: group.activity, location: where, timezone: group.timezone, cap: group.cap, targetPlayers: group.targetPlayers,
     startsAt: session.startsAt, confirmed: roster.confirmed.length, cancelled: session.cancelled, link,
-    feeCents: page.season ? null : group.feeCents, feeSplit: group.feeSplit,
+    feeCents: group.feeCents, feeSplit: group.feeSplit, dropIn: !!page.season,
   };
   const goal = playerGoal(group);
   const needed = group.cap ? roster.spotsLeft : playersNeeded(group, roster.confirmed.length);
@@ -199,7 +208,7 @@ export default function GroupScreen() {
           {page.season ? (
             <SeasonLine page={page} me={me} />
           ) : (
-            <CostLine cost={describeCost(group, roster.confirmed.length)} payNote={group.payNote} />
+            <CostLine cost={describeCost(group, goal)} payNote={group.payNote} />
           )}
 
           {!me && nameTaken ? (
@@ -207,6 +216,8 @@ export default function GroupScreen() {
               existing={nameTaken.existing}
               step={identityStep}
               onThatsMe={async () => {
+                // Added by the organizer and never opened on a phone: it's theirs to claim.
+                if (nameTaken.existing.claimable) return claimAs(nameTaken.existing.id, nameTaken.status);
                 if (!nameTaken.existing.hasEmail) return setIdentityStep("noEmail");
                 const { sent } = await api.requestRestore(slug, nameTaken.existing.id);
                 setIdentityStep(sent ? "emailSent" : "noEmail");
@@ -215,7 +226,12 @@ export default function GroupScreen() {
               onJoinAs={(newName) => respond(nameTaken.status, { name: newName, confirmNew: true })}
             />
           ) : (
-            !me && <Field label="Your name" placeholder="First name is fine" value={name} onChangeText={setName} autoComplete="given-name" />
+            !me && (
+              <>
+                {page.unclaimed.length > 0 && <ClaimList people={page.unclaimed} onClaim={(id) => claimAs(id)} />}
+                <Field label={page.unclaimed.length ? "Not on the list? Your name" : "Your name"} placeholder="First name is fine" value={name} onChangeText={setName} autoComplete="given-name" />
+              </>
+            )
           )}
           <View style={{ flexDirection: "row", gap: 12 }}>
             <RsvpButton
@@ -596,6 +612,30 @@ function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
 }
 
 /** "There's already a John here. Is that you?" Keeps one person from becoming two, without accounts. */
+/** Players the organizer added: tap your name on your phone the first time. */
+function ClaimList({ people, onClaim }: { people: { id: string; name: string }[]; onClaim: (id: string) => void }) {
+  const t = useTheme();
+  return (
+    <View style={{ gap: 8 }}>
+      <Text style={{ color: t.text, fontWeight: "800" }}>On the list? Tap your name</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {people.map((p) => (
+          <Pressable
+            key={p.id}
+            accessibilityRole="button"
+            accessibilityLabel={`I'm ${p.name}`}
+            onPress={() => onClaim(p.id)}
+            style={({ hovered }: { hovered?: boolean }) => ({ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, borderColor: hovered ? t.accent : t.border, backgroundColor: hovered ? t.soft : t.card, ...webTransition })}
+          >
+            <Avatar name={p.name} size={22} />
+            <Text style={{ color: t.text, fontWeight: "700" }}>{p.name}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function IdentityPrompt({ existing, step, onThatsMe, onSomeoneElse, onJoinAs }: {
   existing: NameTakenError["existing"];
   step: "ask" | "someoneElse" | "emailSent" | "noEmail";

@@ -64,6 +64,8 @@ export interface GroupPage {
   /** What the requester may do. Only set from a verified organizer identity. */
   /** isOrganizer: owner or admin, who get the organizer controls. */
   viewer: { isOrganizer: boolean; role?: GroupRole };
+  /** Players the organizer added who haven't opened the link on a phone yet: tap your name to claim it. */
+  unclaimed: { id: string; name: string }[];
   /** Season members (ids) when the group has a season fee; anyone else who plays is a sub. */
   season: { memberIds: string[]; shareCents: number | null } | null;
   /** Organizer-only details: who has paid (this game), skill ratings, who dropped out late, season payments. */
