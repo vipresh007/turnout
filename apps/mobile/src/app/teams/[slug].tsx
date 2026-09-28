@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Pop } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Card, Muted, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { shareText } from "@/lib/share";
 import { useTheme } from "@/lib/theme";
@@ -79,6 +79,7 @@ function TeamMaker() {
   if (players.length < 2) {
     return (
       <Screen>
+        <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
         <Card>
           <Text style={{ color: t.text, fontSize: 18, fontWeight: "800" }}>Not enough players yet</Text>
           <Muted>Teams need at least two people who are in this week.</Muted>
@@ -89,6 +90,7 @@ function TeamMaker() {
 
   return (
     <Screen>
+      <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <Card>
         <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>Players ({players.length})</Text>
         <Muted>Optional: rate players 1–5 so teams come out even. Only you see ratings.</Muted>

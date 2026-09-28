@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { router, type Href } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { useTheme } from "@/lib/theme";
 
@@ -62,6 +63,21 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
           <Text style={[styles.buttonText, big && styles.bigButtonText, { color: hovered && !disabled && variant === "secondary" ? t.accent : fg }]}>{label}</Text>
         )
       }
+    </Pressable>
+  );
+}
+
+/** "← Back" for screens that open on top of another (they can be opened directly from a link, with nothing to go back to). */
+export function BackLink({ fallback, label = "Back" }: { fallback: Href; label?: string }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => (router.canGoBack() ? router.back() : router.replace(fallback))}
+      hitSlop={8}
+      style={({ hovered }: { hovered?: boolean }) => ({ alignSelf: "flex-start", paddingVertical: 4, opacity: hovered ? 0.7 : 1 })}
+    >
+      <Text style={{ color: t.muted, fontWeight: "700", fontSize: 15 }}>← {label}</Text>
     </Pressable>
   );
 }

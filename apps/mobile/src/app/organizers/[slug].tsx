@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Pop } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Card, Muted, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { shareText } from "@/lib/share";
@@ -56,6 +56,7 @@ function Organizers() {
 
   return (
     <Screen>
+      <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Organizers</Text>
         <Muted>

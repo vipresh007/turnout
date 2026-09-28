@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { GroupFields } from "@/components/GroupFields";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Muted, Screen } from "@/components/ui";
+import { BackLink, Button, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { fromGroup, toGroupInput, type GroupFormValues } from "@/lib/groupForm";
 import { useTheme } from "@/lib/theme";
@@ -57,6 +57,7 @@ function EditGroup() {
   }
   return (
     <Screen>
+      <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <GroupFields value={form} onChange={setForm} timezone={group.timezone} />
       <Muted>Lowering the cap moves the latest sign-ups to the waitlist.</Muted>
       {error && <Text style={{ color: t.danger }}>{error}</Text>}

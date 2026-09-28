@@ -89,14 +89,9 @@ export function Landing() {
                 <NavText label="FAQ" onPress={() => scrollTo(faqY.current)} />
               </>
             )}
-            <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, hovered && { backgroundColor: t.card }]}>
+            <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, webTransition, hovered && { backgroundColor: t.soft, borderColor: t.accent }]}>
               <Text style={{ color: t.text, fontWeight: "600" }}>{status === "signedIn" ? "Your groups" : "Sign in"}</Text>
             </Pressable>
-            {(wide || status !== "signedIn") && (
-              <Pressable accessibilityRole="button" onPress={start} style={({ hovered }: { hovered?: boolean }) => [s.navLink, { backgroundColor: t.accent, borderColor: t.accent }, hovered && { opacity: 0.9 }]}>
-                <Text style={{ color: t.accentText, fontWeight: "800" }}>{wide ? "Start a group" : "Start"}</Text>
-              </Pressable>
-            )}
           </View>
         </View>
 

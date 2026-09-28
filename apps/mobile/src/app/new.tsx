@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { GroupFields } from "@/components/GroupFields";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Card, Field, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Field, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { applyDraft, emptyGroupForm, toGroupInput } from "@/lib/groupForm";
 import { useTheme } from "@/lib/theme";
@@ -55,6 +55,7 @@ function NewGroup() {
 
   return (
     <Screen>
+      <BackLink fallback="/dashboard" />
       <Card>
         <Text style={{ color: t.text, fontSize: 17, fontWeight: "700" }}>Describe your group</Text>
         <Field
@@ -73,6 +74,9 @@ function NewGroup() {
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
       <View style={{ flexDirection: "row" }}>
         <Button label="Create group" onPress={create} loading={saving} big />
+      </View>
+      <View style={{ flexDirection: "row" }}>
+        <Button label="Cancel" variant="secondary" onPress={() => (router.canGoBack() ? router.back() : router.replace("/dashboard"))} />
       </View>
     </Screen>
   );

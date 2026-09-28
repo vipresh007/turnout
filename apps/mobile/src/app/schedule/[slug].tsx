@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Card, Field, Muted, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Field, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { formatTime } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
@@ -49,6 +49,7 @@ function Schedule() {
 
   return (
     <Screen>
+      <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>{group.name}</Text>
         <Muted>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
-import { Card, Muted, Screen } from "@/components/ui";
+import { BackLink, Card, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 
@@ -36,6 +36,7 @@ function Insights() {
   if (playedGames < 2) {
     return (
       <Screen>
+        <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Insights</Text>
         <Card>
           <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Check back after a couple of games</Text>
@@ -56,6 +57,7 @@ function Insights() {
 
   return (
     <Screen>
+      <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Insights</Text>
         <Muted>From your last {health.games} {health.games === 1 ? "game" : "games"}.</Muted>
