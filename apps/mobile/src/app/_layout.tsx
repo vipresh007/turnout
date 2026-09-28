@@ -25,6 +25,8 @@ export default function RootLayout() {
           headerShadowVisible: false,
           contentStyle: { backgroundColor: t.bg },
           title: "Turnout",
+          // On the web the site header (components/SiteHeader) is the only header.
+          headerShown: Platform.OS !== "web",
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false, title: "Turnout: stop asking who's playing" }} />

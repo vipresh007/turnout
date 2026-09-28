@@ -23,20 +23,10 @@ export function SignInGate({ children, reason }: { children: ReactNode; reason: 
   if (status === "signedIn") return <>{children}</>;
   return (
     <Screen>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
-        <Link href="/" accessibilityLabel="Turnout home">
-          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 }}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
-          </Text>
-        </Link>
-        <Link href="/">
-          <Text style={{ color: t.muted, fontWeight: "600" }}>← Back to home</Text>
-        </Link>
-      </View>
       {status === "loading" ? (
         <ActivityIndicator style={{ marginTop: 48 }} />
       ) : (
-        <View style={{ marginTop: 32 }}>
+        <View style={{ marginTop: 16 }}>
           <Card>
             <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>Sign in to Turnout</Text>
             <Muted>{reason} Players never need an account. Only organizers sign in.</Muted>

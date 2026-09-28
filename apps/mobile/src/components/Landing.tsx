@@ -4,9 +4,9 @@ import Head from "expo-router/head";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { wakeApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView } from "./motion";
+import { SiteHeader } from "./SiteHeader";
 import { webTransition } from "./ui";
 
 
@@ -53,7 +53,6 @@ export function Landing() {
   const { width } = useWindowDimensions();
   const wide = width >= 900;
   const s = styles(t);
-  const { status } = useAuth();
   const scrollRef = useRef<ScrollView>(null);
   const howY = useRef(0);
   const featuresY = useRef(0);
@@ -77,24 +76,14 @@ export function Landing() {
         <Glow color={t.glowB} size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
         <Glow color={t.glowC} size={wide ? 480 : 300} style={{ bottom: 0, left: "35%" }} duration={13000} drift={30} />
 
-        <View style={[s.section, s.nav]}>
-          <Text style={s.logo}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: wide ? 6 : 8 }}>
-            {wide && (
-              <>
-                <NavText label="How it works" onPress={() => scrollTo(howY.current)} />
-                <NavText label="Features" onPress={() => scrollTo(featuresY.current)} />
-                <NavText label="Pricing" onPress={() => scrollTo(pricingY.current)} />
-                <NavText label="FAQ" onPress={() => scrollTo(faqY.current)} />
-              </>
-            )}
-            <Pressable accessibilityRole="link" onPress={() => router.push("/dashboard")} style={({ hovered }: { hovered?: boolean }) => [s.navLink, webTransition, hovered && { backgroundColor: t.soft, borderColor: t.accent }]}>
-              <Text style={{ color: t.text, fontWeight: "600" }}>{status === "signedIn" ? "Your groups" : "Sign in"}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <SiteHeader
+          sections={[
+            { label: "How it works", onPress: () => scrollTo(howY.current) },
+            { label: "Features", onPress: () => scrollTo(featuresY.current) },
+            { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
+            { label: "FAQ", onPress: () => scrollTo(faqY.current) },
+          ]}
+        />
 
         <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
           <View style={{ flex: wide ? 1.15 : undefined, gap: 22, width: wide ? undefined : "100%" }}>
@@ -502,14 +491,6 @@ const styles = (t: Theme) =>
     ctaInverse: { backgroundColor: "#fff", paddingVertical: 17, paddingHorizontal: 30, borderRadius: 16, marginTop: 8 },
   });
 
-function NavText({ label, onPress }: { label: string; onPress: () => void }) {
-  const t = useTheme();
-  return (
-    <Pressable accessibilityRole="link" onPress={onPress} style={({ hovered }: { hovered?: boolean }) => ({ paddingVertical: 9, paddingHorizontal: 12, borderRadius: 10, backgroundColor: hovered ? t.card : "transparent" })}>
-      <Text style={{ color: t.muted, fontWeight: "600" }}>{label}</Text>
-    </Pressable>
-  );
-}
 
 function Faq({ q, a }: { q: string; a: string }) {
   const t = useTheme();

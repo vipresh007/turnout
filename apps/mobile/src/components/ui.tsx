@@ -1,12 +1,17 @@
 import type { ReactNode } from "react";
 import { router, type Href } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { useTheme } from "@/lib/theme";
+import { PageGlow, SiteHeader } from "./SiteHeader";
 
-export function Screen({ children }: { children: ReactNode }) {
+/** A page: the site header and background glow (web), then a centred column of content. */
+export function Screen({ children, signInLabel }: { children: ReactNode; signInLabel?: string }) {
   const t = useTheme();
+  const web = Platform.OS === "web";
   return (
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={styles.screen} keyboardShouldPersistTaps="handled">
+    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={[styles.screen, !web && { paddingTop: 16 }]} keyboardShouldPersistTaps="handled">
+      {web && <PageGlow />}
+      {web && <SiteHeader signInLabel={signInLabel} />}
       <View style={styles.column}>{children}</View>
     </ScrollView>
   );
@@ -97,8 +102,8 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { padding: 16, paddingBottom: 48, alignItems: "center" },
-  column: { width: "100%", maxWidth: 560, gap: 16 },
+  screen: { paddingBottom: 48, alignItems: "center" },
+  column: { width: "100%", maxWidth: 560, gap: 16, paddingHorizontal: 16 },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
   title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
   button: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", flex: 1 },

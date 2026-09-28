@@ -144,6 +144,13 @@ export async function buildApp(db: Db) {
     return { url: await liveUrlForGroups(groups.map((g) => g.slug)) };
   });
 
+  // Who's signed in, for the account menu in the site header.
+  app.get("/me", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const [row] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizer.id]);
+    return { name: row?.name ?? null, email: row?.email ?? null, isAdmin: isAdminEmail(row?.email) };
+  });
+
   app.get("/me/dashboard", async (req) => {
     const organizer = await requireOrganizer(db, req);
     const dashboard = await organizerDashboard(db, organizer.id);

@@ -1,9 +1,10 @@
 import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
-import { Link, router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
+import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { PricingAsk } from "@/components/PricingAsk";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
@@ -31,6 +32,7 @@ function DashboardView() {
   const { signOut } = useAuth();
   const { width } = useWindowDimensions();
   const wide = width >= 900;
+  const web = Platform.OS === "web";
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,15 +103,10 @@ function DashboardView() {
       contentContainerStyle={{ alignItems: "center", paddingBottom: 64 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
     >
+      {web && <PageGlow />}
+      {web && <SiteHeader />}
       <View style={s.container}>
-        {/* Header */}
-        {Platform.OS === "web" && (
-          <Link href="/" accessibilityLabel="Turnout home page" style={{ alignSelf: "flex-start" }}>
-            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900", letterSpacing: -1 }}>
-              turnout<Text style={{ color: t.accent }}>.</Text>
-            </Text>
-          </Link>
-        )}
+        {/* Greeting. On the web the site header has the account menu and New group; the app keeps them here. */}
         <View style={s.header}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={s.hello}>
@@ -118,7 +115,7 @@ function DashboardView() {
             </Text>
             <Text style={s.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          {!web && <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             {wide && <Button label="+ New group" onPress={() => router.push("/new")} />}
             <View>
               <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={() => setMenuOpen((o) => !o)} style={({ hovered }: { hovered?: boolean }) => [s.avatar, hovered && { opacity: 0.85, transform: [{ scale: 1.05 }] }]}>
@@ -143,10 +140,10 @@ function DashboardView() {
                 </Pop>
               )}
             </View>
-          </View>
+          </View>}
         </View>
 
-        {!wide && (
+        {!wide && !web && (
           <View style={{ flexDirection: "row" }}>
             <Button label="+ New group" onPress={() => router.push("/new")} />
           </View>
@@ -291,7 +288,7 @@ function EmptyState() {
 const styles = (t: Theme) =>
   StyleSheet.create({
     page: { flex: 1, backgroundColor: t.bg },
-    container: { width: "100%", maxWidth: 1100, paddingHorizontal: 16, paddingTop: 20, gap: 20 },
+    container: { width: "100%", maxWidth: SITE_WIDTH, paddingHorizontal: SITE_GUTTER, paddingTop: Platform.OS === "web" ? 4 : 20, gap: 20 },
     header: { flexDirection: "row", alignItems: "center", gap: 16, zIndex: 10 },
     hello: { color: t.text, fontSize: 28, fontWeight: "900", letterSpacing: -0.8 },
     date: { color: t.muted, fontSize: 15 },

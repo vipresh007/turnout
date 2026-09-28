@@ -78,6 +78,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<{ draft: GroupDraft; source: "ai" | "rules" }>("/ai/group-draft", await asOrganizer({ method: "POST", body: { sentence } })),
     createGroup: async (input: CreateGroupInput) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: input })),
     myGroups: async () => request<{ groups: Group[] }>("/me/groups", await asOrganizer()),
+    me: async () => request<Account>("/me", await asOrganizer()),
     dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
     dashboardLive: async () => request<{ url: string | null }>("/me/live", await asOrganizer()),
     updateGroup: async (slug: string, input: UpdateGroupInput) =>
@@ -160,6 +161,12 @@ function createApi(authHeaders: () => Promise<Headers>) {
 }
 
 export type Api = ReturnType<typeof createApi>;
+
+export interface Account {
+  name: string | null;
+  email: string | null;
+  isAdmin: boolean;
+}
 
 /** /admin/metrics: product metrics across all groups (admins only). */
 export interface ProductMetrics {

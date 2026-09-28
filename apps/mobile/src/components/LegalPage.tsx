@@ -1,4 +1,3 @@
-import { Link } from "expo-router";
 import Head from "expo-router/head";
 import type { ReactNode } from "react";
 import { Linking, Text, View } from "react-native";
@@ -15,17 +14,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
       <Head>
         <title>{`${title} · Turnout`}</title>
       </Head>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }}>
-        <Link href="/" accessibilityLabel="Turnout home">
-          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 }}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
-          </Text>
-        </Link>
-        <Link href="/">
-          <Text style={{ color: t.muted, fontWeight: "600" }}>← Back to home</Text>
-        </Link>
-      </View>
-      <View style={{ gap: 4, marginTop: 16 }}>
+      <View style={{ gap: 4, marginTop: 8 }}>
         <Text role="heading" aria-level={1} style={{ color: t.text, fontSize: 32, fontWeight: "900", letterSpacing: -1 }}>{title}</Text>
         <Text style={{ color: t.muted }}>Last updated {updated}</Text>
       </View>

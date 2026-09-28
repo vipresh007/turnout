@@ -108,7 +108,7 @@ export default function GroupScreen() {
   };
 
   if (!page) {
-    return <Screen>{error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator style={{ marginTop: 48 }} />}</Screen>;
+    return <Screen signInLabel="Organizer? Sign in">{error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator style={{ marginTop: 48 }} />}</Screen>;
   }
 
   const { group, session, roster, viewer } = page;
@@ -135,9 +135,8 @@ export default function GroupScreen() {
     : undefined;
 
   return (
-    <Screen>
+    <Screen signInLabel="Organizer? Sign in">
       <Stack.Screen options={{ title: group.name, headerShown: Platform.OS !== "web" }} />
-      {Platform.OS === "web" && <BrandBar />}
 
       {created && (
         <ShareCard input={shareInput} title="🎉 Your group is ready. Send it to your group chat" />
@@ -470,21 +469,6 @@ function TeamsCard({ teams, roster, groupName, onShare }: { teams: string[][]; r
 }
 
 /** Slim top bar on web: brand link home (every player sees Turnout) and, for organizers, their groups. */
-function BrandBar() {
-  const t = useTheme();
-  return (
-    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-      <Link href="/" accessibilityLabel="Turnout home">
-        <Text style={{ color: t.text, fontSize: 20, fontWeight: "900", letterSpacing: -0.8 }}>
-          turnout<Text style={{ color: t.accent }}>.</Text>
-        </Text>
-      </Link>
-      <Link href="/dashboard">
-        <Text style={{ color: t.muted, fontWeight: "600" }}>Organizer? Your groups →</Text>
-      </Link>
-    </View>
-  );
-}
 
 /** In/Out button that shows the member's current answer as selected rather than disabled. */
 function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
