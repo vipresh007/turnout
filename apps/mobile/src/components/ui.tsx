@@ -26,6 +26,9 @@ export function Muted({ children }: { children: ReactNode }) {
   return <Text style={{ color: t.muted, fontSize: 15, lineHeight: 21 }}>{children}</Text>;
 }
 
+/** Smooth hover/press changes on web; native ignores these. */
+export const webTransition = { transitionProperty: "background-color, border-color, color, opacity, transform, box-shadow", transitionDuration: "150ms" } as object;
+
 type Variant = "primary" | "secondary" | "danger";
 export function Button({ label, onPress, variant = "primary", loading, disabled, big }: {
   label: string; onPress: () => void; variant?: Variant; loading?: boolean; disabled?: boolean; big?: boolean;
@@ -38,16 +41,27 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
       accessibilityRole="button"
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.button, big && styles.bigButton,
-        {
-          backgroundColor: bg, borderColor: variant === "secondary" ? t.border : bg, opacity: disabled ? 0.5 : 1,
-          transform: [{ scale: pressed ? 0.96 : 1 }],
-          boxShadow: variant === "primary" && !disabled ? `0 6px 16px ${t.accentShadow}` : undefined,
-        },
-      ]}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => {
+        const hover = hovered && !disabled && !loading;
+        return [
+          styles.button, big && styles.bigButton, webTransition,
+          {
+            backgroundColor: hover && variant === "secondary" ? t.soft : bg,
+            borderColor: variant === "secondary" ? (hover ? t.accent : t.border) : bg,
+            opacity: disabled ? 0.5 : hover && variant !== "secondary" ? 0.92 : 1,
+            transform: [{ translateY: hover && !pressed ? -1 : 0 }, { scale: pressed ? 0.96 : 1 }],
+            boxShadow: variant === "primary" && !disabled ? `0 ${hover ? 10 : 6}px ${hover ? 22 : 16}px ${t.accentShadow}` : undefined,
+          },
+        ];
+      }}
     >
-      {loading ? <ActivityIndicator color={fg} /> : <Text style={[styles.buttonText, big && styles.bigButtonText, { color: fg }]}>{label}</Text>}
+      {({ hovered }: { hovered?: boolean }) =>
+        loading ? (
+          <ActivityIndicator color={fg} />
+        ) : (
+          <Text style={[styles.buttonText, big && styles.bigButtonText, { color: hovered && !disabled && variant === "secondary" ? t.accent : fg }]}>{label}</Text>
+        )
+      }
     </Pressable>
   );
 }

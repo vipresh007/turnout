@@ -82,7 +82,7 @@ function Members() {
                 {m.hasEmail ? " · 📧 reminders" : ""}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
               <Text style={{ color: t.accent, fontWeight: "700" }}>Merge</Text>
             </Pressable>
           </View>

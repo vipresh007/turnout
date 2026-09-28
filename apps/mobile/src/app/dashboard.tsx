@@ -127,7 +127,7 @@ function DashboardView() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
             {wide && <Button label="+ New group" onPress={() => router.push("/new")} />}
             <View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={() => setMenuOpen((o) => !o)} style={s.avatar}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={() => setMenuOpen((o) => !o)} style={({ hovered }: { hovered?: boolean }) => [s.avatar, hovered && { opacity: 0.85, transform: [{ scale: 1.05 }] }]}>
                 <Text style={{ color: t.accentText, fontWeight: "900", fontSize: 16 }}>{displayName ? displayName[0]!.toUpperCase() : "👤"}</Text>
               </Pressable>
               {menuOpen && (
@@ -237,7 +237,7 @@ function ActivityRow({ item, last }: { item: ActivityItem; last: boolean }) {
     <Pressable
       accessibilityRole="link"
       onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: item.groupSlug } })}
-      style={[{ flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 10 }, !last && { borderBottomWidth: 1, borderColor: t.border }]}
+      style={({ hovered }: { hovered?: boolean }) => [{ flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 10, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 10 }, !last && { borderBottomWidth: 1, borderColor: t.border }, hovered && { backgroundColor: t.bg }]}
     >
       <View style={[s.dot, { backgroundColor: isIn ? t.accent : t.border }]} />
       <View style={{ flex: 1 }}>

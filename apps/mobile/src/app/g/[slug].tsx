@@ -6,7 +6,7 @@ import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
 import { ShareCard } from "@/components/ShareCard";
-import { Button, Card, Field, Muted, Screen, Title } from "@/components/ui";
+import { Button, Card, Field, Muted, Screen, Title, webTransition } from "@/components/ui";
 import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, useApi, type Membership } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
@@ -147,11 +147,11 @@ export default function GroupScreen() {
         </Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 2 }}>
           {where && (
-            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(where))} hitSlop={6}>
+            <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(where))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
               <Text style={{ color: t.muted }}>📍 <Text style={{ textDecorationLine: "underline" }}>{where}</Text></Text>
             </Pressable>
           )}
-          <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6}>
+          <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
             <Text style={{ color: t.muted }}>📅 <Text style={{ textDecorationLine: "underline" }}>Add to calendar</Text></Text>
           </Pressable>
         </View>
@@ -376,17 +376,17 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lat
               accessibilityLabel={`${p.name} paid`}
               onPress={() => onTogglePaid(p)}
               hitSlop={8}
-              style={{
+              style={({ hovered }: { hovered?: boolean }) => ({
                 paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, borderWidth: 1, marginRight: 12,
-                borderColor: paid.has(p.memberId) ? t.accent : t.border, backgroundColor: paid.has(p.memberId) ? t.soft : "transparent",
-              }}
+                borderColor: paid.has(p.memberId) || hovered ? t.accent : t.border, backgroundColor: paid.has(p.memberId) || hovered ? t.soft : "transparent",
+              })}
             >
               <Text style={{ color: paid.has(p.memberId) ? t.accent : t.muted, fontSize: 12, fontWeight: "800" }}>{paid.has(p.memberId) ? "✓ Paid" : "Paid?"}</Text>
             </Pressable>
           )}
           {onRemove && (
             <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${p.name}`} onPress={() => onRemove(p)} hitSlop={12}>
-              <Text style={{ color: t.muted, fontSize: 18 }}>×</Text>
+              {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.danger : t.muted, fontSize: 18 }}>×</Text>}
             </Pressable>
           )}
         </Pop>
@@ -404,7 +404,7 @@ function TeamsCard({ teams, roster, groupName, onShare }: { teams: string[][]; r
     <Card>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>🏁 Teams</Text>
-        <Pressable accessibilityRole="button" onPress={() => onShare(text)} hitSlop={8}>
+        <Pressable accessibilityRole="button" onPress={() => onShare(text)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
           <Text style={{ color: t.accent, fontWeight: "700" }}>Share</Text>
         </Pressable>
       </View>
@@ -455,13 +455,17 @@ function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
       accessibilityState={{ selected, disabled, busy: loading }}
       onPress={selected ? undefined : onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => ({
-        flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 20, borderRadius: 16, borderWidth: 2,
-        backgroundColor: bg,
-        borderColor: selected ? t.text : kind === "in" ? t.accent : t.border,
-        opacity: disabled ? 0.45 : 1,
-        transform: [{ scale: pressed ? 0.97 : 1 }],
-      })}
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => {
+        const hover = hovered && !selected && !disabled && !loading;
+        return {
+          flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 20, borderRadius: 16, borderWidth: 2,
+          backgroundColor: bg,
+          borderColor: selected ? t.text : kind === "in" || hover ? t.accent : t.border,
+          opacity: disabled ? 0.45 : hover && kind === "in" ? 0.9 : 1,
+          transform: [{ translateY: hover && !pressed ? -2 : 0 }, { scale: pressed ? 0.97 : 1 }],
+          ...webTransition,
+        };
+      }}
     >
       {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontSize: 19, fontWeight: "800" }}>{label}</Text>}
     </Pressable>

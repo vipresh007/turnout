@@ -7,6 +7,7 @@ import { wakeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView, RotatingWord } from "./motion";
+import { webTransition } from "./ui";
 
 const activities = ["pickup soccer?", "Tuesday hoops?", "poker night?", "the 6am run?", "volleyball?", "yoga class?"];
 
@@ -240,7 +241,7 @@ export function Landing() {
             <Text style={[s.h2, { color: "#fff", textAlign: "center", fontSize: wide ? 44 : 32 }]}>Your next game, sorted in one link.</Text>
             <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 18, textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
             <Pulse>
-              <Pressable accessibilityRole="button" onPress={start} style={({ pressed }) => [s.ctaInverse, pressed && { opacity: 0.9 }]}>
+              <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: "0 12px 28px rgba(0,0,0,0.25)" }, pressed && { opacity: 0.9 }]}>
                 <Text style={{ color: "#0B3D1E", fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
               </Pressable>
             </Pulse>
@@ -420,15 +421,16 @@ function DemoButton({ label, primary, active, onPress }: { label: string; primar
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         alignItems: "center",
         paddingVertical: 15,
         borderRadius: 14,
         borderWidth: 1,
         backgroundColor: primary ? t.accent : active ? t.text : t.card,
-        borderColor: primary ? t.accent : t.border,
-        opacity: primary && active ? 0.65 : 1,
-        transform: [{ scale: pressed ? 0.96 : 1 }],
+        borderColor: primary || hovered ? t.accent : t.border,
+        opacity: primary && active ? 0.65 : hovered && primary ? 0.9 : 1,
+        transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.96 : 1 }],
+        ...webTransition,
       })}
     >
       <Text style={{ color: primary ? t.accentText : active ? t.bg : t.text, fontWeight: "800", fontSize: 16 }}>{label}</Text>

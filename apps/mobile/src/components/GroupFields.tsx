@@ -12,10 +12,10 @@ function Chip({ label, selected, onPress }: { label: string; selected: boolean; 
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={{
+      style={({ hovered }: { hovered?: boolean }) => ({
         alignSelf: "flex-start", paddingVertical: 7, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1,
-        borderColor: selected ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
-      }}
+        borderColor: selected || hovered ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
+      })}
     >
       <Text style={{ color: selected ? t.accent : t.text, fontWeight: "600" }}>{label}</Text>
     </Pressable>
@@ -45,10 +45,10 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 onPress={() => set("weekdays")(selected ? value.weekdays.filter((d) => d !== i) : [...value.weekdays, i].sort())}
-                style={{
+                style={({ hovered }: { hovered?: boolean }) => ({
                   paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1,
-                  borderColor: selected ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
-                }}
+                  borderColor: selected || hovered ? t.accent : t.border, backgroundColor: selected ? t.soft : t.card,
+                })}
               >
                 <Text style={{ color: selected ? t.accent : t.text, fontWeight: "600" }}>{d}</Text>
               </Pressable>

@@ -84,7 +84,7 @@ export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
         onPress={() => setSelected(isSelected ? null : day)}
         accessibilityRole="button"
         accessibilityLabel={`${day.toDateString()}, ${games.length} ${games.length === 1 ? "game" : "games"}`}
-        style={[s.day, { flex: 1, minHeight: compact ? 54 : mode === "month" ? 96 : 92, opacity: outside ? 0.4 : past ? 0.7 : 1 }, isToday && { borderColor: t.accent }, isSelected && { backgroundColor: t.soft }]}
+        style={({ hovered }: { hovered?: boolean }) => [s.day, { flex: 1, minHeight: compact ? 54 : mode === "month" ? 96 : 92, opacity: outside ? 0.4 : past ? 0.7 : 1 }, isToday && { borderColor: t.accent }, hovered && { borderColor: t.accent, backgroundColor: t.bg }, isSelected && { backgroundColor: t.soft }]}
       >
         <Text style={[s.dayNum, { fontSize: compact ? 14 : 18 }, isToday && { color: t.accent }, games.length === 0 && !isToday && { color: t.muted }]}>{day.getDate()}</Text>
         {compact ? (

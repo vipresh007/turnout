@@ -105,10 +105,10 @@ function TeamMaker() {
                   accessibilityLabel={`Rate ${p.name} ${n} of 5`}
                   onPress={() => rate(p.memberId, n)}
                   hitSlop={4}
-                  style={{
+                  style={({ hovered }: { hovered?: boolean }) => ({
                     width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center",
-                    backgroundColor: n <= p.skill ? t.accent : t.bg, borderWidth: 1, borderColor: n <= p.skill ? t.accent : t.border,
-                  }}
+                    backgroundColor: n <= p.skill ? t.accent : hovered ? t.soft : t.bg, borderWidth: 1, borderColor: n <= p.skill || hovered ? t.accent : t.border,
+                  })}
                 >
                   <Text style={{ color: n <= p.skill ? t.accentText : t.muted, fontSize: 11, fontWeight: "800" }}>{n}</Text>
                 </Pressable>
@@ -130,10 +130,10 @@ function TeamMaker() {
                 setCount(n);
                 setTeams(null);
               }}
-              style={{
+              style={({ hovered }: { hovered?: boolean }) => ({
                 paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1,
-                borderColor: count === n ? t.accent : t.border, backgroundColor: count === n ? t.soft : t.card,
-              }}
+                borderColor: count === n ? t.accent : hovered ? t.accent : t.border, backgroundColor: count === n ? t.soft : t.card,
+              })}
             >
               <Text style={{ color: count === n ? t.accent : t.text, fontWeight: "800" }}>{n}</Text>
             </Pressable>

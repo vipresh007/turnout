@@ -81,6 +81,7 @@ function Organizers() {
                   accessibilityRole="button"
                   hitSlop={8}
                   disabled={busy}
+                  style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}
                   onPress={async () => {
                     if (await confirm(`Make ${o.name} the owner?`, "You'll stay on as a co-organizer. Only the owner can add or remove organizers.", "Make owner")) {
                       await act(async () => setState(await api.transferOwner(slug, o.id)));
@@ -93,6 +94,7 @@ function Organizers() {
                   accessibilityRole="button"
                   hitSlop={8}
                   disabled={busy}
+                  style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}
                   onPress={async () => {
                     if (await confirm(`Remove ${o.name}?`, "They'll no longer be able to manage this group.")) {
                       await act(async () => setState({ role: state.role, organizers: (await api.removeOrganizer(slug, o.id)).organizers }));

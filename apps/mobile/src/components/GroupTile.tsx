@@ -7,7 +7,7 @@ import { relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
 import { Pop } from "./motion";
-import { Button } from "./ui";
+import { Button, webTransition } from "./ui";
 
 /**
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
@@ -174,7 +174,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                         await api.setPaid(group.slug, p.memberId, !p.paid);
                         onChanged();
                       })}
-                      style={{ width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center", borderColor: p.paid ? t.accent : t.border, backgroundColor: p.paid ? t.soft : "transparent" }}
+                      style={({ hovered }: { hovered?: boolean }) => ({ width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center", borderColor: p.paid || hovered ? t.accent : t.border, backgroundColor: p.paid || hovered ? t.soft : "transparent" })}
                     >
                       <Text style={{ color: t.accent, fontWeight: "900" }}>{p.paid ? "✓" : ""}</Text>
                     </Pressable>
@@ -254,9 +254,9 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
                 accessibilityLabel={`Ask ${p.name}`}
                 hitSlop={8}
                 onPress={() => onShare(inviteMessage(p.name.split(" ")[0]!, group.name, spotsLeft, when, link))}
-                style={{ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}
+                style={({ hovered }: { hovered?: boolean }) => ({ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: hovered ? t.accent : "transparent", ...webTransition })}
               >
-                <Text style={{ color: t.accent, fontWeight: "800" }}>Ask</Text>
+                {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.accentText : t.accent, fontWeight: "800" }}>Ask</Text>}
               </Pressable>
             </View>
           ))}

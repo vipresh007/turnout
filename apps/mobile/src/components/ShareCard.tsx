@@ -3,7 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import { Linking, Platform, Pressable, Share, Text, View } from "react-native";
 import { useTheme } from "@/lib/theme";
-import { Card } from "./ui";
+import { Card, webTransition } from "./ui";
 
 /** Invite card: the ready-to-send message plus one-tap WhatsApp, Messages, and copy/share. */
 export function ShareCard({ input, title }: { input: ShareInput; title?: string }) {
@@ -45,13 +45,17 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
 }
 
 function ShareButton({ label, color, textColor, border, onPress }: { label: string; color: string; textColor: string; border?: string; onPress: () => void }) {
+  const t = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => ({
+      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
         flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: 12, backgroundColor: color,
-        borderWidth: 1, borderColor: border ?? color, transform: [{ scale: pressed ? 0.97 : 1 }],
+        borderWidth: 1, borderColor: hovered && border ? t.accent : border ?? color,
+        opacity: hovered && !border ? 0.9 : 1,
+        transform: [{ translateY: hovered && !pressed ? -1 : 0 }, { scale: pressed ? 0.97 : 1 }],
+        ...webTransition,
       })}
     >
       <Text style={{ color: textColor, fontWeight: "800", fontSize: 15 }}>{label}</Text>
