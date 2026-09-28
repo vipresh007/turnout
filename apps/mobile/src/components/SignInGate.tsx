@@ -45,7 +45,11 @@ export function SignInGate({ children, reason }: { children: ReactNode; reason: 
                 <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />
               ))}
             </View>
-            <Text style={{ color: t.muted, fontSize: 12, textAlign: "center" }}>New here? Any option creates your account automatically.</Text>
+            <Text style={{ color: t.muted, fontSize: 12, textAlign: "center" }}>
+              New here? Any option creates your account automatically. By continuing you agree to the{" "}
+              <Link href="/terms" style={{ textDecorationLine: "underline" }}>terms</Link> and{" "}
+              <Link href="/privacy" style={{ textDecorationLine: "underline" }}>privacy policy</Link>.
+            </Text>
           </Card>
         </View>
       )}

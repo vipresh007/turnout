@@ -1,5 +1,5 @@
 import { buildRoster, type Rsvp } from "@turnout/shared";
-import { router } from "expo-router";
+import { Link, router } from "expo-router";
 import Head from "expo-router/head";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
@@ -214,7 +214,11 @@ export function Landing() {
         <Text style={s.logoSmall}>
           turnout<Text style={{ color: t.accent }}>.</Text>
         </Text>
-        <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout · Made for people who organize the game.</Text>
+        <View style={{ flexDirection: "row", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout · Made for people who organize the game.</Text>
+          <Link href="/privacy"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Privacy</Text></Link>
+          <Link href="/terms"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Terms</Text></Link>
+        </View>
       </View>
     </RevealScrollView>
   );
