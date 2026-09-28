@@ -18,8 +18,9 @@ Weekly in/out headcounts for recurring games. See README.md for layout, routes, 
 - GitHub environment variables (per env): `ENTRA_*`, `ENTRA_PROVIDERS`, `WEB_URL`. Secrets: `AZURE_CLIENT_ID/TENANT_ID/SUBSCRIPTION_ID` (OIDC).
 
 ## Auth
-- Organizers: Microsoft Entra External ID tenant `turnoutapp` (id f4ca4cb4-8099-4717-a3e6-a4ef0acaa7ee). Providers: email one-time code + personal Microsoft accounts (custom OIDC). Google/Apple not yet.
+- Organizers: Microsoft Entra External ID tenant `turnoutapp` (id f4ca4cb4-8099-4717-a3e6-a4ef0acaa7ee). Providers: email one-time code, personal Microsoft accounts (custom OIDC), Google and Apple (`infra/setup-social.sh`). Web sign-in buttons use domain_hint `login.microsoftonline.com` / `Google` / `apple` to skip Entra's chooser page. Signing in with Google/Apple using an email that already has an email-code account asks for a one-time code to link them (Entra behaviour).
 - Graph calls in that tenant: `AZURE_CONFIG_DIR=~/.azure-turnout-ciam az rest ...`. The Azure CLI token lacks `IdentityProvider.ReadWrite.All` / policy scopes; the temporary app `turnout-setup-automation-temp` has app-only IdentityProvider + EventListener permissions (mint a short-lived secret when needed).
+- Co-organizers: `group_admins` (admins) plus `groups.organizer_id` (owner). `ownedGroup` in app.ts allows either one; `ownerOnly` covers inviting/removing organizers and handing over ownership. Invites are one-time `/organize?t=` links (`admin_invites`).
 - Members have no accounts: a per-device token (`x-member-token`), stored hashed.
 - Local dev without Entra: leave `EXPO_PUBLIC_ENTRA_AUTHORITY` empty; the API accepts `x-dev-user` when `ALLOW_DEV_AUTH=true`.
 
