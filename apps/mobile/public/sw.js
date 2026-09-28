@@ -8,7 +8,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(m.title || "Turnout", {
       body: m.body || "",
       icon: "/icon.png",
-      badge: "/icon.png",
+      badge: "/badge.png",
       tag: m.url || "turnout",
       data: { url: m.url || "/" },
       actions: m.rsvpActions
