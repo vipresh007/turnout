@@ -1,0 +1,5 @@
+version: v1.1.0
+steps:
+  - cmd: {{.Values.IMAGE}} node /workspace/seed.ts
+    env: ["DATABASE_URL={{.Values.DB}}", "SEED_EMAIL={{.Values.EMAIL}}", "PGSSLMODE=require"]
+    workingDirectory: /workspace
