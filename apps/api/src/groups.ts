@@ -1,4 +1,4 @@
-import { buildRoster, type ActivityItem, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, groupInsights, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
@@ -141,6 +141,11 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
         spotsLeft: roster.spotsLeft,
         players: [...roster.confirmed.map(player("in")), ...roster.waitlist.map(player("waitlist")), ...roster.out.map(player("out"))],
         weeks: await upcomingWeeks(db, row, 12),
+        suggestions: await groupInsightsFor(db, row, { roster, cancelled: session.cancelled }).then((i) => ({
+          invite: i.invite,
+          expectedLateDrops: i.expectedLateDrops,
+          games: i.health.games - i.health.cancelled,
+        })),
       };
     }),
   );
@@ -224,4 +229,40 @@ export async function organizerStats(db: Db, organizerId: string, now = new Date
     responses: weeks.reduce((n, w) => n + w.responses, 0),
     regulars,
   };
+}
+
+/** How many recent games the insights look back over. */
+const INSIGHT_GAMES = 12;
+
+/** Reliability, group health and who to invite, from the group's recent games. */
+export async function groupInsightsFor(db: Db, group: GroupRow, current?: { roster: Roster; cancelled: boolean }, now = new Date()): Promise<GroupInsights> {
+  const sessions = await db.query<{ id: string; startsAt: Date | string; cancelled: boolean }>(
+    `SELECT id, COALESCE(starts_at_override, starts_at) AS "startsAt", cancelled FROM sessions
+     WHERE group_id = $1 AND COALESCE(starts_at_override, starts_at) < $2 ORDER BY starts_at DESC LIMIT ${INSIGHT_GAMES}`,
+    [group.id, now.toISOString()],
+  );
+  const rsvps = sessions.length
+    ? await db.query<{ sessionId: string; memberId: string; name: string; status: "in" | "out"; respondedAt: Date | string; lateDrop: boolean }>(
+        `SELECT r.session_id AS "sessionId", r.member_id AS "memberId", m.name, r.status, r.responded_at AS "respondedAt", r.late_drop AS "lateDrop"
+         FROM rsvps r JOIN members m ON m.id = r.member_id WHERE r.session_id = ANY($1::uuid[])`,
+        [sessions.map((s) => s.id)],
+      )
+    : [];
+  const members = await db.query<{ id: string; name: string; joinedAt: Date | string }>(
+    `SELECT id, name, created_at AS "joinedAt" FROM members WHERE group_id = $1`,
+    [group.id],
+  );
+  const iso = (d: Date | string) => new Date(d).toISOString();
+  const games: PastGame[] = sessions.map((s) => ({
+    startsAt: iso(s.startsAt),
+    cancelled: s.cancelled,
+    rsvps: rsvps.filter((r) => r.sessionId === s.id).map(({ sessionId: _, ...r }) => ({ ...r, respondedAt: iso(r.respondedAt) })),
+  }));
+  return groupInsights({
+    cap: group.cap,
+    timezone: group.timezone,
+    games,
+    members: members.map((m) => ({ ...m, joinedAt: iso(m.joinedAt) })),
+    ...(current ? { current } : {}),
+  });
 }

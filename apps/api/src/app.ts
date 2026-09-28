@@ -34,7 +34,7 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, groupColumns, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, groupColumns, groupInsightsFor, groupPage, groupRole, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -415,6 +415,13 @@ export async function buildApp(db: Db) {
   app.post<SlugParams>("/groups/:slug/remind", strict(10), async (req) => {
     const { group } = await ownedGroup(req, req.params.slug);
     return remindNow(db, group);
+  });
+
+  app.get<SlugParams>("/groups/:slug/insights", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    const session = await currentSession(db, group);
+    const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
+    return groupInsightsFor(db, group, { roster, cancelled: session.cancelled });
   });
 
   // ── Organizer: co-organizers ──────────────────────────────

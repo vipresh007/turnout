@@ -1,4 +1,4 @@
-import { describeRecurrence, formatMoney, groupShareMessage, shareCents, teamNames, type DashboardGroup } from "@turnout/shared";
+import { describeRecurrence, formatMoney, groupShareMessage, inviteMessage, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -109,6 +109,8 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
         </Pop>
       )}
 
+      <Suggestions item={item} link={link} onShare={onShare} />
+
       {players.length > 0 && (
         <View style={{ gap: 2 }}>
           <View style={{ flexDirection: "row", paddingVertical: 6, borderBottomWidth: 1, borderColor: t.border }}>
@@ -164,6 +166,52 @@ export function NextUpCard({ item, onShare, onChanged }: { item: DashboardGroup;
         </View>
       )}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
+    </View>
+  );
+}
+
+/** When the game is short: the regulars who haven't answered yet, one tap to ask each. And a heads-up about usual late dropouts. */
+function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: string; onShare: (text: string) => void }) {
+  const t = useTheme();
+  const { group, session, suggestions, spotsLeft } = item;
+  if (session.cancelled || suggestions.games < 2) return null;
+  const lateWarning = suggestions.expectedLateDrops > 0 && group.cap !== null && suggestions.games >= 3;
+  const showInvite = (spotsLeft > 0 || lateWarning) && suggestions.invite.length > 0;
+  if (!showInvite && !lateWarning) return null;
+  const when = shortWhen(session.startsAt, group.timezone);
+  const late = suggestions.expectedLateDrops;
+  return (
+    <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 10 }}>
+      {lateWarning && (
+        <Text style={{ color: t.text, fontWeight: "700" }}>
+          ⚠️ You usually lose {late === 1 ? "a player" : `${late} players`} close to game time.
+          {spotsLeft === 0 ? ` Consider asking ${late === 1 ? "one extra" : `${late} extras`} to join the waitlist.` : ""}
+        </Text>
+      )}
+      {showInvite && (
+        <>
+          <Text style={{ color: t.text, fontWeight: "800" }}>
+            {spotsLeft > 0 ? `Need ${spotsLeft} more? These regulars haven't answered yet:` : "Regulars who haven't answered yet:"}
+          </Text>
+          {suggestions.invite.slice(0, Math.max(3, spotsLeft + late)).map((p) => (
+            <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Avatar name={p.name} size={26} />
+              <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
+                {p.name} <Text style={{ color: t.muted }}>· played {p.played} of {p.games}</Text>
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Ask ${p.name}`}
+                hitSlop={8}
+                onPress={() => onShare(inviteMessage(p.name.split(" ")[0]!, group.name, spotsLeft, when, link))}
+                style={{ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 }}
+              >
+                <Text style={{ color: t.accent, fontWeight: "800" }}>Ask</Text>
+              </Pressable>
+            </View>
+          ))}
+        </>
+      )}
     </View>
   );
 }

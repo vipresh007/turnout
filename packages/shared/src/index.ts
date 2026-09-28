@@ -6,3 +6,4 @@ export * from "./teams.ts";
 export * from "./share.ts";
 export * from "./schedule.ts";
 export * from "./cost.ts";
+export * from "./insights.ts";

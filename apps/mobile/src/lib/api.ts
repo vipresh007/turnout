@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { CreateGroupInput, Dashboard, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -81,6 +81,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
     weeks: async (slug: string) => request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks`, await asOrganizer()),
     updateWeek: async (slug: string, scheduledAt: string, input: SessionUpdateInput) =>
       request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks/${encodeURIComponent(scheduledAt)}`, await asOrganizer({ method: "PUT", body: input })),
+    insights: async (slug: string) => request<GroupInsights>(`/groups/${slug}/insights`, await asOrganizer()),
     organizers: async (slug: string) => request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/organizers`, await asOrganizer()),
     inviteOrganizer: async (slug: string) => request<{ url: string }>(`/groups/${slug}/organizers/invite`, await asOrganizer({ method: "POST", body: {} })),
     removeOrganizer: async (slug: string, organizerId: string) =>

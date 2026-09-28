@@ -452,3 +452,30 @@ test("co-organizers: invite, admin powers, owner-only actions, handover", async 
   assert.equal((await app.inject({ method: "DELETE", url: `/groups/${slug}/organizers/${ownerId}`, headers: owner })).statusCode, 200);
   assert.equal((await app.inject({ url: `/groups/${slug}`, headers: owner })).json().viewer.isOrganizer, false);
 });
+
+test("insights: reliability from past games and who to invite when short", async () => {
+  const org = { "x-dev-user": "ins-org" };
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Ins Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 3 } })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json().member.id as string;
+  const mike = await join("Mike");
+  const raj = await join("Raj");
+  await db.query(`UPDATE members SET created_at = now() - interval '60 days' WHERE group_id = $1`, [id]);
+
+  // Two past games: both played, Raj dropped late in the second.
+  for (const [weeksAgo, rajStatus, late] of [[2, "in", false], [1, "out", true]] as const) {
+    const [s] = await db.query<{ id: string }>(`INSERT INTO sessions (group_id, starts_at) VALUES ($1, now() - interval '${weeksAgo} weeks') RETURNING id`, [id]);
+    await db.query(`INSERT INTO rsvps (session_id, member_id, status, responded_at) VALUES ($1, $2, 'in', now() - interval '${weeksAgo} weeks' - interval '1 day')`, [s!.id, mike]);
+    await db.query(`INSERT INTO rsvps (session_id, member_id, status, responded_at, late_drop) VALUES ($1, $2, $3, now() - interval '${weeksAgo} weeks' - interval '1 hour', $4)`, [s!.id, raj, rajStatus, late]);
+  }
+
+  const insights = (await app.inject({ url: `/groups/${slug}/insights`, headers: org })).json();
+  assert.equal(insights.health.games, 2);
+  const m = insights.players.find((p: { name: string }) => p.name === "Mike");
+  assert.deepEqual([m.played, m.games, m.lateDrops], [2, 2, 0]);
+  assert.equal(insights.players.find((p: { name: string }) => p.name === "Raj").lateDrops, 1);
+  assert.deepEqual(insights.invite.map((i: { name: string }) => i.name), ["Mike", "Raj"]);
+
+  const dash = (await app.inject({ url: "/me/dashboard", headers: org })).json();
+  assert.equal(dash.groups[0].suggestions.invite[0].name, "Mike");
+  assert.equal((await app.inject({ url: `/groups/${slug}/insights`, headers: { "x-dev-user": "someone" } })).statusCode, 403);
+});

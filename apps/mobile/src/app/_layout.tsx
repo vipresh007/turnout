@@ -39,6 +39,7 @@ export default function RootLayout() {
         <Stack.Screen name="members/[slug]" options={{ title: "Members", presentation: "modal" }} />
         <Stack.Screen name="teams/[slug]" options={{ title: "Make teams", presentation: "modal" }} />
         <Stack.Screen name="schedule/[slug]" options={{ title: "Schedule", presentation: "modal" }} />
+        <Stack.Screen name="insights/[slug]" options={{ title: "Insights", presentation: "modal" }} />
         <Stack.Screen name="organizers/[slug]" options={{ title: "Organizers", presentation: "modal" }} />
         <Stack.Screen name="organize" options={{ title: "Help run a group" }} />
         <Stack.Screen name="privacy" options={{ title: "Privacy", headerShown: Platform.OS !== "web" }} />

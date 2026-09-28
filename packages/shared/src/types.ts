@@ -1,3 +1,4 @@
+import type { InviteSuggestion } from "./insights.ts";
 import type { ReminderSettings } from "./reminders.ts";
 import type { Roster, RsvpStatus } from "./roster.ts";
 
@@ -90,6 +91,8 @@ export interface DashboardGroup {
   players: DashboardPlayer[];
   /** This week and the next ones, with skips and one-off changes (for the calendar). */
   weeks: UpcomingWeek[];
+  /** From recent games: regulars to ask when short, and late dropouts to expect. */
+  suggestions: { invite: InviteSuggestion[]; expectedLateDrops: number; games: number };
 }
 
 export interface ActivityItem {
