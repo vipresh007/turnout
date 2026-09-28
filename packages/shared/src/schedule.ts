@@ -46,3 +46,23 @@ export function describeRecurrence(r: Pick<Recurrence, "weekdays" | "intervalWee
   if (r.intervalWeeks === 2) return `Every other ${list}`;
   return `Every ${r.intervalWeeks} weeks on ${list}`;
 }
+
+const toMinutes = (hhmm: string) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  return m && Number(m[1]) < 24 && Number(m[2]) < 60 ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/** "19:30" + 120 minutes → "21:30" (wraps past midnight). */
+export function endTimeFor(startTime: string, durationMinutes: number): string {
+  const start = toMinutes(startTime) ?? 0;
+  const end = (start + durationMinutes) % (24 * 60);
+  return `${String(Math.floor(end / 60)).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
+}
+
+/** Minutes from start to end; an end earlier than the start is the next day ("22:00"→"01:00" is 180). Null if either is invalid or they're equal. */
+export function minutesBetween(startTime: string, endTime: string): number | null {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  if (start === null || end === null || start === end) return null;
+  return end > start ? end - start : end + 24 * 60 - start;
+}

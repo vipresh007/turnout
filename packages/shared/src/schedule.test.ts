@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeRecurrence, nextDates, occursOn } from "./schedule.ts";
+import { describeRecurrence, endTimeFor, minutesBetween, nextDates, occursOn } from "./schedule.ts";
 
 const weekly = { weekdays: [2], intervalWeeks: 1, startsOn: "2026-09-01", endsOn: null };
 
@@ -32,4 +32,14 @@ test("describes the schedule", () => {
   assert.equal(describeRecurrence({ weekdays: [3], intervalWeeks: 2 }), "Every other Wed");
   assert.equal(describeRecurrence({ weekdays: [1, 3, 5], intervalWeeks: 3 }), "Every 3 weeks on Mon, Wed & Fri");
   assert.equal(describeRecurrence({ weekdays: [0, 6], intervalWeeks: 1 }), "Every Sat & Sun");
+});
+
+test("start and end times ↔ duration", () => {
+  assert.equal(endTimeFor("19:30", 120), "21:30");
+  assert.equal(endTimeFor("22:00", 180), "01:00");
+  assert.equal(minutesBetween("19:30", "21:30"), 120);
+  assert.equal(minutesBetween("20:00", "00:00"), 240);
+  assert.equal(minutesBetween("22:00", "01:00"), 180);
+  assert.equal(minutesBetween("19:30", "19:30"), null);
+  assert.equal(minutesBetween("7pm", "9pm"), null);
 });
