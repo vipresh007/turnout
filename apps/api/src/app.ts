@@ -19,6 +19,7 @@ import {
   rsvpSchema,
   saveTeamsSchema,
   seasonMemberSchema,
+  newSeasonSchema,
   sessionUpdateSchema,
   skillSchema,
   tokenSchema,
@@ -43,7 +44,7 @@ import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsigh
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
-import { atLocal, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
+import { atLocal, currentSessionStart, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
 /** Games run before we ask an organizer whether they would pay. */
 const PRICING_ASK_AFTER_GAMES = 3;
@@ -210,6 +211,9 @@ export async function buildApp(db: Db) {
     const { organizer, group } = await ownedGroup(req, req.params.slug);
     const input = updateGroupSchema.parse(req.body);
     if (input.timezone && !isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
+    // This week as it stands, so answers can follow a schedule change and waitlisted players who move up hear about it.
+    const beforeSession = await currentSession(db, group);
+    const before = buildRoster(await sessionRsvps(db, beforeSession.id), group.cap);
     const columns: Record<string, unknown> = {
       name: input.name, activity: input.activity, location: input.location,
       weekdays: input.weekdays, weekday: input.weekdays?.[0], interval_weeks: input.intervalWeeks,
@@ -225,8 +229,24 @@ export async function buildApp(db: Db) {
       [group.id, ...entries.map(([, v]) => v)],
     );
     const updated = (await findGroupBySlug(db, group.slug))!;
-    // A lower cap or a new schedule can reshuffle the roster.
-    return changed(updated, undefined, organizer.id);
+    // New day or time for a game that hasn't started: this week's answers move with it.
+    const scheduleChanged = ["weekdays", "startTime", "intervalWeeks", "startsOn", "timezone"].some((k) => k in input);
+    const answered = before.confirmed.length + before.waitlist.length + before.out.length > 0;
+    if (scheduleChanged && answered && new Date(beforeSession.startsAt).getTime() > Date.now()) {
+      const next = currentSessionStart(updated).toISOString();
+      if (next !== beforeSession.scheduledAt) {
+        const [taken] = await db.query<{ id: string; answers: number }>(
+          `SELECT s.id, (SELECT count(*)::int FROM rsvps r WHERE r.session_id = s.id) AS answers FROM sessions s WHERE group_id = $1 AND starts_at = $2`,
+          [group.id, next],
+        );
+        if (taken && taken.answers === 0) await db.query(`DELETE FROM sessions WHERE id = $1`, [taken.id]);
+        if (!taken || taken.answers === 0) {
+          await db.query(`UPDATE sessions SET starts_at = $2, starts_at_override = NULL WHERE id = $1`, [beforeSession.id, next]);
+        }
+      }
+    }
+    // A new cap can move people on or off the waitlist; anyone who moves up is told.
+    return changed(updated, before, organizer.id);
   });
 
   // ── Organizer: the schedule, week by week ─────────────────
@@ -469,6 +489,7 @@ export async function buildApp(db: Db) {
     const { status } = rsvpSchema.parse(req.body);
     const session = await currentSession(db, group);
     if (session.cancelled) throw new HttpError(409, "This week's session is cancelled");
+    if (new Date(session.startsAt).getTime() + group.durationMinutes * 60_000 < Date.now()) throw new HttpError(409, "This season has ended");
 
     const before = buildRoster(await sessionRsvps(db, session.id), group.cap);
     const wasConfirmed = before.confirmed.some((r) => r.memberId === member.id);
@@ -541,6 +562,17 @@ export async function buildApp(db: Db) {
       if (paid) await track(db, "payment_marked", { groupId: group.id, memberId: req.params.memberId, organizerId: organizer.id, props: { season: true } });
     }
     return groupPage(db, group, organizer.id);
+  });
+
+  // Season groups: a new season keeps the members, clears payments, and can set a new fee and dates.
+  app.post<SlugParams>("/groups/:slug/season/new", async (req) => {
+    const { organizer, group } = await ownedGroup(req, req.params.slug);
+    const input = newSeasonSchema.parse(req.body ?? {});
+    await db.query(`UPDATE members SET season_paid_at = NULL WHERE group_id = $1`, [group.id]);
+    const set = Object.entries({ season_fee_cents: input.seasonFeeCents, starts_on: input.startsOn, ends_on: input.endsOn }).filter(([, v]) => v !== undefined);
+    if (set.length) await db.query(`UPDATE groups SET ${set.map(([k], i) => `${k} = $${i + 2}`).join(", ")} WHERE id = $1`, [group.id, ...set.map(([, v]) => v)]);
+    await track(db, "season_started", { groupId: group.id, organizerId: organizer.id, props: { fee: input.seasonFeeCents ?? group.seasonFeeCents } });
+    return changed((await findGroupBySlug(db, group.slug))!, undefined, organizer.id);
   });
 
   // Nudge season members who haven't paid: notify those with reminders on, and give text for the group chat.

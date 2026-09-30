@@ -105,6 +105,7 @@ export async function groupPage(db: Db, group: GroupRow, viewerOrganizerId: stri
   const isOrganizer = role !== null;
   const page: GroupPage = { group: publicGroup(group), session, roster, viewer: role ? { isOrganizer, role } : { isOrganizer },
     season: await seasonOf(db, group),
+    seasonOver: new Date(session.startsAt).getTime() + group.durationMinutes * 60_000 < Date.now(),
     unclaimed: await db.query<{ id: string; name: string }>(
       `SELECT id, name FROM members m WHERE group_id = $1 AND NOT EXISTS (SELECT 1 FROM member_tokens t WHERE t.member_id = m.id) ORDER BY lower(name)`,
       [group.id],

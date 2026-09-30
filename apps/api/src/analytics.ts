@@ -7,7 +7,7 @@ import type { Db } from "./db/client.ts";
 export type EventKind =
   | "group_created" | "player_joined" | "rsvp_in" | "rsvp_out" | "waitlisted" | "waitlist_promoted"
   | "player_dropped" | "late_dropout" | "reminder_sent" | "spot_alert_sent" | "spot_alert_claimed"
-  | "teams_created" | "payment_marked" | "forecast_alert_sent" | "pricing_answer" | ClientEventKind;
+  | "teams_created" | "payment_marked" | "forecast_alert_sent" | "pricing_answer" | "season_started" | ClientEventKind;
 
 /** Events the app reports itself, because only the browser sees them. */
 export const CLIENT_EVENTS = ["link_shared", "invite_asked", "reminder_opened", "pricing_interest"] as const;

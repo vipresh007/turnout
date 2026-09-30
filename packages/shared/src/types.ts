@@ -64,6 +64,8 @@ export interface GroupPage {
   /** What the requester may do. Only set from a verified organizer identity. */
   /** isOrganizer: owner or admin, who get the organizer controls. */
   viewer: { isOrganizer: boolean; role?: GroupRole };
+  /** The last game of the season is over (answers are closed until the organizer extends the season). */
+  seasonOver: boolean;
   /** Players the organizer added who haven't opened the link on a phone yet: tap your name to claim it. */
   unclaimed: { id: string; name: string }[];
   /** Season members (ids) when the group has a season fee; anyone else who plays is a sub. */

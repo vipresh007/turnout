@@ -111,6 +111,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
     acceptOrganizerInvite: async (token: string) => request<{ slug: string }>("/organizer-invites/accept", await asOrganizer({ method: "POST", body: { token } })),
     setSeason: async (slug: string, memberId: string, change: { member?: boolean; paid?: boolean }) =>
       request<GroupPage>(`/groups/${slug}/members/${memberId}/season`, await asOrganizer({ method: "PUT", body: change })),
+    newSeason: async (slug: string, change: { seasonFeeCents?: number; startsOn?: string; endsOn?: string | null } = {}) =>
+      request<GroupPage>(`/groups/${slug}/season/new`, await asOrganizer({ method: "POST", body: change })),
     remindSeason: async (slug: string) =>
       request<{ unpaid: number; notified: number; message: string }>(`/groups/${slug}/season/remind`, await asOrganizer({ method: "POST", body: {} })),
     remind: async (slug: string) =>

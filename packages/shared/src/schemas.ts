@@ -100,3 +100,10 @@ export const seasonMemberSchema = z.object({ member: z.boolean().optional(), pai
 export const addPlayersSchema = z.object({
   players: z.array(z.object({ name: z.string().trim().min(1).max(40), email: z.string().trim().email().max(254).optional() })).min(1).max(60),
 });
+
+/** Organizer: start a new season (payments reset), optionally with a new fee and dates. */
+export const newSeasonSchema = z.object({
+  seasonFeeCents: z.number().int().min(1).max(100_000_000).optional(),
+  startsOn: dateSchema.optional(),
+  endsOn: dateSchema.nullable().optional(),
+});

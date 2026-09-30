@@ -183,7 +183,16 @@ export default function GroupScreen() {
         </View>
       )}
 
-      {session.cancelled ? (
+      {page.seasonOver ? (
+        <Card>
+          <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }}>That's a wrap for this season 🎉</Text>
+          <Muted>
+            {viewer.isOrganizer
+              ? "The last game has been played. To keep going, set a new last game in Edit group, or start a new season below."
+              : "The last game has been played. Thanks for playing! Your organizer will share the next season here."}
+          </Muted>
+        </Card>
+      ) : session.cancelled ? (
         <Card>
           <Text style={{ color: t.danger, fontSize: 20, fontWeight: "800" }}>Cancelled this week</Text>
           <Muted>No game this week. See you next time!</Muted>
@@ -327,7 +336,7 @@ export default function GroupScreen() {
               </View>
             </Pop>
           )}
-          {page.season && <SeasonCard page={page} onShare={share} />}
+          {page.season && <SeasonCard page={page} onShare={share} onChanged={() => void load()} />}
           {paidSet && roster.confirmed.length > 0 && !page.season && (
             <Text style={{ color: t.muted }}>
               💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))} · tap “Paid” next to a name to mark it
@@ -424,7 +433,7 @@ function SeasonLine({ page, me }: { page: GroupPage; me: Membership | null }) {
 }
 
 /** Organizer: the season at a glance, who still owes, and a nudge. */
-function SeasonCard({ page, onShare }: { page: GroupPage; onShare: (text: string) => void }) {
+function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (text: string) => void; onChanged: () => void }) {
   const t = useTheme();
   const api = useApi();
   const [busy, setBusy] = useState(false);
@@ -446,6 +455,16 @@ function SeasonCard({ page, onShare }: { page: GroupPage; onShare: (text: string
       </Text>
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button label="Season members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug: group.slug } })} />
+        <Button
+          label="New season"
+          variant="secondary"
+          onPress={async () => {
+            if (await confirm("Start a new season?", "Members stay, and everyone goes back to unpaid for the new season fee. You can change the fee and dates in Edit group.", "Start new season")) {
+              await api.newSeason(group.slug);
+              onChanged();
+            }
+          }}
+        />
         {members > paid && (
           <Button
             label="Remind unpaid"
