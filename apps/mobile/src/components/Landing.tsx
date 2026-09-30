@@ -80,6 +80,7 @@ export function Landing() {
           sections={[
             { label: "How it works", onPress: () => scrollTo(howY.current) },
             { label: "Features", onPress: () => scrollTo(featuresY.current) },
+            { label: "Demo", onPress: () => router.push("/demo") },
             { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
             { label: "FAQ", onPress: () => scrollTo(faqY.current) },
           ]}
@@ -104,7 +105,7 @@ export function Landing() {
             </Text>
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
               <CTA label="Start a group, it's free" onPress={start} />
-              <CTA label="See how it works" secondary onPress={() => scrollRef.current?.scrollTo({ y: howY.current - 24, animated: true })} />
+              <CTA label="Try the demo, no sign-up" secondary onPress={() => router.push("/demo")} />
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
               {["No app for players", "Free for organizers", "Set up in a minute"].map((x) => (

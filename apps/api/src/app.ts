@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import {
   acceptAdminInviteSchema,
+  feedbackSchema,
   addPlayersSchema,
   buildRoster,
   cancelSessionSchema,
@@ -46,8 +47,9 @@ import { emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
 import { atLocal, currentSessionStart, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
-/** Games run before we ask an organizer whether they would pay. */
-const PRICING_ASK_AFTER_GAMES = 3;
+/** Games run before the one-time "how's it working?" check-in, and before asking whether they'd keep it for $49/year. */
+const FEEDBACK_ASK_AFTER_GAMES = 3;
+const PRICING_ASK_AFTER_GAMES = 5;
 
 type SlugParams = { Params: { slug: string } };
 
@@ -158,17 +160,44 @@ export async function buildApp(db: Db) {
   app.get("/me/dashboard", async (req) => {
     const organizer = await requireOrganizer(db, req);
     const dashboard = await organizerDashboard(db, organizer.id);
-    // Ask "would you pay?" once, after they've run a few games through Turnout.
-    const [ask] = await db.query<{ ask: boolean }>(
-      `SELECT o.pricing_answer IS NULL AND (
-         SELECT count(*) FROM sessions s JOIN groups g ON g.id = s.group_id
-         WHERE ${managedBy("g", "$1")} AND NOT s.cancelled AND s.starts_at < now()
-           AND (SELECT count(*) FROM rsvps r WHERE r.session_id = s.id AND r.status = 'in') >= 2
-       ) >= $2 AS ask
+    // After a few real games: a one-time check-in, then (once that's answered) whether they'd keep it for $49/year.
+    const [row] = await db.query<{ games: number; checkedIn: boolean; priced: boolean }>(
+      `SELECT (SELECT count(*)::int FROM sessions s JOIN groups g ON g.id = s.group_id
+               WHERE ${managedBy("g", "$1")} AND NOT s.cancelled AND s.starts_at < now()
+                 AND (SELECT count(*) FROM rsvps r WHERE r.session_id = s.id AND r.status = 'in') >= 2) AS games,
+              EXISTS (SELECT 1 FROM feedback f WHERE f.organizer_id = $1 AND f.source = 'checkin') AS "checkedIn",
+              o.pricing_answer IS NOT NULL AS priced
        FROM organizers o WHERE o.id = $1`,
-      [organizer.id, PRICING_ASK_AFTER_GAMES],
+      [organizer.id],
     );
-    return { ...dashboard, organizer: { ...dashboard.organizer, isAdmin: isAdminEmail(dashboard.organizer.email), askPricing: !!ask?.ask } };
+    const games = row?.games ?? 0;
+    return {
+      ...dashboard,
+      organizer: {
+        ...dashboard.organizer,
+        isAdmin: isAdminEmail(dashboard.organizer.email),
+        askFeedback: games >= FEEDBACK_ASK_AFTER_GAMES && !row?.checkedIn,
+        askPricing: games >= PRICING_ASK_AFTER_GAMES && !!row?.checkedIn && !row?.priced,
+      },
+    };
+  });
+
+  // Organizer feedback. Anything that isn't "great" (or has words) is emailed to the admins.
+  app.post("/me/feedback", strict(10), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const { source, rating, message } = feedbackSchema.parse(req.body);
+    await db.query(`INSERT INTO feedback (organizer_id, source, rating, message) VALUES ($1, $2, $3, $4)`, [organizer.id, source, rating ?? null, message || null]);
+    await track(db, "feedback_given", { organizerId: organizer.id, props: { source, rating: rating ?? "", hasMessage: !!message } });
+    const admins = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
+    if (admins.length && (message || rating !== "great")) {
+      const [who] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizer.id]);
+      const from = who?.name || who?.email || "An organizer";
+      const face = rating === "great" ? "😀" : rating === "okay" ? "😐" : rating === "missing" ? "😕" : "💡";
+      const title = `${face} Feedback from ${from}`;
+      const body = `${source === "checkin" ? `Check-in: ${rating}.` : "Suggestion."}${message ? ` “${message}”` : ""}${who?.email ? ` Reply to ${who.email}.` : ""}`;
+      for (const to of admins) await sendEmail(to, title, emailHtml({ title, body, url: `${webUrl()}/admin` }, undefined, "Open metrics"), body).catch(() => {});
+    }
+    return { ok: true };
   });
 
   // Pricing test. "I'd pay for this" on the landing page and the dashboard question both land here. Nothing is charged.
@@ -204,7 +233,15 @@ export async function buildApp(db: Db) {
       `SELECT name, email, pricing_answer AS answer, pricing_reason AS reason, pricing_answered_at AS at FROM organizers
        WHERE pricing_answer IS NOT NULL ORDER BY pricing_answered_at DESC LIMIT 100`,
     );
-    return { ...(await productMetrics(db, days)), pricing: pricing.map((p) => ({ ...p, at: new Date(p.at).toISOString() })) };
+    const feedback = await db.query<{ name: string | null; email: string | null; source: string; rating: string | null; message: string | null; at: Date | string }>(
+      `SELECT o.name, o.email, f.source, f.rating, f.message, f.created_at AS at FROM feedback f LEFT JOIN organizers o ON o.id = f.organizer_id
+       ORDER BY f.created_at DESC LIMIT 100`,
+    );
+    return {
+      ...(await productMetrics(db, days)),
+      pricing: pricing.map((p) => ({ ...p, at: new Date(p.at).toISOString() })),
+      feedback: feedback.map((f) => ({ ...f, at: new Date(f.at).toISOString() })),
+    };
   });
 
   app.patch<SlugParams>("/groups/:slug", async (req) => {

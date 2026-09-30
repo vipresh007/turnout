@@ -28,11 +28,11 @@ export function PricingAsk() {
       {!answer ? (
         <>
           <View style={{ gap: 4 }}>
-            <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>Quick question 🙏</Text>
-            <Text style={{ color: t.text }}>You've run a few games with Turnout. Would you pay $49/year to keep it running your games? Nothing changes today.</Text>
+            <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>Turnout has been running your group for a while 🙌</Text>
+            <Text style={{ color: t.text }}>Would you keep it for $49/year? Nothing changes today, and everything stays free until we tell you.</Text>
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Button label="Yes, I'd pay" onPress={() => pick("yes")} />
+            <Button label="Yes, I'd keep it" onPress={() => pick("yes")} />
             <Button label="Maybe" variant="secondary" onPress={() => pick("maybe")} />
             <Button label="No" variant="secondary" onPress={() => pick("no")} />
           </View>

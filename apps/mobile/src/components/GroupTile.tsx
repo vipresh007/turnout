@@ -13,13 +13,15 @@ import { Button, webTransition } from "./ui";
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
  * Expanded: share and remind, who to ask, everyone's answer and payment, the teams, and a way into the group.
  */
-export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged }: {
+export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged, demo }: {
   item: DashboardGroup;
   isNext: boolean;
   expanded: boolean;
   onToggle: () => void;
   onShare: (text: string) => void;
   onChanged: () => void;
+  /** The public demo: actions explain themselves instead of calling the API. */
+  demo?: boolean;
 }) {
   const t = useTheme();
   const api = useApi();
@@ -54,6 +56,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   const paidCount = players.filter((p) => p.status === "in" && p.paid).length;
 
   const act = async (key: string, action: () => Promise<unknown>) => {
+    if (demo) return setError("This is a demo, so nothing is sent. Create your own group to try it for real (it's free).");
     setBusy(key);
     setError(null);
     try {
@@ -65,7 +68,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
     }
   };
 
-  const open = () => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } });
+  const open = () => (demo ? setError("In your own group, this opens the page your players see.") : router.push({ pathname: "/g/[slug]", params: { slug: group.slug } }));
   const hint = attentionHint(item);
 
   let waitlistPos = 0;

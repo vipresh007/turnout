@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Tex
 import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
+import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
 import { Pop, Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
@@ -154,6 +155,7 @@ function DashboardView() {
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
+            {organizer.askFeedback && <FeedbackAsk />}
             {organizer.askPricing && <PricingAsk />}
             {next && tile(next)}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}

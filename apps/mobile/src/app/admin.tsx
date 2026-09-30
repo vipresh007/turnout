@@ -19,7 +19,7 @@ const EVENT_LABELS: Record<string, string> = {
   waitlisted: "Waitlisted", waitlist_promoted: "Moved up from waitlist", player_dropped: "Dropped out", late_dropout: "Late dropouts",
   reminder_sent: "Reminders sent", reminder_opened: "Reminder links opened", spot_alert_sent: "Spot-open alerts sent",
   spot_alert_claimed: "Spot-open alerts claimed", teams_created: "Teams made", payment_marked: "Payments marked",
-  link_shared: "Links shared", invite_asked: "“Ask” taps", forecast_alert_sent: "Autopilot heads-ups", pricing_answer: "Pricing answers",
+  link_shared: "Links shared", invite_asked: "“Ask” taps", forecast_alert_sent: "Autopilot heads-ups", pricing_answer: "Pricing answers", feedback_given: "Feedback", season_started: "New seasons",
 };
 
 /** Product metrics across all groups. Only admins (ADMIN_EMAILS) get data; the API hides the rest. */
@@ -95,7 +95,21 @@ function Metrics() {
       </View>
 
       <Card>
-        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Would they pay $49/year?</Text>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Feedback</Text>
+        {m.feedback.length === 0 && <Muted>Nothing yet. Organizers get a check-in after 3 games, and can suggest things from the account menu.</Muted>}
+        {m.feedback.map((f, i) => (
+          <View key={i} style={{ gap: 2, paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderColor: t.border }}>
+            <Text style={{ color: t.text, fontWeight: "700" }}>
+              {f.rating === "great" ? "😀" : f.rating === "okay" ? "😐" : f.rating === "missing" ? "😕" : "💡"} {f.name || f.email || "Organizer"}
+              <Text style={{ color: t.muted, fontWeight: "400" }}> · {new Date(f.at).toLocaleDateString()}</Text>
+            </Text>
+            {f.message && <Text style={{ color: t.muted }}>“{f.message}”</Text>}
+          </View>
+        ))}
+      </Card>
+
+      <Card>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Would they keep it for $49/year?</Text>
         <Muted>
           {m.pricing.filter((p) => p.answer === "yes").length} yes · {m.pricing.filter((p) => p.answer === "maybe").length} maybe · {m.pricing.filter((p) => p.answer === "no").length} no
         </Muted>

@@ -97,6 +97,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
     updateWeek: async (slug: string, scheduledAt: string, input: SessionUpdateInput) =>
       request<{ weeks: UpcomingWeek[] }>(`/groups/${slug}/weeks/${encodeURIComponent(scheduledAt)}`, await asOrganizer({ method: "PUT", body: input })),
     history: async (slug: string) => request<{ games: GameRecord[] }>(`/groups/${slug}/history`, await asOrganizer()),
+    feedback: async (input: { source: "checkin" | "suggestion"; rating?: "great" | "okay" | "missing"; message?: string }) =>
+      request<{ ok: true }>("/me/feedback", await asOrganizer({ method: "POST", body: input })),
     pricing: async (answer: "yes" | "maybe" | "no", source: "landing" | "dashboard", reason?: string) =>
       request<{ answer: string }>("/me/pricing", await asOrganizer({ method: "POST", body: { answer, source, reason } })),
     metrics: async (days = 90) => request<ProductMetrics>(`/admin/metrics?days=${days}`, await asOrganizer()),
@@ -200,6 +202,7 @@ export interface ProductMetrics {
   };
   events: Record<string, number>;
   pricing: { name: string | null; email: string | null; answer: string; reason: string | null; at: string }[];
+  feedback: { name: string | null; email: string | null; source: string; rating: string | null; message: string | null; at: string }[];
 }
 
 export function useApi(): Api {

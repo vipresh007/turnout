@@ -5,6 +5,7 @@ import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "rea
 import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
+import { ReadyCard } from "@/components/ReadyCard";
 import { ShareCard } from "@/components/ShareCard";
 import { Button, Card, Field, Muted, Screen, Title, webTransition } from "@/components/ui";
 import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, trackEvent, type Membership, useApi } from "@/lib/api";
@@ -151,9 +152,7 @@ export default function GroupScreen() {
     <Screen signInLabel="Organizer? Sign in">
       <Stack.Screen options={{ title: group.name, headerShown: Platform.OS !== "web" }} />
 
-      {created && (
-        <ShareCard input={shareInput} title="🎉 Your group is ready. Send it to your group chat" />
-      )}
+      {created && viewer.isOrganizer && <ReadyCard page={page} shareInput={shareInput} onDone={() => router.setParams({ created: undefined })} />}
 
       <View style={{ gap: 4 }}>
         <Title>{group.name}</Title>
@@ -265,7 +264,7 @@ export default function GroupScreen() {
       {roster.waitlist.length > 0 && <PeopleList title="Waitlist" people={roster.waitlist} numbered onRemove={onRemove} seasonMembers={seasonMembers} />}
       {roster.out.length > 0 && <PeopleList title="Out" people={roster.out} onRemove={onRemove} lateDrops={viewer.isOrganizer ? new Set(page.organizer?.lateDrops ?? []) : undefined} seasonMembers={seasonMembers} />}
 
-      <ShareCard input={shareInput} />
+      {!(created && viewer.isOrganizer) && <ShareCard input={shareInput} />}
       {notice && <Muted>{notice}</Muted>}
 
       {viewer.isOrganizer && (

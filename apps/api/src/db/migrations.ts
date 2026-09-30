@@ -175,4 +175,15 @@ export const migrations: string[] = [
   ALTER TABLE members ADD COLUMN season_member boolean NOT NULL DEFAULT false;
   ALTER TABLE members ADD COLUMN season_paid_at timestamptz;
   `,
+  // Organizer feedback: the one-time check-in after a few games, and "suggest an improvement" any time.
+  `
+  CREATE TABLE feedback (
+    id bigserial PRIMARY KEY,
+    organizer_id uuid REFERENCES organizers(id) ON DELETE SET NULL,
+    source text NOT NULL,
+    rating text,
+    message text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  `,
 ];

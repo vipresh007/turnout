@@ -20,7 +20,7 @@ export default function MembersScreen() {
 function Members() {
   const t = useTheme();
   const api = useApi();
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, add } = useLocalSearchParams<{ slug: string; add?: string }>();
   const [members, setMembers] = useState<MemberSummary[] | null>(null);
   const [season, setSeason] = useState(false);
   const [merging, setMerging] = useState<MemberSummary | null>(null);
@@ -59,7 +59,7 @@ function Members() {
           </Muted>
         )}
       </View>
-      <AddPlayers slug={slug} season={season} onAdded={load} />
+      <AddPlayers slug={slug} season={season} onAdded={load} startOpen={add === "1"} />
       {merging && (
         <Card>
           <Text style={{ color: t.text, fontWeight: "800" }}>Merge {merging.name} into…</Text>
@@ -152,10 +152,10 @@ function parsePlayers(text: string): { name: string; email?: string }[] {
     });
 }
 
-function AddPlayers({ slug, season, onAdded }: { slug: string; season: boolean; onAdded: () => void }) {
+function AddPlayers({ slug, season, onAdded, startOpen }: { slug: string; season: boolean; onAdded: () => void; startOpen?: boolean }) {
   const t = useTheme();
   const api = useApi();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!startOpen);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);

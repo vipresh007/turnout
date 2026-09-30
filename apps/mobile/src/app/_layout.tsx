@@ -44,6 +44,8 @@ export default function RootLayout() {
         <Stack.Screen name="insights/[slug]" options={{ title: "Insights", presentation: "modal" }} />
         <Stack.Screen name="history/[slug]" options={{ title: "History", presentation: "modal" }} />
         <Stack.Screen name="admin" options={{ title: "Metrics" }} />
+        <Stack.Screen name="demo" options={{ title: "Demo" }} />
+        <Stack.Screen name="feedback" options={{ title: "Suggest an improvement" }} />
         <Stack.Screen name="founding" options={{ title: "Founding organizers", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="organizers/[slug]" options={{ title: "Organizers", presentation: "modal" }} />
         <Stack.Screen name="organize" options={{ title: "Help run a group" }} />

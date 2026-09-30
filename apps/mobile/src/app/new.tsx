@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { GroupFields } from "@/components/GroupFields";
 import { SignInGate } from "@/components/SignInGate";
-import { BackLink, Button, Card, Field, Screen } from "@/components/ui";
+import { BackLink, Button, Card, Field, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { applyDraft, emptyGroupForm, toGroupInput } from "@/lib/groupForm";
 import { useTheme } from "@/lib/theme";
@@ -57,17 +57,18 @@ function NewGroup() {
     <Screen>
       <BackLink fallback="/dashboard" />
       <Card>
-        <Text style={{ color: t.text, fontSize: 17, fontWeight: "700" }}>Describe your group</Text>
+        <Text style={{ color: t.text, fontSize: 20, fontWeight: "900" }}>Tell us about your game</Text>
+        <Muted>One sentence and Turnout fills in the rest. You can check everything below.</Muted>
         <Field
-          label="One sentence is enough"
-          placeholder="Tuesday soccer at Riverside Park, 7:30pm, 14 players"
+          label="Your game"
+          placeholder="Thursday basketball 8-10pm at GoodLife, 14 players, $10 each"
           value={sentence}
           onChangeText={setSentence}
           onSubmitEditing={draft}
           multiline
         />
         <View style={{ flexDirection: "row" }}>
-          <Button label="Fill it in for me" variant="secondary" onPress={draft} loading={drafting} disabled={sentence.trim().length < 3} />
+          <Button label="Fill it in for me" onPress={draft} loading={drafting} disabled={sentence.trim().length < 3} />
         </View>
       </Card>
       <GroupFields value={form} onChange={setForm} timezone={deviceTimezone} />

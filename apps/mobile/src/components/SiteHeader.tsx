@@ -96,7 +96,7 @@ function AccountMenu() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-  const go = (href: "/" | "/dashboard" | "/admin") => {
+  const go = (href: "/" | "/dashboard" | "/admin" | "/feedback") => {
     setOpen(false);
     router.push(href);
   };
@@ -120,6 +120,7 @@ function AccountMenu() {
           {account?.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{account.email}</Text>}
           <MenuItem label="Your groups" onPress={() => go("/dashboard")} />
           {account?.isAdmin && <MenuItem label="📈 Metrics" onPress={() => go("/admin")} />}
+          <MenuItem label="💡 Suggest an improvement" onPress={() => go("/feedback")} />
           <MenuItem label="Home page" onPress={() => go("/")} />
           <MenuItem
             label="Sign out"

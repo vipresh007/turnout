@@ -107,3 +107,12 @@ export const newSeasonSchema = z.object({
   startsOn: dateSchema.optional(),
   endsOn: dateSchema.nullable().optional(),
 });
+
+/** Organizer feedback: the check-in (a rating, and what was missing) or a suggestion (just a message). */
+export const feedbackSchema = z
+  .object({
+    source: z.enum(["checkin", "suggestion"]),
+    rating: z.enum(["great", "okay", "missing"]).optional(),
+    message: z.string().trim().max(2000).optional(),
+  })
+  .refine((v) => v.rating || v.message, "Say something first");
