@@ -16,7 +16,10 @@ const DAY = 86_400_000;
 
 /** "Today", "Tomorrow", "in 3 days", in the group's timezone. */
 export function relativeDay(iso: string, timezone: string, now = new Date()): string {
-  const day = (d: Date) => new Date(d.toLocaleString("en-US", { timeZone: timezone })).setHours(0, 0, 0, 0);
+  // The calendar date in the group's timezone as YYYY-MM-DD, compared as UTC midnights. (Parsing a
+  // toLocaleString result back into a Date works in browsers but gives NaN in the iOS/Android JS engine.)
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+  const day = (d: Date) => Date.parse(`${ymd.format(d)}T00:00:00Z`);
   const diff = Math.round((day(new Date(iso)) - day(now)) / DAY);
   if (diff <= 0) return "Today";
   if (diff === 1) return "Tomorrow";
