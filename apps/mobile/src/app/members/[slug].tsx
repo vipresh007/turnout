@@ -1,7 +1,8 @@
 import type { MemberSummary } from "@turnout/shared";
+import { Contact, ContactField } from "expo-contacts";
 import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Button, Card, Field, Muted, Screen, webTransition } from "@/components/ui";
@@ -139,6 +140,17 @@ function Toggle({ label, on, onPress }: { label: string; on: boolean; onPress: (
   );
 }
 
+/** App only: the phone's contact picker, one person at a time → "Name, email". Only the picked contact is read. */
+async function pickContactLine(): Promise<string | null> {
+  const contact = await Contact.presentPicker();
+  if (!contact) return null;
+  const details = await contact.getDetails([ContactField.FULL_NAME, ContactField.EMAILS]);
+  const name = details.fullName?.trim();
+  const email = details.emails?.[0]?.address;
+  if (!name && !email) return null;
+  return email ? `${name || email.split("@")[0]}, ${email}` : name!;
+}
+
 /** "Ann, ann@example.com" per line → players. The email is optional and turns on email reminders. */
 function parsePlayers(text: string): { name: string; email?: string }[] {
   return text
@@ -176,6 +188,18 @@ function AddPlayers({ slug, season, onAdded, startOpen }: { slug: string; season
         One per line: a name, and an email if you have it. People with an email get reminders right away (with a one-tap stop).
         Everyone else taps their name the first time they open the group link.
       </Muted>
+      {Platform.OS !== "web" && (
+        <View style={{ flexDirection: "row" }}>
+          <Button
+            label="+ Pick from contacts"
+            variant="secondary"
+            onPress={async () => {
+              const line = await pickContactLine();
+              if (line) setText((prev) => (prev.trim() ? `${prev.trimEnd()}\n${line}` : line));
+            }}
+          />
+        </View>
+      )}
       <Field label="Players" placeholder={"Ann, ann@example.com\nBo\nChris chris@example.com"} value={text} onChangeText={setText} multiline style={{ minHeight: 120, textAlignVertical: "top" }} />
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button

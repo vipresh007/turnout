@@ -7,11 +7,11 @@ import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
-import { Pop, Reveal, RevealScrollView } from "@/components/motion";
+import { PushPrompt } from "@/components/PushPrompt";
+import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
 import { useApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth";
 import { useLive } from "@/lib/live";
 import { greeting, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
@@ -30,14 +30,12 @@ function DashboardView() {
   const t = useTheme();
   const s = styles(t);
   const api = useApi();
-  const { signOut } = useAuth();
   const { width } = useWindowDimensions();
   const wide = width >= 900;
   const web = Platform.OS === "web";
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   // Which group tiles are open. Every visit starts with all of them collapsed.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -74,11 +72,6 @@ function DashboardView() {
     }
   };
 
-  const doSignOut = async () => {
-    setMenuOpen(false);
-    await signOut();
-    router.replace("/");
-  };
 
   if (!data) {
     return (
@@ -116,35 +109,9 @@ function DashboardView() {
             </Text>
             <Text style={s.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
           </View>
-          {!web && <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-            {wide && <Button label="+ New group" onPress={() => router.push("/new")} />}
-            <View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Account" onPress={() => setMenuOpen((o) => !o)} style={({ hovered }: { hovered?: boolean }) => [s.avatar, hovered && { opacity: 0.85, transform: [{ scale: 1.05 }] }]}>
-                <Text style={{ color: t.accentText, fontWeight: "900", fontSize: 16 }}>{displayName ? displayName[0]!.toUpperCase() : "👤"}</Text>
-              </Pressable>
-              {menuOpen && (
-                <Pop style={s.menu}>
-                  {organizer.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{organizer.email}</Text>}
-                  {organizer.isAdmin && (
-                    <Pressable accessibilityRole="link" onPress={() => router.push("/admin")} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
-                      <Text style={{ color: t.text, fontWeight: "700" }}>📈 Metrics</Text>
-                    </Pressable>
-                  )}
-                  {Platform.OS === "web" && (
-                    <Pressable accessibilityRole="link" onPress={() => router.push("/")} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
-                      <Text style={{ color: t.text, fontWeight: "700" }}>Home page</Text>
-                    </Pressable>
-                  )}
-                  <Pressable accessibilityRole="button" onPress={doSignOut} style={({ hovered }: { hovered?: boolean }) => [s.menuItem, hovered && { backgroundColor: t.bg }]}>
-                    <Text style={{ color: t.danger, fontWeight: "700" }}>Sign out</Text>
-                  </Pressable>
-                </Pop>
-              )}
-            </View>
-          </View>}
         </View>
 
-        {!wide && !web && (
+        {!web && (
           <View style={{ flexDirection: "row" }}>
             <Button label="+ New group" onPress={() => router.push("/new")} />
           </View>
@@ -155,6 +122,7 @@ function DashboardView() {
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
+            {!web && <PushPrompt />}
             {organizer.askFeedback && <FeedbackAsk />}
             {organizer.askPricing && <PricingAsk />}
             {next && tile(next)}

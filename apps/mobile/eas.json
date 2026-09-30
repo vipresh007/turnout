@@ -1,0 +1,32 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_ENTRA_AUTHORITY": "https://turnoutapp.ciamlogin.com/f4ca4cb4-8099-4717-a3e6-a4ef0acaa7ee/v2.0",
+        "EXPO_PUBLIC_ENTRA_CLIENT_ID": "29f6d615-6581-424d-9f40-5e78e51e5b23",
+        "EXPO_PUBLIC_ENTRA_API_SCOPE": "api://922806ca-abd7-45db-98e6-2534e6fc95d5/access",
+        "EXPO_PUBLIC_ENTRA_PROVIDERS": "microsoft,google,apple"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ca-turnout-api-test.bluecoast-34346b94.canadacentral.azurecontainerapps.io",
+        "EXPO_PUBLIC_WEB_URL": "https://turnout-test.dataeaver.ca"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ca-turnout-api-live.bluecoast-34346b94.canadacentral.azurecontainerapps.io",
+        "EXPO_PUBLIC_WEB_URL": "https://turnout.dataeaver.ca"
+      }
+    }
+  },
+  "submit": {
+    "production": { "ios": { "appleTeamId": "253QMGHP88" } }
+  }
+}

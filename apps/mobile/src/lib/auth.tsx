@@ -46,7 +46,7 @@ interface PendingRedirect {
   state: string;
   returnTo: string;
 }
-const redirectUri = AuthSession.makeRedirectUri({ scheme: "turnout", path: "auth" });
+const redirectUri = AuthSession.makeRedirectUri({ scheme: "ca.dataeaver.turnout", path: "auth" });
 
 const toTokens = (r: AuthSession.TokenResponse): Tokens => ({
   accessToken: r.accessToken,

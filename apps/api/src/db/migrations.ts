@@ -186,4 +186,14 @@ export const migrations: string[] = [
     created_at timestamptz NOT NULL DEFAULT now()
   );
   `,
+  // The organizer app: phones that get push notifications (Expo push tokens).
+  `
+  CREATE TABLE organizer_push_tokens (
+    token text PRIMARY KEY,
+    organizer_id uuid NOT NULL REFERENCES organizers(id) ON DELETE CASCADE,
+    platform text,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  CREATE INDEX organizer_push_tokens_organizer_idx ON organizer_push_tokens (organizer_id);
+  `,
 ];

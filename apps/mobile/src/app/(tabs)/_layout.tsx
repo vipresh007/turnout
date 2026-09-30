@@ -1,0 +1,30 @@
+import { Slot, Tabs } from "expo-router";
+import { Platform } from "react-native";
+import { AccountIcon, ActivityIcon, GroupsIcon, HomeIcon } from "@/components/TabIcons";
+import { useTheme } from "@/lib/theme";
+
+/**
+ * The organizer's main screens. In the app they sit under a bottom tab bar; on the web the site header
+ * (components/SiteHeader) does that job, so the pages render on their own with the same URLs.
+ */
+export default function TabsLayout() {
+  const t = useTheme();
+  if (Platform.OS === "web") return <Slot />;
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: t.accent,
+        tabBarInactiveTintColor: t.muted,
+        tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border },
+        headerStyle: { backgroundColor: t.bg },
+        headerTintColor: t.text,
+        headerShadowVisible: false,
+      }}
+    >
+      <Tabs.Screen name="dashboard" options={{ title: "Home", headerTitle: "Turnout", tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+      <Tabs.Screen name="groups" options={{ title: "Groups", tabBarIcon: ({ color }) => <GroupsIcon color={color} /> }} />
+      <Tabs.Screen name="activity" options={{ title: "Activity", tabBarIcon: ({ color }) => <ActivityIcon color={color} /> }} />
+      <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ({ color }) => <AccountIcon color={color} /> }} />
+    </Tabs>
+  );
+}

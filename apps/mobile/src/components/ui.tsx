@@ -33,7 +33,7 @@ export function Muted({ children }: { children: ReactNode }) {
 }
 
 /** Smooth hover/press changes on web; native ignores these. */
-export const webTransition = { transitionProperty: "background-color, border-color, color, opacity, transform, box-shadow", transitionDuration: "150ms" } as object;
+export const webTransition = (Platform.OS === "web" ? { transitionProperty: "background-color, border-color, color, opacity, transform, box-shadow", transitionDuration: "150ms" } : {}) as object;
 
 type Variant = "primary" | "secondary" | "danger";
 export function Button({ label, onPress, variant = "primary", loading, disabled, big }: {

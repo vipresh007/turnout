@@ -116,3 +116,6 @@ export const feedbackSchema = z
     message: z.string().trim().max(2000).optional(),
   })
   .refine((v) => v.rating || v.message, "Say something first");
+
+/** The organizer app's push token (Expo), registered after sign-in. */
+export const pushTokenSchema = z.object({ token: z.string().min(10).max(300), platform: z.enum(["ios", "android"]).optional() });

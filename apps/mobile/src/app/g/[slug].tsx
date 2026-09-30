@@ -1,4 +1,5 @@
 import { ASK_WINDOW_HOURS, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import * as Haptics from "expo-haptics";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
@@ -610,7 +611,10 @@ function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected, disabled, busy: loading }}
-      onPress={selected ? undefined : onPress}
+      onPress={selected ? undefined : () => {
+        if (Platform.OS !== "web") void Haptics.impactAsync(kind === "in" ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
       disabled={disabled || loading}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => {
         const hover = hovered && !selected && !disabled && !loading;

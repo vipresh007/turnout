@@ -1,4 +1,4 @@
-import type { CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -79,6 +79,10 @@ function createApi(authHeaders: () => Promise<Headers>) {
     createGroup: async (input: CreateGroupInput) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: input })),
     myGroups: async () => request<{ groups: Group[] }>("/me/groups", await asOrganizer()),
     me: async () => request<Account>("/me", await asOrganizer()),
+    activity: async (limit = 50) => request<{ activity: ActivityItem[] }>(`/me/activity?limit=${limit}`, await asOrganizer()),
+    setPushToken: async (token: string, platform: "ios" | "android") => request<{ ok: true }>("/me/push-token", await asOrganizer({ method: "PUT", body: { token, platform } })),
+    removePushToken: async (token: string) => request<{ ok: true }>("/me/push-token", await asOrganizer({ method: "DELETE", body: { token } })),
+    deleteAccount: async () => request<{ deletedGroups: number; handedOverGroups: number }>("/me", await asOrganizer({ method: "DELETE" })),
     dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
     dashboardLive: async () => request<{ url: string | null }>("/me/live", await asOrganizer()),
     updateGroup: async (slug: string, input: UpdateGroupInput) =>

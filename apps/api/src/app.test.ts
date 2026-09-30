@@ -627,3 +627,28 @@ test("organizer adds players up front; players claim their name on their phone",
   assert.equal(typed.json().existing.claimable, true);
   assert.equal(typed.json().existing.hasEmail, true);
 });
+
+test("organizer app: push tokens, activity feed, and deleting your account", async () => {
+  const me = { "x-dev-user": "app-org" };
+  const partner = { "x-dev-user": "app-partner" };
+  const solo = (await app.inject({ method: "POST", url: "/groups", headers: me, payload: { name: "Solo Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  const shared = (await app.inject({ method: "POST", url: "/groups", headers: me, payload: { name: "Shared Hoops", weekdays: [4], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  const { url } = (await app.inject({ method: "POST", url: `/groups/${shared.slug}/organizers/invite`, headers: me, payload: {} })).json();
+  await app.inject({ method: "POST", url: "/organizer-invites/accept", headers: partner, payload: { token: new URL(url).searchParams.get("t") } });
+
+  assert.equal((await app.inject({ method: "PUT", url: "/me/push-token", headers: me, payload: { token: "ExponentPushToken[abc123xyz]", platform: "ios" } })).statusCode, 200);
+  assert.equal((await db.query(`SELECT 1 FROM organizer_push_tokens WHERE token = 'ExponentPushToken[abc123xyz]'`)).length, 1);
+
+  const player = (await app.inject({ method: "POST", url: `/groups/${solo.slug}/members`, payload: { name: "Pat" } })).json();
+  await app.inject({ method: "PUT", url: `/groups/${solo.slug}/rsvp`, headers: { "x-member-token": player.token }, payload: { status: "in" } });
+  const activity = (await app.inject({ url: "/me/activity?limit=5", headers: me })).json().activity;
+  assert.equal(activity[0].name, "Pat");
+  assert.equal(activity[0].groupName, "Solo Hoops");
+
+  // Delete: the shared group passes to the co-organizer, the solo one is gone, and so are the push tokens.
+  const res = (await app.inject({ method: "DELETE", url: "/me", headers: me })).json();
+  assert.deepEqual(res, { deletedGroups: 1, handedOverGroups: 1 });
+  assert.equal((await app.inject({ url: `/groups/${solo.slug}` })).statusCode, 404);
+  assert.equal((await app.inject({ url: `/groups/${shared.slug}`, headers: partner })).json().viewer.role, "owner");
+  assert.equal((await db.query(`SELECT 1 FROM organizer_push_tokens WHERE token = 'ExponentPushToken[abc123xyz]'`)).length, 0);
+});

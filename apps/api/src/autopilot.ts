@@ -1,4 +1,5 @@
-import { buildRoster, describeForecast, LATE_WARNING_HOURS } from "@turnout/shared";
+import { buildRoster, describeForecast, LATE_WARNING_HOURS, playerGoal } from "@turnout/shared";
+import { pushToOrganizers } from "./organizerPush.ts";
 import { track } from "./analytics.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, groupInsightsFor, sessionRsvps, type GroupRow } from "./groups.ts";
@@ -13,7 +14,7 @@ const TOO_LATE_HOURS = 2;
  * email its organizers once with who to ask. Safe to run as often as the reminder job runs.
  */
 export async function runForecastAlerts(db: Db, now = new Date()): Promise<{ checked: number; alerted: number }> {
-  const groups = await db.query<GroupRow>(`SELECT ${groupColumns}, organizer_id AS "organizerId" FROM groups WHERE cap IS NOT NULL`);
+  const groups = await db.query<GroupRow>(`SELECT ${groupColumns}, organizer_id AS "organizerId" FROM groups WHERE cap IS NOT NULL OR target_players IS NOT NULL`);
   let checked = 0;
   let alerted = 0;
   for (const group of groups) {
@@ -29,16 +30,17 @@ export async function runForecastAlerts(db: Db, now = new Date()): Promise<{ che
     const [claimed] = await db.query(`UPDATE sessions SET forecast_alerted_at = now() WHERE id = $1 AND forecast_alerted_at IS NULL RETURNING 1`, [session.id]);
     if (!claimed) continue;
 
-    const { detail } = describeForecast(forecast, roster.confirmed.length, group.cap!);
+    const { detail } = describeForecast(forecast, roster.confirmed.length, playerGoal(group)!);
     const title = `${group.name} may be ${forecast.short} short`;
     const body = `${whenLabel(session.startsAt, group.timezone)}. ${detail} Open the group to ask them with one tap.`;
     const url = `${webUrl()}/dashboard?from=forecast`;
-    const organizers = await db.query<{ id: string; email: string }>(
-      `SELECT id, email FROM organizers WHERE email IS NOT NULL AND (id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2))`,
+    const organizers = await db.query<{ id: string; email: string | null }>(
+      `SELECT id, email FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
       [group.organizerId, group.id],
     );
+    await pushToOrganizers(db, organizers.map((o) => o.id), { title, body: detail, path: "/dashboard" });
     for (const o of organizers) {
-      await sendEmail(o.email, title, emailHtml({ title, body, url }, undefined, "See who to ask"), `${title}. ${body} ${url}`)
+      if (o.email) await sendEmail(o.email, title, emailHtml({ title, body, url }, undefined, "See who to ask"), `${title}. ${body} ${url}`)
         .catch((err) => console.warn("forecast alert failed", err));
       await track(db, "forecast_alert_sent", { groupId: group.id, sessionId: session.id, organizerId: o.id, props: { short: forecast.short, hoursToGo: Math.round(hoursToGo) } });
     }

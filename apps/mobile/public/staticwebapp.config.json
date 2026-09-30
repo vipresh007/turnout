@@ -6,7 +6,8 @@
       "/assets/*",
       "*.{png,jpg,jpeg,gif,svg,ico,webp,js,css,json,ttf,woff,woff2,map}",
       "/sw.js",
-      "/manifest.json"
+      "/manifest.json",
+      "/.well-known/*"
     ]
   },
   "globalHeaders": {
@@ -16,6 +17,12 @@
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
   },
   "routes": [
+    {
+      "route": "/.well-known/apple-app-site-association",
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
     {
       "route": "/g/*",
       "rewrite": "/api/og-page"

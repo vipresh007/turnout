@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import {
   acceptAdminInviteSchema,
+  pushTokenSchema,
   feedbackSchema,
   addPlayersSchema,
   buildRoster,
@@ -41,7 +42,7 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -155,6 +156,57 @@ export async function buildApp(db: Db) {
     const organizer = await requireOrganizer(db, req);
     const [row] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizer.id]);
     return { name: row?.name ?? null, email: row?.email ?? null, isAdmin: isAdminEmail(row?.email) };
+  });
+
+  // The organizer app registers its push token after sign-in (and removes it on sign-out).
+  app.put("/me/push-token", strict(20), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const { token, platform } = pushTokenSchema.parse(req.body);
+    await db.query(
+      `INSERT INTO organizer_push_tokens (token, organizer_id, platform) VALUES ($1, $2, $3)
+       ON CONFLICT (token) DO UPDATE SET organizer_id = EXCLUDED.organizer_id, platform = EXCLUDED.platform`,
+      [token, organizer.id, platform ?? null],
+    );
+    return { ok: true };
+  });
+
+  app.delete("/me/push-token", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const { token } = pushTokenSchema.pick({ token: true }).parse(req.body ?? {});
+    await db.query(`DELETE FROM organizer_push_tokens WHERE token = $1 AND organizer_id = $2`, [token, organizer.id]);
+    return { ok: true };
+  });
+
+  // Everything that happened across the organizer's groups, newest first (the app's Activity tab).
+  app.get<{ Querystring: { limit?: string } }>("/me/activity", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 50));
+    return { activity: await organizerActivity(db, organizer.id, limit) };
+  });
+
+  // Delete your organizer account (required by the App Store). Groups you co-run with someone else pass to
+  // them; groups only you run are deleted with their players and history.
+  app.delete("/me", strict(5), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const owned = await db.query<{ id: string; heir: string | null }>(
+      `SELECT g.id, (SELECT a.organizer_id FROM group_admins a WHERE a.group_id = g.id AND a.organizer_id <> $1 ORDER BY a.added_at LIMIT 1) AS heir
+       FROM groups g WHERE g.organizer_id = $1`,
+      [organizer.id],
+    );
+    let handedOver = 0;
+    let deleted = 0;
+    for (const g of owned) {
+      if (g.heir) {
+        await db.query(`UPDATE groups SET organizer_id = $2 WHERE id = $1`, [g.id, g.heir]);
+        await db.query(`DELETE FROM group_admins WHERE group_id = $1 AND organizer_id = $2`, [g.id, g.heir]);
+        handedOver++;
+      } else {
+        await db.query(`DELETE FROM groups WHERE id = $1`, [g.id]);
+        deleted++;
+      }
+    }
+    await db.query(`DELETE FROM organizers WHERE id = $1`, [organizer.id]);
+    return { deletedGroups: deleted, handedOverGroups: handedOver };
   });
 
   app.get("/me/dashboard", async (req) => {

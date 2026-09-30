@@ -7,32 +7,60 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "app.turnout"
+      "supportsTablet": false,
+      "bundleIdentifier": "ca.dataeaver.turnout",
+      "associatedDomains": [
+        "applinks:turnout.dataeaver.ca",
+        "applinks:turnout-test.dataeaver.ca"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#16A34A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.turnout"
+      "package": "ca.dataeaver.turnout"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "single"
     },
-    "scheme": "turnout",
+    "scheme": "ca.dataeaver.turnout",
     "experiments": {
       "typedRoutes": true
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "color": "#16A34A"
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Turnout uses your contacts only when you pick players to add to your group."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#0E1113"
+        }
+      ]
     ]
   }
 }

@@ -173,22 +173,14 @@ export async function organizerDashboard(db: Db, organizerId: string): Promise<D
   );
   groups.sort((a, b) => a.session.startsAt.localeCompare(b.session.startsAt));
 
-  const activity = await db.query<ActivityItem & { at: Date | string }>(
-    `SELECT g.slug AS "groupSlug", g.name AS "groupName", m.name, r.status, r.responded_at AS at
-     FROM rsvps r
-     JOIN members m ON m.id = r.member_id
-     JOIN groups g ON g.id = m.group_id
-     WHERE ${managedBy("g", "$1")}
-     ORDER BY r.responded_at DESC
-     LIMIT 12`,
-    [organizerId],
-  );
+  const activity = await organizerActivity(db, organizerId, 12);
+
 
   return {
     organizer: organizer ?? { name: null, email: null },
     stats: await organizerStats(db, organizerId),
     groups,
-    activity: activity.map((a) => ({ ...a, at: new Date(a.at).toISOString() })),
+    activity,
   };
 }
 
@@ -332,4 +324,19 @@ export async function gameHistory(db: Db, group: GroupRow, limit = 26, now = new
       players,
     };
   });
+}
+
+/** Answers across the organizer's groups, newest first. */
+export async function organizerActivity(db: Db, organizerId: string, limit: number): Promise<ActivityItem[]> {
+  const rows = await db.query<ActivityItem & { at: Date | string }>(
+    `SELECT g.slug AS "groupSlug", g.name AS "groupName", m.name, r.status, r.responded_at AS at
+     FROM rsvps r
+     JOIN members m ON m.id = r.member_id
+     JOIN groups g ON g.id = m.group_id
+     WHERE ${managedBy("g", "$1")}
+     ORDER BY r.responded_at DESC
+     LIMIT $2`,
+    [organizerId, limit],
+  );
+  return rows.map((a) => ({ ...a, at: new Date(a.at).toISOString() }));
 }

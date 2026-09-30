@@ -1,5 +1,6 @@
 import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp, type Session } from "@turnout/shared";
 import { track } from "./analytics.ts";
+import { pushToOrganizers } from "./organizerPush.ts";
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
@@ -156,15 +157,17 @@ export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rs
     }
   }
 
-  const organizers = await db.query<{ email: string }>(
-    `SELECT email FROM organizers WHERE email IS NOT NULL AND (id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2))`,
+  const organizers = await db.query<{ id: string; email: string | null }>(
+    `SELECT id, email FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
     [group.organizerId, group.id],
   );
+  const need = roster.spotsLeft;
+  const title = `${droppedName} dropped out of ${group.name}`;
+  const body = `${when} · ${count}. You need ${need} more. Share the link in your group chat to fill the spot${need === 1 ? "" : "s"}.`;
   for (const organizer of organizers) {
-    const need = roster.spotsLeft;
-    const title = `${droppedName} dropped out of ${group.name}`;
-    const body = `${when} · ${count}. You need ${need} more. Share the link in your group chat to fill the spot${need === 1 ? "" : "s"}.`;
+    if (!organizer.email) continue;
     await sendEmail(organizer.email, `${title} · need ${need}`, emailHtml({ title, body, url }, undefined, "Open the group"), `${title}. ${body} ${url}`)
       .catch((err) => console.warn("organizer alert failed", err));
   }
+  await pushToOrganizers(db, organizers.map((o) => o.id), { title, body: `${when} · ${count}. You need ${need} more.`, path: `/g/${group.slug}` });
 }

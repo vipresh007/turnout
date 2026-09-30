@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["253QMGHP88.ca.dataeaver.turnout"],
+        "components": [
+          { "/": "/g/*", "comment": "Group pages" },
+          { "/": "/organize", "comment": "Co-organizer invites" },
+          { "/": "/restore", "comment": "New-phone restore links" },
+          { "/": "/email", "comment": "Reminder email links" },
+          { "/": "/dashboard" }
+        ]
+      }
+    ]
+  }
+}

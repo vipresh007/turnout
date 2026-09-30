@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
+import { NotificationRouter } from "@/components/NotificationRouter";
 import { AuthProvider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -18,6 +19,7 @@ export default function RootLayout() {
         </Head>
       )}
       <StatusBar style="auto" />
+      {Platform.OS !== "web" && <NotificationRouter />}
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: t.bg },
@@ -30,8 +32,8 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false, title: "Turnout: stop asking who's playing" }} />
-        {/* The dashboard has its own greeting header on web; native keeps the bar for safe-area spacing. */}
-        <Stack.Screen name="dashboard" options={{ title: "Turnout", headerShown: Platform.OS !== "web" }} />
+        {/* Home, Groups, Activity, Account: a tab bar in the app, plain pages on the web. */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Turnout" }} />
         <Stack.Screen name="new" options={{ title: "New group", presentation: "modal" }} />
         <Stack.Screen name="edit/[slug]" options={{ title: "Edit group", presentation: "modal" }} />
         <Stack.Screen name="g/[slug]" options={{ title: "", headerShown: Platform.OS !== "web" }} />
