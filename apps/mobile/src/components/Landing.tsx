@@ -56,7 +56,6 @@ export function Landing() {
   const scrollRef = useRef<ScrollView>(null);
   const howY = useRef(0);
   const featuresY = useRef(0);
-  const faqY = useRef(0);
   const pricingY = useRef(0);
   const scrollTo = (y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
   // Signed out, /new asks for sign-in first and comes back to the form; "Sign in" goes to the dashboard.
@@ -82,7 +81,6 @@ export function Landing() {
             { label: "Features", onPress: () => scrollTo(featuresY.current) },
             { label: "Demo", onPress: () => router.push("/demo") },
             { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
-            { label: "FAQ", onPress: () => scrollTo(faqY.current) },
           ]}
         />
 
@@ -235,7 +233,7 @@ export function Landing() {
       </View>
 
       {/* ── FAQ ── */}
-      <View onLayout={(e) => (faqY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 820 }]}>
+      <View style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 820 }]}>
         <Reveal style={{ gap: 12, alignItems: "center" }}>
           <Text style={s.kicker}>FAQ</Text>
           <Text style={[s.h2, { textAlign: "center" }]}>Questions organizers ask</Text>
