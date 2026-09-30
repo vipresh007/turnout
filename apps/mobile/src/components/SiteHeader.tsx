@@ -5,7 +5,7 @@ import { useAccount } from "@/lib/account";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { Glow, Pop } from "./motion";
-import { webTransition } from "./ui";
+import { webTransition } from "@/lib/webStyle";
 
 /** The same width on every page, so the logo and nav never jump when you move between pages. */
 export const SITE_WIDTH = 1140;

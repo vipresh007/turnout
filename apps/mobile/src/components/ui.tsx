@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { router, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { useTheme } from "@/lib/theme";
+import { webTransition } from "@/lib/webStyle";
 import { PageGlow, SiteHeader } from "./SiteHeader";
 
 /** A page: the site header and background glow (web), then a centred column of content. */
@@ -32,8 +33,7 @@ export function Muted({ children }: { children: ReactNode }) {
   return <Text style={{ color: t.muted, fontSize: 15, lineHeight: 21 }}>{children}</Text>;
 }
 
-/** Smooth hover/press changes on web; native ignores these. */
-export const webTransition = (Platform.OS === "web" ? { transitionProperty: "background-color, border-color, color, opacity, transform, box-shadow", transitionDuration: "150ms" } : {}) as object;
+export { webTransition } from "@/lib/webStyle";
 
 type Variant = "primary" | "secondary" | "danger";
 export function Button({ label, onPress, variant = "primary", loading, disabled, big }: {
