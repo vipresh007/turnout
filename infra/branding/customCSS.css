@@ -72,17 +72,17 @@ a:focus, .ext-link:focus { outline: 2px solid #22C55E; outline-offset: 2px; bord
 }
 .ext-button.ext-secondary:hover, .ext-button.ext-secondary:focus:hover { background-color: #0E1113; border-color: #3A414A; }
 
-/* "Sign in with Microsoft / Google / Apple". Microsoft hard-codes black label text on each button and
-   strips descendant selectors, so we can't recolor the labels. Instead the whole box is drawn light and
-   inverted: invert + hue-rotate turns it dark with white text while the provider logos keep their colors.
-   Colors here are the pre-inversion values: #E6E6E6 shows as ~#191919, #3AC56C shows as Turnout green. */
+/* "Sign in with Microsoft / Google / Apple" list. People pick a provider on Turnout's own sign-in screen
+   (apps/mobile/src/components/SignInGate.tsx, with the official logos) before they get here, so this page
+   is only for email. Microsoft doesn't allow display:none, so the box collapses to nothing instead. */
 .ext-promoted-fed-cred-box {
-  background-color: #E6E6E6;
-  border: 1px solid #D8D8D8;
-  border-radius: 16px;
-  filter: invert(1) hue-rotate(180deg);
+  visibility: hidden;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
 }
-.ext-promoted-fed-cred-box:hover { border-color: #3AC56C; }
 .ext-header-description { color: #9CA3AF; }
 
 .ext-footer { background-color: transparent; }

@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { wakeApi } from "@/lib/api";
 import { useAuth, type Provider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
+import { AppleLogo, EmailIcon, GoogleLogo, MicrosoftLogo } from "./BrandLogos";
 import { Card, Muted, Screen } from "./ui";
 
 const labels: Record<Provider, string> = {
@@ -78,18 +79,8 @@ function ProviderButton({ provider, disabled, onPress }: { provider: Provider; d
 /** Simple provider marks drawn with views/text, so there are no image assets to manage. */
 function ProviderMark({ provider }: { provider: Provider }) {
   const t = useTheme();
-  if (provider === "microsoft") {
-    const sq = (c: string) => <View style={{ width: 8, height: 8, backgroundColor: c }} />;
-    return (
-      <View style={{ width: 18, height: 18, flexDirection: "row", flexWrap: "wrap", gap: 2 }}>
-        {sq("#F25022")}
-        {sq("#7FBA00")}
-        {sq("#00A4EF")}
-        {sq("#FFB900")}
-      </View>
-    );
-  }
-  if (provider === "google") return <Text style={{ fontSize: 18, fontWeight: "900", color: "#4285F4" }}>G</Text>;
-  if (provider === "apple") return <Text style={{ fontSize: 18, color: t.text }}></Text>;
-  return <Text style={{ fontSize: 16 }}>✉️</Text>;
+  if (provider === "microsoft") return <MicrosoftLogo />;
+  if (provider === "google") return <GoogleLogo />;
+  if (provider === "apple") return <AppleLogo />;
+  return <EmailIcon color={t.accentText} />;
 }
