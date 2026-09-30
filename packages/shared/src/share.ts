@@ -60,5 +60,6 @@ export function groupShareMessage(g: ShareInput): string {
 }
 
 /** Deep links that open a messaging app with the text ready to send. */
-export const whatsappUrl = (text: string) => `https://wa.me/?text=${encodeURIComponent(text)}`;
+// api.whatsapp.com rather than wa.me: wa.me's redirect to the desktop app turns emoji into "?" diamonds.
+export const whatsappUrl = (text: string) => `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 export const smsUrl = (text: string) => `sms:?&body=${encodeURIComponent(text)}`;

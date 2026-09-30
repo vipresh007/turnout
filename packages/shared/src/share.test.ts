@@ -24,7 +24,8 @@ test("emoji from activity or name; WhatsApp link encodes text", () => {
   assert.equal(activityEmoji(null, "Sunday Soccer"), "⚽");
   assert.equal(activityEmoji("poker"), "🃏");
   assert.equal(activityEmoji(null, "Book club"), "📣");
-  assert.equal(whatsappUrl("a b\nc"), "https://wa.me/?text=a%20b%0Ac");
+  assert.equal(whatsappUrl("a b\nc"), "https://api.whatsapp.com/send?text=a%20b%0Ac");
+  assert.equal(whatsappUrl("🏐 Volleyball"), "https://api.whatsapp.com/send?text=%F0%9F%8F%90%20Volleyball");
 });
 
 test("share message counts toward a target when there's no cap", () => {
