@@ -7,16 +7,22 @@ const GREEN = "#16A34A";
 const DARK = "#0B3D1E";
 const out = (p) => new URL(`../${p}`, import.meta.url);
 
-/** The mark on a 240-unit canvas. `scale` shrinks the glyph toward the centre (for safe zones). */
+/**
+ * The mark on a 240-unit canvas, drawn as shapes (not text) so it doesn't depend on installed fonts:
+ * a "t" and a round dot sharing one baseline, the pair centred on the tile.
+ * `scale` shrinks it toward the centre (for safe zones).
+ */
 function glyph({ fill = "#FFFFFF", dot = DARK, scale = 1 } = {}) {
-  const t = `translate(120 120) scale(${scale}) translate(-120 -120)`;
-  return `<g transform="${t}"><text x="120" y="162" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial" font-weight="700" font-size="150" letter-spacing="-6" fill="${fill}">t<tspan fill="${dot}">.</tspan></text></g>`;
+  // Local box: x -18..82, y 0..104 (centre 32, 52).
+  const t = "M0 0H30V28H48V48H30V76Q30 83 37 83H48V104H33Q0 104 0 72V48H-18V28H0Z";
+  const pos = `translate(120 120) scale(${scale}) translate(-32 -52)`;
+  return `<g transform="${pos}"><path d="${t}" fill="${fill}"/><circle cx="69" cy="91" r="13" fill="${dot}"/></g>`;
 }
 const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240">${body}</svg>`;
 const tile = (rx) => `<rect width="240" height="240" rx="${rx}" fill="${GREEN}"/>`;
 
 function png(path, body, size) {
-  const data = new Resvg(svg(body), { fitTo: { mode: "width", value: size }, font: { loadSystemFonts: true } }).render().asPng();
+  const data = new Resvg(svg(body), { fitTo: { mode: "width", value: size } }).render().asPng();
   writeFileSync(out(path), data);
   console.log(`${path} (${size}px)`);
 }

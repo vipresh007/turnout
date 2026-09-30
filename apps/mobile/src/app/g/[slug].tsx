@@ -441,26 +441,24 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
   const share = season.shareCents;
   return (
     <View style={{ backgroundColor: t.soft, borderRadius: 12, padding: 12, gap: 8 }}>
-      <Text style={{ color: t.text, fontWeight: "800" }}>
-        Season · {formatMoney(group.seasonFeeCents!)}{members ? ` · ${members} members · ${formatMoney(share!)} each` : ""}
-      </Text>
-      <Text style={{ color: t.text }}>
-        {members
-          ? `${paid} of ${members} paid · ${formatMoney((share ?? 0) * paid)} collected`
-          : "No season members yet. Mark them on the Members screen."}
-      </Text>
+      <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.6 }}>SEASON</Text>
+      {members ? (
+        <>
+          <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }}>
+            {paid} of {members} paid
+          </Text>
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: t.bg, overflow: "hidden" }}>
+            <View style={{ width: `${Math.round((paid / members) * 100)}%`, height: 6, borderRadius: 3, backgroundColor: t.accent }} />
+          </View>
+          <Text style={{ color: t.muted, fontSize: 13 }}>
+            {formatMoney((share ?? 0) * paid)} of {formatMoney(group.seasonFeeCents!)} · {formatMoney(share!)} each
+          </Text>
+        </>
+      ) : (
+        <Text style={{ color: t.muted }}>{formatMoney(group.seasonFeeCents!)} season. Mark who's in on the Members screen.</Text>
+      )}
       <ActionGrid>
         <ActionTile icon="people" label="Members" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug: group.slug } })} />
-        <ActionTile
-          icon="refresh"
-          label="New season"
-          onPress={async () => {
-            if (await confirm("Start a new season?", "Members stay, and everyone goes back to unpaid for the new season fee. You can change the fee and dates in Edit group.", "Start new season")) {
-              await api.newSeason(group.slug);
-              onChanged();
-            }
-          }}
-        />
         {members > paid && (
           <ActionTile
             icon="cash"
@@ -477,6 +475,18 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
           />
         )}
       </ActionGrid>
+      <Pressable
+        accessibilityRole="button"
+        onPress={async () => {
+          if (await confirm("Start a new season?", "Members stay, and everyone goes back to unpaid for the new season fee. You can change the fee and dates in Edit group.", "Start new season")) {
+            await api.newSeason(group.slug);
+            onChanged();
+          }
+        }}
+        style={{ alignSelf: "center", paddingVertical: 4 }}
+      >
+        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>Season over? Start a new one</Text>
+      </Pressable>
       {result && (
         <Pop style={{ gap: 6 }}>
           <Text style={{ color: t.text }}>{result.notified ? `Reminded ${result.notified} of ${result.unpaid} with reminders on.` : "Nobody unpaid has reminders on."} Post this too:</Text>
