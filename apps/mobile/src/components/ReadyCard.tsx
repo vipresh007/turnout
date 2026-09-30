@@ -1,9 +1,10 @@
 import { describeRecurrence, formatMoney, playerGoal, type GroupPage, type ShareInput } from "@turnout/shared";
 import { router } from "expo-router";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { Pop } from "./motion";
+import { PushPrompt } from "./PushPrompt";
 import { ShareCard } from "./ShareCard";
 import { Button, Card, Muted } from "./ui";
 
@@ -47,6 +48,8 @@ export function ReadyCard({ page, shareInput, onDone }: { page: GroupPage; share
       </Card>
 
       <ShareCard input={shareInput} title="2. Send the link to your group chat" />
+
+      {Platform.OS !== "web" && <PushPrompt />}
 
       <View style={{ flexDirection: "row" }}>
         <Button label="Done, show my group" variant="secondary" onPress={onDone} />

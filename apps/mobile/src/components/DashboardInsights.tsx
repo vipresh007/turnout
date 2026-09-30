@@ -47,7 +47,9 @@ export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
   const s = styles(t);
   const { width } = useWindowDimensions();
   const wide = width >= 700;
-  const [mode, setMode] = useState<"twoWeeks" | "month">("twoWeeks");
+  // Phones get an agenda list: a 7-column grid of game names doesn't fit.
+  const narrow = width < 600;
+  const [mode, setMode] = useState<"list" | "twoWeeks" | "month">(narrow ? "list" : "twoWeeks");
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<Date | null>(null);
   const today = new Date();
@@ -56,7 +58,12 @@ export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
   let days: Date[];
   let title: string;
   let monthIndex = -1;
-  if (mode === "twoWeeks") {
+  if (mode === "list") {
+    const first = new Date(today.getTime() + offset * 14 * DAY);
+    days = Array.from({ length: 14 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
+    const last = days[13]!;
+    title = offset === 0 ? "Next two weeks" : `${first.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${last.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  } else if (mode === "twoWeeks") {
     const first = new Date(startOfWeek(today).getTime() + offset * 14 * DAY);
     days = Array.from({ length: 14 }, (_, i) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + i));
     const last = days[13]!;
@@ -102,15 +109,52 @@ export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
   };
 
   const selectedGames = selected ? gamesOn(selected, groups) : [];
+  const controls = (
+    <>
+      <Seg options={[narrow ? ["list", "List"] : ["twoWeeks", "2 weeks"], ["month", "Month"]]} value={mode} onChange={(m) => { setMode(m as typeof mode); setOffset(0); setSelected(null); }} />
+      <NavButton label="‹" onPress={() => setOffset((o) => o - 1)} a11y="Previous" />
+      <NavButton label="Today" onPress={() => { setOffset(0); setSelected(null); }} a11y="Today" />
+      <NavButton label="›" onPress={() => setOffset((o) => o + 1)} a11y="Next" />
+    </>
+  );
+  const header = narrow ? (
+    <View style={{ gap: 8 }}>
+      <Text style={{ color: t.text, fontSize: 16, fontWeight: "800" }}>{title}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>{controls}</View>
+    </View>
+  ) : (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <Text style={{ color: t.text, fontSize: 16, fontWeight: "800", flex: 1, minWidth: 140 }}>{title}</Text>
+      {controls}
+    </View>
+  );
+
+  if (mode === "list") {
+    const withGames = days.map((d) => ({ day: d, games: gamesOn(d, groups) })).filter((d) => d.games.length > 0);
+    return (
+      <View style={{ gap: 10 }}>
+        {header}
+        {withGames.length === 0 && <Text style={s.muted}>No games in these two weeks.</Text>}
+        {withGames.map(({ day, games }) => (
+          <View key={day.toISOString()} style={{ flexDirection: "row", gap: 12 }}>
+            <View style={{ width: 52, alignItems: "center", paddingTop: 6 }}>
+              <Text style={{ color: sameDay(day, today) ? t.accent : t.muted, fontSize: 12, fontWeight: "800", textTransform: "uppercase" }}>
+                {day.toLocaleDateString(undefined, { weekday: "short" })}
+              </Text>
+              <Text style={{ color: sameDay(day, today) ? t.accent : t.text, fontSize: 22, fontWeight: "900" }}>{day.getDate()}</Text>
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              {games.map((g) => <GamePill key={g.item.group.id} game={g} large />)}
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
   return (
     <View style={{ gap: 10 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <Text style={{ color: t.text, fontSize: 16, fontWeight: "800", flex: 1, minWidth: 140 }}>{title}</Text>
-        <Seg options={[["twoWeeks", "2 weeks"], ["month", "Month"]]} value={mode} onChange={(m) => { setMode(m as typeof mode); setOffset(0); setSelected(null); }} />
-        <NavButton label="‹" onPress={() => setOffset((o) => o - 1)} a11y="Previous" />
-        <NavButton label="Today" onPress={() => { setOffset(0); setSelected(null); }} a11y="Today" />
-        <NavButton label="›" onPress={() => setOffset((o) => o + 1)} a11y="Next" />
-      </View>
+      {header}
       <View style={{ flexDirection: "row", gap: 6 }}>
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
           <Text key={d} style={[s.dayName, { flex: 1, textAlign: "center" }]}>{compact ? d[0] : d}</Text>

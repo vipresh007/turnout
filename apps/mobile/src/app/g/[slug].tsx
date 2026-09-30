@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
+import { ActionGrid, ActionTile } from "@/components/ActionTile";
 import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
@@ -275,23 +276,11 @@ export default function GroupScreen() {
             trackEvent("invite_asked", slug, { status: page.organizer?.forecast?.status ?? "none", from: "group" });
             share(inviteMessage(name.split(" ")[0]!, group.name, page.organizer?.forecast?.short || roster.spotsLeft, shortWhen(session.startsAt, group.timezone), link));
           }} />
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button label="Edit group" variant="secondary" onPress={() => router.push({ pathname: "/edit/[slug]", params: { slug } })} />
-            <Button
-              label={session.cancelled ? "Restore this week" : "Cancel this week"}
-              variant={session.cancelled ? "secondary" : "danger"}
-              loading={pending === "cancel"}
-              onPress={async () => {
-                if (session.cancelled || (await confirm("Cancel this week?", "Everyone will see the game is off. You can restore it any time.", "Cancel week"))) {
-                  await run("cancel", () => api.setCancelled(slug, !session.cancelled));
-                }
-              }}
-            />
-          </View>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button
-              label="⏰ Send reminder"
-              variant="secondary"
+          <ActionGrid>
+            <ActionTile icon="edit" label="Edit" onPress={() => router.push({ pathname: "/edit/[slug]", params: { slug } })} />
+            <ActionTile
+              icon="bell"
+              label="Remind"
               loading={pending === "remind"}
               disabled={session.cancelled}
               onPress={async () => {
@@ -306,19 +295,13 @@ export default function GroupScreen() {
                 }
               }}
             />
-            <Button label="🏁 Make teams" variant="secondary" disabled={roster.confirmed.length < 2} onPress={() => router.push({ pathname: "/teams/[slug]", params: { slug } })} />
-          </View>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button label="🗓 Schedule" variant="secondary" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
-            <Button label="👥 Members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug } })} />
-          </View>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button label="📊 Insights" variant="secondary" onPress={() => router.push({ pathname: "/insights/[slug]", params: { slug } })} />
-            <Button label="🕘 History" variant="secondary" onPress={() => router.push({ pathname: "/history/[slug]", params: { slug } })} />
-          </View>
-          <View style={{ flexDirection: "row", gap: 12 }}>
-            <Button label="🤝 Organizers" variant="secondary" onPress={() => router.push({ pathname: "/organizers/[slug]", params: { slug } })} />
-          </View>
+            <ActionTile icon="teams" label="Teams" disabled={roster.confirmed.length < 2} onPress={() => router.push({ pathname: "/teams/[slug]", params: { slug } })} />
+            <ActionTile icon="calendar" label="Schedule" onPress={() => router.push({ pathname: "/schedule/[slug]", params: { slug } })} />
+            <ActionTile icon="people" label="Members" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug } })} />
+            <ActionTile icon="chart" label="Insights" onPress={() => router.push({ pathname: "/insights/[slug]", params: { slug } })} />
+            <ActionTile icon="clock" label="History" onPress={() => router.push({ pathname: "/history/[slug]", params: { slug } })} />
+            <ActionTile icon="key" label="Organizers" onPress={() => router.push({ pathname: "/organizers/[slug]", params: { slug } })} />
+          </ActionGrid>
           {reminder && (
             <Pop style={{ gap: 8 }}>
               <Text style={{ color: t.text, fontWeight: "700" }}>
@@ -339,10 +322,23 @@ export default function GroupScreen() {
           {page.season && <SeasonCard page={page} onShare={share} onChanged={() => void load()} />}
           {paidSet && roster.confirmed.length > 0 && !page.season && (
             <Text style={{ color: t.muted }}>
-              💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))} · tap “Paid” next to a name to mark it
+              💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))}
             </Text>
           )}
-          <Muted>Tap × next to a name to remove someone from the group.</Muted>
+          <Pressable
+            accessibilityRole="button"
+            disabled={pending === "cancel"}
+            onPress={async () => {
+              if (session.cancelled || (await confirm("Cancel this week?", "Everyone will see the game is off. You can restore it any time.", "Cancel week"))) {
+                await run("cancel", () => api.setCancelled(slug, !session.cancelled));
+              }
+            }}
+            style={({ hovered }: { hovered?: boolean }) => ({ alignSelf: "center", paddingVertical: 6, opacity: hovered ? 0.7 : 1 })}
+          >
+            <Text style={{ color: session.cancelled ? t.accent : t.danger, fontWeight: "700" }}>
+              {pending === "cancel" ? "…" : session.cancelled ? "Restore this week's game" : "Cancel this week's game"}
+            </Text>
+          </Pressable>
         </Card>
       )}
 
@@ -453,11 +449,11 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
           ? `${paid} of ${members} paid · ${formatMoney((share ?? 0) * paid)} collected`
           : "No season members yet. Mark them on the Members screen."}
       </Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <Button label="Season members" variant="secondary" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug: group.slug } })} />
-        <Button
+      <ActionGrid>
+        <ActionTile icon="people" label="Members" onPress={() => router.push({ pathname: "/members/[slug]", params: { slug: group.slug } })} />
+        <ActionTile
+          icon="refresh"
           label="New season"
-          variant="secondary"
           onPress={async () => {
             if (await confirm("Start a new season?", "Members stay, and everyone goes back to unpaid for the new season fee. You can change the fee and dates in Edit group.", "Start new season")) {
               await api.newSeason(group.slug);
@@ -466,9 +462,9 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
           }}
         />
         {members > paid && (
-          <Button
+          <ActionTile
+            icon="cash"
             label="Remind unpaid"
-            variant="secondary"
             loading={busy}
             onPress={async () => {
               setBusy(true);
@@ -480,7 +476,7 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
             }}
           />
         )}
-      </View>
+      </ActionGrid>
       {result && (
         <Pop style={{ gap: 6 }}>
           <Text style={{ color: t.text }}>{result.notified ? `Reminded ${result.notified} of ${result.unpaid} with reminders on.` : "Nobody unpaid has reminders on."} Post this too:</Text>
@@ -635,13 +631,17 @@ function RsvpButton({ label, kind, selected, disabled, loading, onPress }: {
 
 /** "There's already a John here. Is that you?" Keeps one person from becoming two, without accounts. */
 /** Players the organizer added: tap your name on your phone the first time. */
+const CLAIM_PREVIEW = 8;
+
 function ClaimList({ people, onClaim }: { people: { id: string; name: string }[]; onClaim: (id: string) => void }) {
   const t = useTheme();
+  const [all, setAll] = useState(false);
+  const shown = all ? people : people.slice(0, CLAIM_PREVIEW);
   return (
     <View style={{ gap: 8 }}>
       <Text style={{ color: t.text, fontWeight: "800" }}>On the list? Tap your name</Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {people.map((p) => (
+        {shown.map((p) => (
           <Pressable
             key={p.id}
             accessibilityRole="button"
@@ -653,6 +653,11 @@ function ClaimList({ people, onClaim }: { people: { id: string; name: string }[]
             <Text style={{ color: t.text, fontWeight: "700" }}>{p.name}</Text>
           </Pressable>
         ))}
+        {!all && people.length > CLAIM_PREVIEW && (
+          <Pressable accessibilityRole="button" onPress={() => setAll(true)} style={({ hovered }: { hovered?: boolean }) => ({ paddingVertical: 6, paddingHorizontal: 10, opacity: hovered ? 0.7 : 1 })}>
+            <Text style={{ color: t.accent, fontWeight: "800" }}>Show all {people.length}</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );

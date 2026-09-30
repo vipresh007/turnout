@@ -7,7 +7,6 @@ import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
-import { PushPrompt } from "@/components/PushPrompt";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
@@ -122,9 +121,6 @@ function DashboardView() {
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
-            {!web && <PushPrompt />}
-            {organizer.askFeedback && <FeedbackAsk />}
-            {organizer.askPricing && <PricingAsk />}
             {next && tile(next)}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
 
@@ -173,6 +169,9 @@ function DashboardView() {
                 </View>
               </View>
             </View>
+            {/* Asks come last, so the games stay on top. */}
+            {organizer.askFeedback && <FeedbackAsk />}
+            {organizer.askPricing && <PricingAsk />}
           </>
         )}
         {error && <Text style={{ color: t.danger }}>{error}</Text>}

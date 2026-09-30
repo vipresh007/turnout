@@ -229,7 +229,8 @@ function attentionHint({ group, session, spotsLeft, suggestions, players, confir
     return `👋 ${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
   }
   const unpaid = players.filter((p) => p.status === "in" && !p.paid).length;
-  if (group.feeCents && confirmed > 0 && unpaid > 0) return `💵 ${unpaid} of ${confirmed} still to pay`;
+  // Season groups track the season fee on the group page; per-game payments there are only subs.
+  if (group.feeCents && !group.seasonFeeCents && confirmed > 0 && unpaid > 0) return `💵 ${unpaid} of ${confirmed} still to pay`;
   return null;
 }
 
