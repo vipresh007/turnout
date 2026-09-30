@@ -1,8 +1,8 @@
 import { type DashboardGroup, type DashboardPlayer } from "@turnout/shared";
 import { router } from "expo-router";
 import Head from "expo-router/head";
-import { useState } from "react";
-import { Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
 import { GroupTile } from "@/components/GroupTile";
 import { Button, Card, Muted, Screen } from "@/components/ui";
 import { shareText } from "@/lib/share";
@@ -50,10 +50,40 @@ function demoGroup(): DashboardGroup {
   };
 }
 
+/** Leo says in or out, the waitlist moves up like it does for real, and the counts follow. */
+function setLeo(item: DashboardGroup, status: "in" | "out"): DashboardGroup {
+  const cap = item.group.cap ?? Infinity;
+  let players = item.players.map((p) => (p.memberId === LEO ? { ...p, status, paid: status === "out" ? false : p.paid } : p));
+  if (status === "in") {
+    const inCount = players.filter((p) => p.status === "in" && p.memberId !== LEO).length;
+    if (inCount >= cap) players = players.map((p) => (p.memberId === LEO ? { ...p, status: "waitlist" } : p));
+  } else {
+    const inCount = players.filter((p) => p.status === "in").length;
+    const next = players.find((p) => p.status === "waitlist");
+    if (inCount < cap && next) {
+      players = players.map((p) => (p === next ? { ...p, status: "in" } : p));
+      // The player who moved up takes Leo's place on his team.
+      const teams = item.session.teams;
+      if (teams) item = { ...item, session: { ...item.session, teams: { ...teams, teams: teams.teams.map((ids) => ids.map((id) => (id === LEO ? next.memberId : id))) } } };
+    }
+  }
+  // In first, then the waitlist in order, then outs.
+  const rank = { in: 0, waitlist: 1, out: 2 } as const;
+  players = [...players].sort((a, b) => rank[a.status] - rank[b.status]);
+  const confirmed = players.filter((p) => p.status === "in").length;
+  const waitlist = players.filter((p) => p.status === "waitlist").length;
+  const out = players.filter((p) => p.status === "out").length;
+  return { ...item, players, confirmed, waitlist, out, spotsLeft: Math.max(0, cap - confirmed) };
+}
+const LEO = "demo-5";
+
 /** Try Turnout without signing up: an organizer's view of a busy group. Nothing here is saved or sent. */
 export default function Demo() {
   const t = useTheme();
-  const [item] = useState(demoGroup);
+  const [item, setItem] = useState(demoGroup);
+  const scroll = useRef<ScrollView>(null);
+  const playerCardY = useRef(0);
+  const leo = item.players.find((p) => p.memberId === LEO)!;
   const [expanded, setExpanded] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const insights = [
@@ -63,7 +93,7 @@ export default function Demo() {
     ["Most dependable", "Mike · 11/11", "Raj 10/11 · Priya 10/11"],
   ];
   return (
-    <Screen>
+    <Screen scrollRef={scroll}>
       <Head>
         <title>Try the Turnout demo</title>
       </Head>
@@ -80,9 +110,30 @@ export default function Demo() {
         onToggle={() => setExpanded((e) => !e)}
         onShare={async (text) => setNotice((await shareText(text)) ? "Copied. In your own group you'd paste this into the group chat." : null)}
         onChanged={() => {}}
-        demo
+        demo={{
+          setPaid: (id) => setItem((it) => ({ ...it, players: it.players.map((p) => (p.memberId === id ? { ...p, paid: !p.paid } : p)) })),
+          open: () => scroll.current?.scrollTo({ y: playerCardY.current, animated: true }),
+        }}
       />
       {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
+
+      <View onLayout={(e) => (playerCardY.current = e.nativeEvent.layout.y)}>
+        <Card>
+          <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>👀 What your players see</Text>
+          <Muted>You're Leo. Tap I'm out and watch the first person on the waitlist move in, up in the group above.</Muted>
+          <Text style={{ color: t.text, fontSize: 15 }}>
+            {leo.status === "in" ? "✅ You're in" : leo.status === "waitlist" ? "⏳ You're on the waitlist" : "❌ You're out this week"} · {item.confirmed}/{item.group.cap} playing
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Button label="I'm in" variant={leo.status === "out" ? "primary" : "secondary"} onPress={() => setItem((it) => setLeo(it, "in"))} disabled={leo.status !== "out"} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button label="I'm out" variant="secondary" onPress={() => setItem((it) => setLeo(it, "out"))} disabled={leo.status === "out"} />
+            </View>
+          </View>
+        </Card>
+      </View>
 
       <Card>
         <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>📊 Insights after a few weeks</Text>

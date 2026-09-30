@@ -1,15 +1,20 @@
-import { Slot, Tabs } from "expo-router";
+import { Redirect, Slot, Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { AccountIcon, ActivityIcon, GroupsIcon, HomeIcon } from "@/components/TabIcons";
+import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
 /**
  * The organizer's main screens. In the app they sit under a bottom tab bar; on the web the site header
  * (components/SiteHeader) does that job, so the pages render on their own with the same URLs.
+ * Signed out in the app, the tabs aren't shown at all: the welcome screen leads to sign-in.
  */
 export default function TabsLayout() {
   const t = useTheme();
+  const { status } = useAuth();
   if (Platform.OS === "web") return <Slot />;
+  if (status === "loading") return null;
+  if (status !== "signedIn") return <Redirect href="/" />;
   return (
     <Tabs
       screenOptions={{

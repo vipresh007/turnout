@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { router, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { useTheme } from "@/lib/theme";
@@ -6,11 +6,11 @@ import { webTransition } from "@/lib/webStyle";
 import { PageGlow, SiteHeader } from "./SiteHeader";
 
 /** A page: the site header and background glow (web), then a centred column of content. */
-export function Screen({ children, signInLabel }: { children: ReactNode; signInLabel?: string }) {
+export function Screen({ children, signInLabel, scrollRef }: { children: ReactNode; signInLabel?: string; scrollRef?: Ref<ScrollView> }) {
   const t = useTheme();
   const web = Platform.OS === "web";
   return (
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={[styles.screen, !web && { paddingTop: 16 }]} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={scrollRef} style={{ backgroundColor: t.bg }} contentContainerStyle={[styles.screen, !web && { paddingTop: 16 }]} keyboardShouldPersistTaps="handled">
       {web && <PageGlow />}
       {web && <SiteHeader signInLabel={signInLabel} />}
       <View style={styles.column}>{children}</View>

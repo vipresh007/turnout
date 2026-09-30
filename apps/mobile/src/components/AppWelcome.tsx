@@ -41,7 +41,7 @@ export function AppWelcome() {
           </View>
         </View>
         <View style={{ gap: 10 }}>
-          <Button label="Get started, it's free" big onPress={() => router.push("/dashboard")} />
+          <Button label="Get started, it's free" big onPress={() => router.push("/sign-in")} />
           <Button label="Try the demo" variant="secondary" onPress={() => router.push("/demo")} />
           <Text style={{ color: t.muted, fontSize: 13, textAlign: "center", lineHeight: 19 }}>
             Got a group link from your organizer? Just open it. Players don't need this app.

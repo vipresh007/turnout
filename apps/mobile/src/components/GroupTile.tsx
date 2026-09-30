@@ -20,8 +20,8 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   onToggle: () => void;
   onShare: (text: string) => void;
   onChanged: () => void;
-  /** The public demo: actions explain themselves instead of calling the API. */
-  demo?: boolean;
+  /** The public demo: actions change local state instead of calling the API. */
+  demo?: { setPaid: (memberId: string) => void; open: () => void };
 }) {
   const t = useTheme();
   const api = useApi();
@@ -56,7 +56,6 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   const paidCount = players.filter((p) => p.status === "in" && p.paid).length;
 
   const act = async (key: string, action: () => Promise<unknown>) => {
-    if (demo) return setError("This is a demo, so nothing is sent. Create your own group to try it for real (it's free).");
     setBusy(key);
     setError(null);
     try {
@@ -68,7 +67,10 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
     }
   };
 
-  const open = () => (demo ? setError("In your own group, this opens the page your players see.") : router.push({ pathname: "/g/[slug]", params: { slug: group.slug } }));
+  const open = () => (demo ? demo.open() : router.push({ pathname: "/g/[slug]", params: { slug: group.slug } }));
+  const remind = demo
+    ? async () => setReminder({ notified: 9, reachable: 11, message: `⏰ Reminder: ${group.name} is ${relativeDay(session.startsAt, group.timezone)}. Tap to say if you're in: ${link}` })
+    : async () => setReminder(await api.remind(group.slug));
   const hint = attentionHint(item);
 
   let waitlistPos = 0;
@@ -132,7 +134,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
 
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
         <Button label={item.spotsLeft && !session.cancelled ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
-        <Button label="⏰ Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", async () => setReminder(await api.remind(group.slug)))} />
+        <Button label="⏰ Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", remind)} />
         <Button label="Open group →" variant="secondary" onPress={open} />
       </View>
       {reminder && (
@@ -180,10 +182,10 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                       accessibilityState={{ checked: p.paid }}
                       accessibilityLabel={`${p.name} paid`}
                       hitSlop={8}
-                      onPress={() => act(`paid:${p.memberId}`, async () => {
+                      onPress={() => (demo ? demo.setPaid(p.memberId) : act(`paid:${p.memberId}`, async () => {
                         await api.setPaid(group.slug, p.memberId, !p.paid);
                         onChanged();
-                      })}
+                      }))}
                       style={({ hovered }: { hovered?: boolean }) => ({ width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center", borderColor: p.paid || hovered ? t.accent : t.border, backgroundColor: p.paid || hovered ? t.soft : "transparent" })}
                     >
                       <Text style={{ color: t.accent, fontWeight: "900" }}>{p.paid ? "✓" : ""}</Text>

@@ -38,6 +38,7 @@ export default function RootLayout() {
         <Stack.Screen name="edit/[slug]" options={{ title: "Edit group", presentation: "modal" }} />
         <Stack.Screen name="g/[slug]" options={{ title: "", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="sign-in" options={{ title: "" }} />
         <Stack.Screen name="email" options={{ title: "Email reminders" }} />
         <Stack.Screen name="restore" options={{ title: "New phone" }} />
         <Stack.Screen name="members/[slug]" options={{ title: "Members", presentation: "modal" }} />
