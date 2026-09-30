@@ -60,12 +60,13 @@ export const applyDraft = (v: GroupFormValues, d: GroupDraft): GroupFormValues =
   startTime: d.startTime ?? v.startTime,
   endTime: d.startTime && d.durationMinutes ? endTimeFor(d.startTime, d.durationMinutes) : v.endTime,
   cap: d.cap ? String(d.cap) : v.cap,
-  costMode: v.costMode,
-  fee: v.fee,
-  feeSplit: v.feeSplit,
-  seasonFee: v.seasonFee,
-  target: v.target,
-  payNote: v.payNote,
+  costMode: d.seasonFeeCents ? "season" : d.feeCents ? (d.feeSplit ? "split" : "per") : v.costMode,
+  // In season mode, fee is the drop-in price for subs, so a per-game price only fills it when the sentence gave one.
+  fee: d.feeCents ? dollars(d.feeCents) : d.seasonFeeCents ? "" : v.fee,
+  feeSplit: d.feeCents ? !!d.feeSplit : v.feeSplit,
+  seasonFee: d.seasonFeeCents ? dollars(d.seasonFeeCents) : v.seasonFee,
+  target: d.targetPlayers ? String(d.targetPlayers) : v.target,
+  payNote: d.payNote ?? v.payNote,
   reminders: v.reminders,
 });
 

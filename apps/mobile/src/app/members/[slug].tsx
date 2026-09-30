@@ -84,9 +84,9 @@ function Members() {
       )}
       <Card>
         {members.map((m, i) => (
-          <View key={m.id} style={[{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 }, i > 0 && { borderTopWidth: 1, borderColor: t.border }]}>
+          <View key={m.id} style={[{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, flexWrap: "wrap" }, i > 0 && { borderTopWidth: 1, borderColor: t.border }]}>
             <Avatar name={m.name} />
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 150 }}>
               <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>{m.name}</Text>
               <Text style={{ color: t.muted, fontSize: 13 }}>
                 {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices ? `${m.devices} ${m.devices === 1 ? "device" : "devices"}` : "hasn't opened the link yet"}
@@ -101,6 +101,19 @@ function Members() {
             )}
             <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
               <Text style={{ color: t.accent, fontWeight: "700" }}>Merge</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${m.name}`}
+              hitSlop={8}
+              onPress={async () => {
+                if (await confirm(`Remove ${m.name}?`, "They'll be taken off the group, with their answers and payments. They can join again with the link.")) {
+                  await act(() => api.removeMember(slug, m.id));
+                }
+              }}
+              style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}
+            >
+              <Text style={{ color: t.danger, fontWeight: "700" }}>Remove</Text>
             </Pressable>
           </View>
         ))}

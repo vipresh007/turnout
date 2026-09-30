@@ -4,7 +4,12 @@ import { parseGroupSentence } from "./heuristic.ts";
 const instructions = `You turn one sentence describing a recurring gathering into a JSON group setup.
 Fields (omit any you cannot infer): name (short, friendly), activity (one word), location,
 weekdays (array of days played, 0=Sunday..6=Saturday), intervalWeeks (1 = every week, 2 = every other week),
-startTime ("HH:MM" 24h), durationMinutes, cap (max participants).
+startTime ("HH:MM" 24h), durationMinutes (from a time range like "8-10pm" = 120), cap (max participants),
+targetPlayers (players they aim for when there is no hard max), and cost in cents:
+- seasonFeeCents: a total paid up front for the whole season/term (e.g. "2500 for the season" = 250000)
+- feeCents + feeSplit=false: a fixed price each player pays per game (e.g. "$10 each" = 1000)
+- feeCents + feeSplit=true: one game's cost shared by whoever plays (e.g. "$150 court, split" = 15000)
+payNote: how to pay, if mentioned (e.g. "e-Transfer to sam@example.com").
 Reply with JSON only.`;
 
 /** Turns one sentence into a group draft with an Azure AI Foundry model, falling back to the rule-based parser. */
