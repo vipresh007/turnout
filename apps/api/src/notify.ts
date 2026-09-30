@@ -1,6 +1,7 @@
 import { EmailClient } from "@azure/communication-email";
 import webpush from "web-push";
 import type { Db } from "./db/client.ts";
+import { sendExpoPush } from "./organizerPush.ts";
 
 // Browser push (VAPID). The subject is a contact URL push services can reach us at.
 const vapid = process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
@@ -16,6 +17,9 @@ const email = process.env.ACS_CONNECTION_STRING && process.env.EMAIL_SENDER
 export const webUrl = () => process.env.WEB_URL ?? "http://localhost:8081";
 export const pushPublicKey = () => vapid?.publicKey ?? null;
 export const emailEnabled = () => email !== null;
+
+/** Marks a player's app push token stored alongside browser subscriptions. */
+export const APP_PUSH_PREFIX = "expo:";
 
 export interface Message {
   title: string;
@@ -37,9 +41,18 @@ export async function notifyMember(db: Db, memberId: string, message: Message): 
   ]);
   let sent = 0;
 
+  // Players with the Turnout app get it there; their rows hold "expo:<token>" instead of a browser endpoint.
+  const app = subs.filter((s) => s.endpoint.startsWith(APP_PUSH_PREFIX));
+  if (app.length) {
+    const path = new URL(message.url).pathname + new URL(message.url).search;
+    const { ok, gone } = await sendExpoPush(app.map((s) => ({ to: s.endpoint.slice(APP_PUSH_PREFIX.length), title: message.title, body: message.body, path })));
+    sent += ok;
+    if (gone.length) await db.query(`DELETE FROM push_subscriptions WHERE member_id = $1 AND endpoint = ANY($2::text[])`, [memberId, gone.map((t) => APP_PUSH_PREFIX + t)]);
+  }
+
   if (vapid) {
     const payload = JSON.stringify(message);
-    for (const s of subs) {
+    for (const s of subs.filter((sub) => !sub.endpoint.startsWith(APP_PUSH_PREFIX))) {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: "normal" });
         sent++;

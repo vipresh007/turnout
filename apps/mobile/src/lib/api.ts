@@ -45,6 +45,8 @@ async function request<T>(path: string, init: { method?: string; body?: unknown;
 }
 
 const membershipKey = (slug: string) => `membership:${slug}`;
+/** Groups joined on this device, newest first, so the app can list "Your games" without an account. */
+const JOINED_KEY = "joinedGroups";
 
 /** Events only the browser sees. Fire-and-forget: never blocks or breaks what the person is doing. */
 export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest";
@@ -65,8 +67,21 @@ export const memberships = {
     const raw = await storage.get(membershipKey(slug));
     return raw ? (JSON.parse(raw) as Membership) : null;
   },
-  forget: (slug: string) => storage.remove(membershipKey(slug)),
-  set: (slug: string, m: Membership) => storage.set(membershipKey(slug), JSON.stringify(m)),
+  forget: async (slug: string) => {
+    await storage.remove(membershipKey(slug));
+    await storage.set(JOINED_KEY, JSON.stringify((await memberships.slugs()).filter((s) => s !== slug)));
+  },
+  set: async (slug: string, m: Membership) => {
+    await storage.set(membershipKey(slug), JSON.stringify(m));
+    await storage.set(JOINED_KEY, JSON.stringify([slug, ...(await memberships.slugs()).filter((s) => s !== slug)]));
+  },
+  slugs: async (): Promise<string[]> => {
+    try {
+      return JSON.parse((await storage.get(JOINED_KEY)) ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  },
 };
 
 function createApi(authHeaders: () => Promise<Headers>) {
@@ -140,7 +155,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
       }
       const { member, token } = joined;
       const membership = { memberId: member.id, name: member.name, token };
-      await storage.set(membershipKey(slug), JSON.stringify(membership));
+      await memberships.set(slug, membership);
       return membership;
     },
     /** Claim a player the organizer added (nobody has opened the link as them yet). */
@@ -158,6 +173,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
     memberSelf: (slug: string, token: string) => request<MemberSelf>(`/groups/${slug}/me`, { headers: { "x-member-token": token } }),
     subscribePush: (slug: string, token: string, subscription: PushSubscriptionJSON) =>
       request<MemberSelf>(`/groups/${slug}/me/push`, { method: "PUT", body: subscription, headers: { "x-member-token": token } }),
+    subscribeAppPush: (slug: string, token: string, pushToken: string) =>
+      request<MemberSelf>(`/groups/${slug}/me/app-push`, { method: "PUT", body: { token: pushToken }, headers: { "x-member-token": token } }),
     unsubscribePush: (slug: string, token: string) =>
       request<MemberSelf>(`/groups/${slug}/me/push`, { method: "DELETE", headers: { "x-member-token": token } }),
     setEmail: (slug: string, token: string, email: string) =>

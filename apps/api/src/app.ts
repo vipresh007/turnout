@@ -18,6 +18,7 @@ import {
   parseGroupSchema,
   promotedMembers,
   pushSubscriptionSchema,
+  appPushSchema,
   rsvpSchema,
   saveTeamsSchema,
   seasonMemberSchema,
@@ -44,7 +45,7 @@ import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
 import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
-import { emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
+import { APP_PUSH_PREFIX, emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
 import { atLocal, currentSessionStart, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
@@ -833,6 +834,18 @@ export async function buildApp(db: Db) {
       `INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth) VALUES ($1, $2, $3, $4)
        ON CONFLICT (member_id, endpoint) DO UPDATE SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
       [member.id, sub.endpoint, sub.keys.p256dh, sub.keys.auth],
+    );
+    return memberSelf(member.id);
+  });
+
+  // The Turnout app on a player's phone: reminders arrive as app notifications.
+  app.put<SlugParams>("/groups/:slug/me/app-push", strict(20), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    const { token } = appPushSchema.parse(req.body);
+    await db.query(
+      `INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth) VALUES ($1, $2, '', '') ON CONFLICT (member_id, endpoint) DO NOTHING`,
+      [member.id, APP_PUSH_PREFIX + token],
     );
     return memberSelf(member.id);
   });

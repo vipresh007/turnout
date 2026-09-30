@@ -27,6 +27,8 @@ export default function RootLayout() {
           headerShadowVisible: false,
           contentStyle: { backgroundColor: t.bg },
           title: "Turnout",
+          // Just the arrow: the previous screen's title (e.g. the welcome page's long one) makes a huge back button.
+          headerBackButtonDisplayMode: "minimal",
           // On the web the site header (components/SiteHeader) is the only header.
           headerShown: Platform.OS !== "web",
         }}

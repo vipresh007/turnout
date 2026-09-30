@@ -46,7 +46,10 @@ export default function GroupScreen() {
     useCallback(() => {
       setFocused(true);
       load();
-      memberships.get(slug).then(setMe);
+      memberships.get(slug).then((m) => {
+        setMe(m);
+        if (m) memberships.set(slug, m); // keeps "Your games" in the app in recently-opened order
+      });
       return () => setFocused(false);
     }, [load, slug]),
   );

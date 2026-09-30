@@ -1,8 +1,11 @@
 import { router } from "expo-router";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { memberships } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Button } from "./ui";
+import { YourGames } from "./YourGames";
 
 const points: [string, string, string][] = [
   ["🔗", "One link for your group chat", "Share it once. Everyone taps it each week."],
@@ -10,8 +13,43 @@ const points: [string, string, string][] = [
   ["✨", "The busywork handles itself", "Waitlist, reminders, dropouts, teams and payments."],
 ];
 
-/** What the app shows when you're signed out: what Turnout is, a demo, and a way in. */
+/**
+ * What the app shows when you're signed out. Players who opened a group link here see their games;
+ * everyone else sees what Turnout is, a demo, and a way in for organizers.
+ */
 export function AppWelcome() {
+  const [player, setPlayer] = useState<boolean | null>(null);
+  useEffect(() => {
+    memberships.slugs().then((s) => setPlayer(s.length > 0));
+  }, []);
+  if (player === null) return null;
+  return player ? <PlayerHome /> : <Pitch />;
+}
+
+function PlayerHome() {
+  const t = useTheme();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, gap: 20 }}>
+        <View style={{ paddingTop: 12, gap: 4 }}>
+          <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
+            turnout<Text style={{ color: t.accent }}>.</Text>
+          </Text>
+          <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1, marginTop: 12 }}>Your games</Text>
+        </View>
+        <YourGames />
+        <View style={{ flex: 1 }} />
+        <Pressable accessibilityRole="button" onPress={() => router.push("/sign-in")} style={{ alignSelf: "center", padding: 8 }}>
+          <Text style={{ color: t.muted, fontSize: 14 }}>
+            Run your own game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start a group</Text>
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Pitch() {
   const t = useTheme();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>

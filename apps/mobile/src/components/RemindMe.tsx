@@ -1,12 +1,15 @@
 import type { MemberSelf } from "@turnout/shared";
 import { useCallback, useEffect, useState } from "react";
-import { Text, View } from "react-native";
+import { Platform, Text, View } from "react-native";
 import { useApi, type Membership } from "@/lib/api";
 import { browserSubscribed, pushSupport, subscribeBrowser, unsubscribeBrowser } from "@/lib/push";
+import { devicePushToken, pushPermission } from "@/lib/pushNative";
 import { useTheme } from "@/lib/theme";
 import { Button, Card, Field, Muted } from "./ui";
 
-/** Lets a member (no account) choose how to get reminders: browser notifications and/or email. */
+const inApp = Platform.OS !== "web";
+
+/** Lets a member (no account) choose how to get reminders: notifications (browser or this app) and/or email. */
 export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
   const t = useTheme();
   const api = useApi();
@@ -19,7 +22,11 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
   const support = pushSupport();
 
   const load = useCallback(
-    () => Promise.all([api.reminderOptions(), api.memberSelf(slug, me.token), browserSubscribed()]),
+    () => Promise.all([
+      api.reminderOptions(),
+      api.memberSelf(slug, me.token),
+      inApp ? pushPermission().then((p) => p === "granted") : browserSubscribed(),
+    ]),
     [api, slug, me.token],
   );
   const apply = useCallback(([o, s, sub]: Awaited<ReturnType<typeof load>>) => {
@@ -48,7 +55,7 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
   };
 
   if (!options || !self) return null;
-  const pushAvailable = !!options.publicKey && support !== "unsupported";
+  const pushAvailable = inApp || (!!options.publicKey && support !== "unsupported");
   if (!pushAvailable && !options.email) return null;
   const { channels } = self;
 
@@ -59,19 +66,24 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
 
       {pushAvailable && (
         <View style={{ gap: 6 }}>
-          {support === "ios-needs-home-screen" ? (
+          {!inApp && support === "ios-needs-home-screen" ? (
             <Muted>On iPhone: tap Share, then “Add to Home Screen”. Open Turnout from your Home Screen to turn on notifications.</Muted>
           ) : onThisDevice ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }}>✓ Notifications on for this device</Text>
               <Button label="Turn off" variant="secondary" loading={busy === "push-off"} onPress={() => run("push-off", async () => {
-                await unsubscribeBrowser();
+                if (!inApp) await unsubscribeBrowser();
                 return api.unsubscribePush(slug, me.token);
               })} />
             </View>
           ) : (
             <View style={{ flexDirection: "row" }}>
               <Button label="Turn on notifications" loading={busy === "push"} onPress={() => run("push", async () => {
+                if (inApp) {
+                  const token = await devicePushToken();
+                  if (!token) throw new Error("Notifications are off for Turnout. Turn them on in Settings, then try again.");
+                  return api.subscribeAppPush(slug, me.token, token);
+                }
                 const sub = await subscribeBrowser(options.publicKey!);
                 return api.subscribePush(slug, me.token, sub);
               })} />

@@ -652,3 +652,29 @@ test("organizer app: push tokens, activity feed, and deleting your account", asy
   assert.equal((await app.inject({ url: `/groups/${shared.slug}`, headers: partner })).json().viewer.role, "owner");
   assert.equal((await db.query(`SELECT 1 FROM organizer_push_tokens WHERE token = 'ExponentPushToken[abc123xyz]'`)).length, 0);
 });
+
+test("player app: reminders go to the phone through Expo push", async () => {
+  const { notifyMember } = await import("./notify.ts");
+  const group = (await app.inject({ method: "POST", url: "/groups", headers: organizer, payload: { name: "App Hoops", weekdays: [3], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  const pat = (await app.inject({ method: "POST", url: `/groups/${group.slug}/members`, payload: { name: "Pat" } })).json();
+  const me = { "x-member-token": pat.token };
+
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${group.slug}/me/app-push`, headers: me, payload: { token: "not-a-token" } })).statusCode, 400);
+  const self = (await app.inject({ method: "PUT", url: `/groups/${group.slug}/me/app-push`, headers: me, payload: { token: "ExponentPushToken[pat123]" } })).json();
+  assert.equal(self.channels.push, 1);
+
+  const realFetch = globalThis.fetch;
+  const sent: { to: string; data: { path: string } }[] = [];
+  globalThis.fetch = (async (_url: string, init: { body: string }) => {
+    sent.push(...JSON.parse(init.body));
+    return new Response(JSON.stringify({ data: [{ status: "error", details: { error: "DeviceNotRegistered" } }] }));
+  }) as typeof fetch;
+  try {
+    await notifyMember(db, pat.member.id, { title: "Tonight", body: "Are you in?", url: `https://turnout.example/g/${group.slug}?from=reminder` });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(sent.map((m) => [m.to, m.data.path]), [["ExponentPushToken[pat123]", `/g/${group.slug}?from=reminder`]]);
+  // Expo said the app was deleted, so the token is forgotten.
+  assert.equal((await app.inject({ url: `/groups/${group.slug}/me`, headers: me })).json().channels.push, 0);
+});

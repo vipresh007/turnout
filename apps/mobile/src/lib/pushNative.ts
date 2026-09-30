@@ -4,8 +4,8 @@ import { Platform } from "react-native";
 import type { Api } from "./api";
 import { storage } from "./storage";
 
-// Push notifications for organizers in the iOS/Android app (dropouts, autopilot heads-ups). The website uses
-// email for organizers and web push for players, so everything here is app-only.
+// Push notifications in the iOS/Android app: organizers (dropouts, autopilot heads-ups) and players who open
+// their group in the app (game reminders). The website uses email and web push instead.
 
 const TOKEN_KEY = "organizerPushToken";
 export const pushAvailable = Platform.OS !== "web";
@@ -20,14 +20,20 @@ export async function pushPermission(): Promise<"granted" | "denied" | "undeterm
   return status;
 }
 
-/** Ask for permission (if needed), get this phone's push token and register it for the signed-in organizer. */
-export async function enablePush(api: Api): Promise<boolean> {
-  if (!pushAvailable) return false;
+/** Ask for permission (if needed) and get this phone's push token. Null when notifications aren't allowed. */
+export async function devicePushToken(): Promise<string | null> {
+  if (!pushAvailable) return null;
   const { granted } = await Notifications.requestPermissionsAsync({ ios: { allowAlert: true, allowBadge: true, allowSound: true } });
-  if (!granted) return false;
+  if (!granted) return null;
   const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
   if (!projectId) throw new Error("Notifications aren't set up in this build yet.");
-  const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
+  return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+}
+
+/** Register this phone for the signed-in organizer's pushes. */
+export async function enablePush(api: Api): Promise<boolean> {
+  const token = await devicePushToken();
+  if (!token) return false;
   await api.setPushToken(token, Platform.OS === "ios" ? "ios" : "android");
   await storage.set(TOKEN_KEY, token);
   return true;
