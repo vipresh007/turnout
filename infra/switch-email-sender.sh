@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Finish moving Turnout's email to "Turnout <contact@dataeaver.ca>" once the domain's DNS records verify in ACS.
+# Finish moving Turnout's email to "Turnout <noreply@dataeaver.ca>" once the domain's DNS records verify in ACS.
 #   ./infra/switch-email-sender.sh test|live|both
 # Needs CUSTOM_EMAIL_DOMAIN (and optionally EMAIL_SENDER_USERNAME) in infra/.env.infra.
 set -euo pipefail
@@ -7,7 +7,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 set -a; . "$HERE/.env.infra"; set +a
 RG="${RESOURCE_GROUP:-rg-turnout}"
 DOMAIN="${CUSTOM_EMAIL_DOMAIN:?set CUSTOM_EMAIL_DOMAIN in infra/.env.infra}"
-USER_PART="${EMAIL_SENDER_USERNAME:-contact}"
+USER_PART="${EMAIL_SENDER_USERNAME:-noreply}"
 TARGETS="${1:-test}"; [ "$TARGETS" = both ] && TARGETS="test live"
 ECS="$(az resource list -g "$RG" --resource-type Microsoft.Communication/emailServices --query '[0].name' -o tsv)"
 ACS="$(az resource list -g "$RG" --resource-type Microsoft.Communication/CommunicationServices --query '[0].name' -o tsv)"

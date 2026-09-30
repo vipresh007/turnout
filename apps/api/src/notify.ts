@@ -85,6 +85,9 @@ export async function sendEmail(
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+/** Where people can actually reach us; emails are sent from a no-reply address. */
+export const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL ?? "contact@dataeaver.ca";
+
 /** The one look for every Turnout email: dark card, green accents, the same logo and footer. */
 export const EMAIL = { bg: "#0E1113", card: "#171B1F", border: "#262B31", text: "#F3F4F6", muted: "#9CA3AF", faint: "#6B7280", accent: "#22C55E", button: "#16A34A" };
 
@@ -99,7 +102,7 @@ export function emailShell(rows: string, footer = ""): string {
       ${rows}
       ${footer ? `<tr><td style="padding:0 32px 32px;font-size:12px;line-height:18px;color:${c.faint}">${footer}</td></tr>` : `<tr><td style="padding-bottom:32px"></td></tr>`}
     </table>
-    <p style="font-size:12px;color:${c.faint};margin:16px 0 0">Turnout · stop asking who's playing</p>
+    <p style="font-size:12px;line-height:18px;color:${c.faint};margin:16px 0 0">Turnout · stop asking who's playing<br>This address doesn't read replies. Questions? <a href="mailto:${SUPPORT_EMAIL}" style="color:${c.muted}">${SUPPORT_EMAIL}</a></p>
   </td></tr></table></body></html>`);
 }
 

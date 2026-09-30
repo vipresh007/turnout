@@ -24,7 +24,7 @@ param webDomains object = { test: '', live: '' }
 param customEmailDomain string = ''
 
 @description('The part before @ for the custom email sender.')
-param emailSenderUsername string = 'contact'
+param emailSenderUsername string = 'noreply'
 
 @description('Organizer emails that can see product metrics, comma-separated')
 param adminEmails string = ''
@@ -122,7 +122,7 @@ resource aiDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-
 }
 
 // Email through Azure Communication Services. With customEmailDomain set (its DNS records verified in ACS),
-// Turnout sends as "Turnout <contact@that domain>"; otherwise from the Azure-managed DoNotReply address.
+// Turnout sends as "Turnout <noreply@that domain>"; otherwise from the Azure-managed DoNotReply address.
 resource emailService 'Microsoft.Communication/emailServices@2023-04-01' = {
   name: 'ecs-turnout-${suffix}'
   location: 'global'
