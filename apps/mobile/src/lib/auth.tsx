@@ -106,8 +106,9 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
       window.location.assign(request.url);
       return;
     }
-    // Native: the system's in-app browser sheet.
-    const result = await promptAsync();
+    // Native: the system's in-app browser sheet. Ephemeral, so no sign-in cookie outlives it: signing out really
+    // signs out, and Entra never shows its "only continue if you trust this app" page for a remembered session.
+    const result = await promptAsync({ preferEphemeralSession: true });
     if (result.type !== "success") return;
     await exchange(result.params.code!, request.codeVerifier!);
   };

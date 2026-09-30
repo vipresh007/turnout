@@ -42,7 +42,7 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-router",
+      ["expo-router", { "origin": "https://turnout.dataeaver.ca" }],
       "expo-secure-store",
       "expo-web-browser",
       [
