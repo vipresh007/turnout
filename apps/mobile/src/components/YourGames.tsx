@@ -8,8 +8,11 @@ import { useTheme } from "@/lib/theme";
 
 type Game = { slug: string; page: GroupPage; memberId: string };
 
-/** Groups this phone has joined (players have no account), each with this week's game and your answer. */
-export function YourGames() {
+/**
+ * Groups this phone has joined (players have no account), each with this week's game and your answer.
+ * With a `title` (organizer Home), groups in `exclude` are left out and nothing renders when none are left.
+ */
+export function YourGames({ title, exclude = [] }: { title?: string; exclude?: string[] } = {}) {
   const t = useTheme();
   const api = useApi();
   const [games, setGames] = useState<Game[] | null>(null);
@@ -38,10 +41,13 @@ export function YourGames() {
     }, [api]),
   );
 
-  if (!games) return <ActivityIndicator style={{ marginTop: 24 }} />;
+  if (!games) return title ? null : <ActivityIndicator style={{ marginTop: 24 }} />;
+  const shown = games.filter((g) => !exclude.includes(g.slug));
+  if (title && shown.length === 0) return null;
   return (
     <View style={{ gap: 12 }}>
-      {games.map(({ slug, page, memberId }) => {
+      {title && <Text style={{ color: t.text, fontSize: 18, fontWeight: "800" }}>{title}</Text>}
+      {shown.map(({ slug, page, memberId }) => {
         const { group, session, roster } = page;
         const place = placeOf(roster, memberId);
         const answer = session.cancelled

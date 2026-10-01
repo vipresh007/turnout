@@ -7,6 +7,7 @@ import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
+import { YourGames } from "@/components/YourGames";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
@@ -169,6 +170,7 @@ function DashboardView() {
                 </View>
               </View>
             </View>
+            {Platform.OS !== "web" && <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />}
             {/* Asks come last, so the games stay on top. */}
             {organizer.askFeedback && <FeedbackAsk />}
             {organizer.askPricing && <PricingAsk />}
