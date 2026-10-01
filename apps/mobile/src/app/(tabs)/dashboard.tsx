@@ -159,7 +159,8 @@ function DashboardView() {
                   <Regulars stats={data.stats} />
                 </Reveal>
               </View>
-              <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
+              {/* The app has an Activity tab for this; the website shows it here. */}
+              {Platform.OS === "web" && <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
                 <Text style={s.sectionTitle}>Recent activity</Text>
                 <View style={s.card}>
                   {activity.length === 0 ? (
@@ -168,7 +169,7 @@ function DashboardView() {
                     activity.map((a, i) => <ActivityRow key={`${a.groupSlug}-${a.name}-${a.at}`} item={a} last={i === activity.length - 1} />)
                   )}
                 </View>
-              </View>
+              </View>}
             </View>
             {Platform.OS !== "web" && <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />}
             {/* Asks come last, so the games stay on top. */}
