@@ -1,6 +1,6 @@
 import { Redirect, Slot, Tabs } from "expo-router";
 import { Platform } from "react-native";
-import { AccountIcon, ActivityIcon, GroupsIcon, HomeIcon } from "@/components/TabIcons";
+import { AccountIcon, InsightsIcon, GroupsIcon, HomeIcon } from "@/components/TabIcons";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -28,7 +28,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="dashboard" options={{ title: "Home", headerTitle: "Turnout", tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
       <Tabs.Screen name="groups" options={{ title: "Groups", tabBarIcon: ({ color }) => <GroupsIcon color={color} /> }} />
-      <Tabs.Screen name="activity" options={{ title: "Activity", tabBarIcon: ({ color }) => <ActivityIcon color={color} /> }} />
+      <Tabs.Screen name="activity" options={{ title: "Insights", tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ({ color }) => <AccountIcon color={color} /> }} />
     </Tabs>
   );

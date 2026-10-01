@@ -2,7 +2,7 @@ import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { CalendarView, Regulars, TurnoutChart } from "@/components/DashboardInsights";
+import { CalendarView, Regulars, StatRow, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
@@ -83,8 +83,6 @@ function DashboardView() {
 
   const { organizer, groups, activity } = data;
   const displayName = organizer.name ?? organizer.email?.split("@")[0] ?? null;
-  const playersIn = groups.filter((g) => !g.session.cancelled).reduce((n, g) => n + g.confirmed, 0);
-  const spots = groups.filter((g) => !g.session.cancelled).reduce((n, g) => n + (g.group.cap ?? 0), 0);
   const next = groups.find((g) => !g.session.cancelled) ?? groups[0];
   const others = groups.filter((g) => g !== next);
   const tile = (g: DashboardGroup) => (
@@ -141,14 +139,11 @@ function DashboardView() {
               <CalendarView groups={groups} />
             </Reveal>
 
-            {/* Insights below the operational stuff. */}
+            {/* Insights below the operational stuff. The app has them in their own tab. */}
+            {web && <>
             <View style={{ gap: 12 }}>
               <Text style={s.sectionTitle}>Insights</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-                <Stat label="Groups" value={String(groups.length)} hint="running" />
-                <Stat label="Players in this week" value={String(playersIn)} hint={spots ? `of ${spots} spots` : "across your groups"} />
-                <Stat label="Fill rate" value={data.stats.fillRate === null ? "–" : `${Math.round(data.stats.fillRate * 100)}%`} hint="past 8 weeks" />
-              </View>
+              <StatRow groups={groups} stats={data.stats} />
             </View>
             <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
               <View style={{ flex: wide ? 1.3 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
@@ -159,8 +154,7 @@ function DashboardView() {
                   <Regulars stats={data.stats} />
                 </Reveal>
               </View>
-              {/* The app has an Activity tab for this; the website shows it here. */}
-              {Platform.OS === "web" && <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
+              <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
                 <Text style={s.sectionTitle}>Recent activity</Text>
                 <View style={s.card}>
                   {activity.length === 0 ? (
@@ -169,8 +163,9 @@ function DashboardView() {
                     activity.map((a, i) => <ActivityRow key={`${a.groupSlug}-${a.name}-${a.at}`} item={a} last={i === activity.length - 1} />)
                   )}
                 </View>
-              </View>}
+              </View>
             </View>
+            </>}
             {Platform.OS !== "web" && <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />}
             {/* Asks come last, so the games stay on top. */}
             {organizer.askFeedback && <FeedbackAsk />}
@@ -180,21 +175,6 @@ function DashboardView() {
         {error && <Text style={{ color: t.danger }}>{error}</Text>}
       </View>
     </RevealScrollView>
-  );
-}
-
-function Stat({ label, value, hint, accent }: { label: string; value: string; hint: string; accent?: boolean }) {
-  const t = useTheme();
-  const s = styles(t);
-  const wide = useWindowDimensions().width >= 900;
-  return (
-    <View style={[s.card, { flexGrow: 1, flexBasis: wide ? "30%" : "40%", minWidth: 140, gap: 4 }, accent && { borderColor: t.accent, backgroundColor: t.soft }]}>
-      <Text style={s.label}>{label}</Text>
-      <Text style={{ color: accent ? t.accent : t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1 }}>{value}</Text>
-      <Text style={s.muted} numberOfLines={1}>
-        {hint}
-      </Text>
-    </View>
   );
 }
 

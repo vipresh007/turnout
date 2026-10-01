@@ -20,9 +20,9 @@ export const GroupsIcon = ({ color, size = 24 }: IconProps) => (
   </Svg>
 );
 
-export const ActivityIcon = ({ color, size = 24 }: IconProps) => (
+export const InsightsIcon = ({ color, size = 24 }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
-    <Path {...stroke(color)} d="M3 12h4l3-8 4 16 3-8h4" />
+    <Path {...stroke(color)} d="M6 20v-7M12 20V5M18 20v-10M3 20h18" />
   </Svg>
 );
 

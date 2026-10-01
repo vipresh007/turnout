@@ -353,3 +353,30 @@ const styles = (t: Theme) =>
     bar: { width: "70%", borderTopLeftRadius: 4, borderTopRightRadius: 4 },
     axisLabel: { color: t.muted, fontSize: 10, position: "absolute", bottom: -18 },
   });
+
+/** One headline number (Groups, Players in this week, Fill rate). */
+export function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
+  const t = useTheme();
+  const wide = useWindowDimensions().width >= 900;
+  return (
+    <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 18, padding: 18, flexGrow: 1, flexBasis: wide ? "30%" : "40%", minWidth: 140, gap: 4 }}>
+      <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>{label}</Text>
+      <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1 }}>{value}</Text>
+      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }} numberOfLines={1}>{hint}</Text>
+    </View>
+  );
+}
+
+/** The three headline numbers across all your groups. */
+export function StatRow({ groups, stats }: { groups: DashboardGroup[]; stats: OrganizerStats }) {
+  const live = groups.filter((g) => !g.session.cancelled);
+  const playersIn = live.reduce((n, g) => n + g.confirmed, 0);
+  const spots = live.reduce((n, g) => n + (g.group.cap ?? 0), 0);
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+      <Stat label="Groups" value={String(groups.length)} hint="running" />
+      <Stat label="Players in this week" value={String(playersIn)} hint={spots ? `of ${spots} spots` : "across your groups"} />
+      <Stat label="Fill rate" value={stats.fillRate === null ? "–" : `${Math.round(stats.fillRate * 100)}%`} hint="past 8 weeks" />
+    </View>
+  );
+}

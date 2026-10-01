@@ -1,7 +1,8 @@
-import type { ActivityItem } from "@turnout/shared";
+import type { ActivityItem, Dashboard } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Regulars, StatRow, TurnoutChart } from "@/components/DashboardInsights";
 import { SignInGate } from "@/components/SignInGate";
 import { Muted } from "@/components/ui";
 import { useApi } from "@/lib/api";
@@ -10,30 +11,45 @@ import { useTheme } from "@/lib/theme";
 
 export default function ActivityScreen() {
   return (
-    <SignInGate reason="Sign in to see what's happening in your groups.">
+    <SignInGate reason="Sign in to see how your groups are doing.">
       <Activity />
     </SignInGate>
   );
 }
 
-/** Who said in or out, across all your groups, newest first. */
+/** The app's Insights tab: headline numbers, turnout over time, your regulars, then who said in or out lately. */
 function Activity() {
   const t = useTheme();
   const api = useApi();
   const [items, setItems] = useState<ActivityItem[] | null>(null);
+  const [dash, setDash] = useState<Dashboard | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(() => api.activity().then((r) => setItems(r.activity), (e: Error) => setError(e.message)), [api]);
+  const load = useCallback(
+    () => Promise.all([api.activity(), api.dashboard()]).then(([a, d]) => {
+      setItems(a.activity);
+      setDash(d);
+    }, (e: Error) => setError(e.message)),
+    [api],
+  );
   useFocusEffect(useCallback(() => void load(), [load]));
 
   return (
     <ScrollView
       style={{ backgroundColor: t.bg }}
-      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 16 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
     >
       {!items && !error && <ActivityIndicator style={{ marginTop: 32 }} />}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
+      {dash && dash.groups.length > 0 && (
+        <>
+          <StatRow groups={dash.groups} stats={dash.stats} />
+          <TurnoutChart stats={dash.stats} />
+          <Regulars stats={dash.stats} />
+        </>
+      )}
+      {items && <Text style={{ color: t.text, fontSize: 18, fontWeight: "800" }}>Recent activity</Text>}
       {items?.length === 0 && <Muted>Nothing yet. When players answer, it shows up here.</Muted>}
       {items && items.length > 0 && (
         <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14 }}>
