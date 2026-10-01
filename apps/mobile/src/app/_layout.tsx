@@ -6,6 +6,10 @@ import { NotificationRouter } from "@/components/NotificationRouter";
 import { AuthProvider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
+// A screen opened from a link (a group page, say) always has home underneath, so the back arrow
+// leads to "Your games" for players, or the tabs for a signed-in organizer.
+export const unstable_settings = { initialRouteName: "index" };
+
 export default function RootLayout() {
   const t = useTheme();
   return (
