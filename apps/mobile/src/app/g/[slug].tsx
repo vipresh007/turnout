@@ -156,7 +156,8 @@ export default function GroupScreen() {
 
   return (
     <Screen signInLabel="Organizer? Sign in">
-      <Stack.Screen options={{ title: group.name, headerShown: Platform.OS !== "web" }} />
+      {/* The page already shows the name large; the nav bar only needs the back arrow. */}
+      <Stack.Screen options={{ title: group.name, headerTitle: "", headerShown: Platform.OS !== "web" }} />
 
       {created && viewer.isOrganizer && <ReadyCard page={page} shareInput={shareInput} onDone={() => router.setParams({ created: undefined })} />}
 
