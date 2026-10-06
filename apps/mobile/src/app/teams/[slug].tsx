@@ -142,7 +142,7 @@ function TeamMaker() {
           ))}
         </View>
         <View style={{ flexDirection: "row" }}>
-          <Button label={teams ? "🔀 Shuffle" : "Make teams"} onPress={make} big={!teams} variant={teams ? "secondary" : "primary"} />
+          <Button icon={teams ? "shuffle" : undefined} label={teams ? "Shuffle" : "Make teams"} onPress={make} big={!teams} variant={teams ? "secondary" : "primary"} />
         </View>
       </Card>
 

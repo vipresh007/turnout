@@ -88,8 +88,8 @@ function Account() {
       )}
 
       <Card>
-        {account?.isAdmin && <Row label="📈 Metrics" onPress={() => router.push("/admin")} />}
-        <Row label="💡 Suggest an improvement" onPress={() => router.push("/feedback")} />
+        {account?.isAdmin && <Row label="Metrics" onPress={() => router.push("/admin")} />}
+        <Row label="Suggest an improvement" onPress={() => router.push("/feedback")} />
         <Row label="Privacy policy" onPress={() => router.push("/privacy")} />
         <Row label="Terms of service" onPress={() => router.push("/terms")} />
         <Row label="Sign out" onPress={doSignOut} />

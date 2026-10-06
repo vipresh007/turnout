@@ -4,12 +4,13 @@ import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Linking, Platform, Pressable, Text, View } from "react-native";
 import { ActionGrid, ActionTile } from "@/components/ActionTile";
+import { Icon } from "@/components/Icon";
 import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { RemindMe } from "@/components/RemindMe";
 import { ReadyCard } from "@/components/ReadyCard";
 import { ShareCard } from "@/components/ShareCard";
-import { Button, Card, Field, Muted, Screen, Title, webTransition } from "@/components/ui";
+import { Button, Card, Eyebrow, Field, IconLine, Muted, Pill, Screen, SectionTitle, Title, webTransition } from "@/components/ui";
 import { ApiError, calendarUrl, memberships, NameTakenError, shareUrl, trackEvent, type Membership, useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
 import { hoursUntil, mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
@@ -161,26 +162,26 @@ export default function GroupScreen() {
 
       <View style={{ gap: 4 }}>
         <Title>{group.name}</Title>
-        <Text style={{ color: t.muted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>{describeRecurrence(group)}</Text>
+        <Eyebrow>{describeRecurrence(group)}</Eyebrow>
         <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>
           {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
           <Text style={{ color: t.accent }}> · {relativeDay(session.startsAt, group.timezone)}</Text>
         </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 2 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16, marginTop: 4 }}>
           {where && (
             <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(where))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-              <Text style={{ color: t.muted }}>📍 <Text style={{ textDecorationLine: "underline" }}>{where}</Text></Text>
+              <IconLine icon="pin">{where}</IconLine>
             </Pressable>
           )}
           <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-            <Text style={{ color: t.muted }}>📅 <Text style={{ textDecorationLine: "underline" }}>Add to calendar</Text></Text>
+            <IconLine icon="calendar">Add to calendar</IconLine>
           </Pressable>
         </View>
       </View>
 
       {!session.cancelled && (moved || session.location || session.note) && (
         <View style={{ backgroundColor: t.soft, borderColor: t.waitlist, borderWidth: 1, borderRadius: 14, padding: 14, gap: 4 }}>
-          <Text style={{ color: t.text, fontWeight: "800" }}>⚠️ Change for this week</Text>
+          <SectionTitle icon="warning">Change for this week</SectionTitle>
           {moved && <Text style={{ color: t.text }}>New time: {new Date(session.startsAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone })} (usually {new Date(session.scheduledAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone })})</Text>}
           {session.location && <Text style={{ color: t.text }}>Place: {session.location}</Text>}
           {session.note && <Text style={{ color: t.muted }}>“{session.note}”</Text>}
@@ -205,13 +206,13 @@ export default function GroupScreen() {
         <Card>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
             <Bump value={roster.confirmed.length}>
-              <Text style={{ color: t.text, fontSize: 56, fontWeight: "800", letterSpacing: -2 }}>{roster.confirmed.length}</Text>
+              <Text style={{ color: t.text, fontSize: 56, fontWeight: "800", letterSpacing: -2, fontVariant: ["tabular-nums"] }}>{roster.confirmed.length}</Text>
             </Bump>
             <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : goal ? `in · aiming for ${goal}` : "in"}</Text>
           </View>
           {goal && (
-            <View style={{ height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
-              <View style={{ height: "100%", borderRadius: 4, backgroundColor: t.accent, width: `${Math.min(100, (roster.confirmed.length / goal) * 100)}%` }} />
+            <View style={{ height: 10, borderRadius: 5, backgroundColor: t.border, overflow: "hidden" }}>
+              <View style={{ height: "100%", borderRadius: 5, backgroundColor: t.accent, width: `${Math.min(100, (roster.confirmed.length / goal) * 100)}%` }} />
             </View>
           )}
           {roster.waitlist.length > 0 && <Text style={{ color: t.waitlist, fontWeight: "600" }}>{roster.waitlist.length} on the waitlist</Text>}
@@ -274,7 +275,7 @@ export default function GroupScreen() {
 
       {viewer.isOrganizer && (
         <Card>
-          <Text style={{ color: t.muted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>Organizer</Text>
+          <Eyebrow>Organizer</Eyebrow>
           <ForecastCard page={page} onAsk={(name) => {
             trackEvent("invite_asked", slug, { status: page.organizer?.forecast?.status ?? "none", from: "group" });
             share(inviteMessage(name.split(" ")[0]!, group.name, page.organizer?.forecast?.short || roster.spotsLeft, shortWhen(session.startsAt, group.timezone), link));
@@ -324,9 +325,7 @@ export default function GroupScreen() {
           )}
           {page.season && <SeasonCard page={page} onShare={share} onChanged={() => void load()} />}
           {paidSet && roster.confirmed.length > 0 && !page.season && (
-            <Text style={{ color: t.muted }}>
-              💵 {paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))}
-            </Text>
+            <IconLine icon="cash">{paidLine(roster.confirmed.filter((r) => paidSet.has(r.memberId)).length, roster.confirmed.length, shareCents(group, roster.confirmed.length))}</IconLine>
           )}
           <Pressable
             accessibilityRole="button"
@@ -380,8 +379,11 @@ function ForecastCard({ page, onAsk }: { page: GroupPage; onAsk: (name: string) 
   const showDetail = forecast.status !== "full" || (hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0);
   const ask = forecast.status === "full" ? [] : forecast.likely.slice(0, Math.max(2, forecast.short + 1));
   return (
-    <View style={{ backgroundColor: t.soft, borderRadius: 12, padding: 12, gap: 8 }}>
-      <Text style={{ color: t.text, fontWeight: "800" }}>{headline}</Text>
+    <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Icon name={forecast.status === "short" ? "warning" : "check"} size={18} color={forecast.status === "short" ? t.waitlist : t.accent} strokeWidth={2.2} />
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 15 }}>{headline}</Text>
+      </View>
       {showDetail && <Text style={{ color: t.text }}>{detail}</Text>}
       {ask.length > 0 && (
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
@@ -419,13 +421,13 @@ function SeasonLine({ page, me }: { page: GroupPage; me: Membership | null }) {
   const fee = season.shareCents !== null ? formatMoney(season.shareCents) : null;
   const drop = group.feeCents ? formatMoney(group.feeCents) : null;
   let line: string | null;
-  if (status?.member) line = fee ? `Season fee ${fee} · ${status.paid ? "✅ paid, thanks!" : "due before the first game"}` : null;
+  if (status?.member) line = fee ? `Season fee ${fee} · ${status.paid ? "paid, thanks!" : "due before the first game"}` : null;
   else if (status) line = drop ? `Playing as a sub: ${drop} this game` : "Playing as a sub this game";
   else line = [fee && `Season members: ${fee} for the season`, drop && `subs ${drop} a game`].filter(Boolean).join(" · ") || null;
   if (!line) return null;
   return (
     <View style={{ gap: 2 }}>
-      <Text style={{ color: t.text, fontWeight: "700" }}>💵 {line}</Text>
+      <IconLine icon="cash" color={t.text}>{line}</IconLine>
       {group.payNote && !status?.paid && <Text style={{ color: t.muted }}>{group.payNote}</Text>}
     </View>
   );
@@ -444,7 +446,7 @@ function SeasonCard({ page, onShare, onChanged }: { page: GroupPage; onShare: (t
   const share = season.shareCents;
   return (
     <View style={{ backgroundColor: t.soft, borderRadius: 12, padding: 12, gap: 8 }}>
-      <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700", letterSpacing: 0.6 }}>SEASON</Text>
+      <Eyebrow>Season</Eyebrow>
       {members ? (
         <>
           <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }}>
@@ -508,7 +510,7 @@ function CostLine({ cost, payNote }: { cost: string | null; payNote: string | nu
   if (!cost) return null;
   return (
     <View style={{ gap: 2 }}>
-      <Text style={{ color: t.text, fontWeight: "700" }}>💵 {cost}</Text>
+      <IconLine icon="cash" color={t.text}>{cost}</IconLine>
       {payNote && <Text style={{ color: t.muted }}>{payNote}</Text>}
     </View>
   );
@@ -528,9 +530,7 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lat
   const t = useTheme();
   return (
     <Card>
-      <Text style={{ color: t.muted, fontSize: 13, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
-        {title} · {people.length}
-      </Text>
+      <Eyebrow>{title} · {people.length}</Eyebrow>
       {people.length === 0 && <Muted>Nobody yet. Be the first!</Muted>}
       {people.map((p, i) => (
         <Pop key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -540,16 +540,8 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lat
             <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
               {p.name}
             </Text>
-            {seasonMembers && !seasonMembers.has(p.memberId) && (
-              <View style={{ borderWidth: 1, borderColor: t.border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: t.muted, fontSize: 11, fontWeight: "800" }}>sub</Text>
-              </View>
-            )}
-            {lateDrops?.has(p.memberId) && (
-              <View style={{ borderWidth: 1, borderColor: t.waitlist, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: t.waitlist, fontSize: 11, fontWeight: "800" }}>late drop</Text>
-              </View>
-            )}
+            {seasonMembers && !seasonMembers.has(p.memberId) && <Pill label="sub" />}
+            {lateDrops?.has(p.memberId) && <Pill label="late drop" color={t.waitlist} />}
           </View>
           {onTogglePaid && paid && !seasonMembers?.has(p.memberId) && (
             <Pressable
@@ -584,12 +576,16 @@ function TeamsCard({ teams, roster, groupName, onShare }: { teams: string[][]; r
   const text = teamsText(groupName, named);
   return (
     <Card>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>🏁 Teams</Text>
-        <Pressable accessibilityRole="button" onPress={() => onShare(text)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-          <Text style={{ color: t.accent, fontWeight: "700" }}>Share</Text>
-        </Pressable>
-      </View>
+      <SectionTitle
+        icon="flag"
+        right={
+          <Pressable accessibilityRole="button" onPress={() => onShare(text)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
+            <Text style={{ color: t.accent, fontWeight: "700" }}>Share</Text>
+          </Pressable>
+        }
+      >
+        Teams
+      </SectionTitle>
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
         {named.map((ns, i) => (
           <View key={i} style={{ flexGrow: 1, flexBasis: "45%", backgroundColor: t.bg, borderRadius: 12, padding: 12, gap: 4 }}>
@@ -688,7 +684,7 @@ function IdentityPrompt({ existing, step, onThatsMe, onSomeoneElse, onJoinAs }: 
   if (step === "emailSent") {
     return (
       <View style={{ gap: 6 }}>
-        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>📬 Check your email on this phone</Text>
+        <SectionTitle icon="mail">Check your email on this phone</SectionTitle>
         <Muted>We sent a link to the address {existing.name} uses for reminders. Open it here and you'll pick up where you left off.</Muted>
       </View>
     );

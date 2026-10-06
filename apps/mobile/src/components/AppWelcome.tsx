@@ -4,13 +4,14 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { memberships } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
+import { Icon, type IconName } from "./Icon";
 import { Button } from "./ui";
 import { YourGames } from "./YourGames";
 
-const points: [string, string, string][] = [
-  ["🔗", "One link for your group chat", "Share it once. Everyone taps it each week."],
-  ["👋", "Players just tap I'm in", "No app, no account. They answer in seconds."],
-  ["✨", "The busywork handles itself", "Waitlist, reminders, dropouts, teams and payments."],
+const points: [IconName, string, string][] = [
+  ["link", "One link for your group chat", "Share it once. Everyone taps it each week."],
+  ["check", "Players just tap I'm in", "No app, no account. They answer in seconds."],
+  ["sparkles", "The busywork handles itself", "Waitlist, reminders, dropouts, teams and payments."],
 ];
 
 /**
@@ -68,7 +69,7 @@ function Pitch() {
             {points.map(([icon, title, body]) => (
               <View key={title} style={{ flexDirection: "row", gap: 14, alignItems: "flex-start" }}>
                 <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 20 }}>{icon}</Text>
+                  <Icon name={icon} size={22} color={t.accent} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ color: t.text, fontSize: 16, fontWeight: "800" }}>{title}</Text>

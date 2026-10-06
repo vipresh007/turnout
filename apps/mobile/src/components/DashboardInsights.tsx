@@ -308,7 +308,6 @@ function Metric({ label, value, hint }: { label: string; value: string; hint: st
 export function Regulars({ stats }: { stats: OrganizerStats }) {
   const t = useTheme();
   const s = styles(t);
-  const medals = ["🥇", "🥈", "🥉"];
   return (
     <View style={[s.card, { gap: 10 }]}>
       <Text style={s.cardTitle}>Your regulars</Text>
@@ -317,7 +316,9 @@ export function Regulars({ stats }: { stats: OrganizerStats }) {
       ) : (
         stats.regulars.map((r, i) => (
           <View key={`${r.name}-${r.groupName}`} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text style={{ width: 24, fontSize: 18, textAlign: "center", color: t.muted, fontWeight: "800" }}>{medals[i] ?? `${i + 1}`}</Text>
+            <View style={{ width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: i === 0 ? t.accent : t.soft }}>
+              <Text style={{ color: i === 0 ? t.accentText : t.accent, fontWeight: "900", fontSize: 12, fontVariant: ["tabular-nums"] }}>{i + 1}</Text>
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: t.text, fontWeight: "700", fontSize: 15 }}>{r.name}</Text>
               <Text style={[s.muted, { fontSize: 13 }]} numberOfLines={1}>

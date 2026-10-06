@@ -5,7 +5,7 @@ import { enablePush, hasPushToken, pushAvailable, pushPermission } from "@/lib/p
 import { storage } from "@/lib/storage";
 import { useTheme } from "@/lib/theme";
 import { Pop } from "./motion";
-import { Button } from "./ui";
+import { Button, SectionTitle } from "./ui";
 
 const DISMISSED = "pushPromptDismissed";
 
@@ -25,8 +25,8 @@ export function PushPrompt() {
     setShow(false);
   };
   return (
-    <Pop style={{ backgroundColor: t.card, borderColor: t.accent, borderWidth: 1, borderRadius: 20, padding: 16, gap: 10 }}>
-      <Text style={{ color: t.text, fontSize: 16, fontWeight: "800" }}>🔔 Know the moment someone drops out</Text>
+    <Pop style={{ backgroundColor: t.card, borderColor: t.accent, borderWidth: 1, borderRadius: 20, padding: 18, gap: 10 }}>
+      <SectionTitle icon="bell">Know the moment someone drops out</SectionTitle>
       <Text style={{ color: t.text }}>Turnout can tell you when a player drops out or a game looks short, so you can fill the spot in time.</Text>
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button

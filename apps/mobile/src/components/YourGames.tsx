@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { ApiError, memberships, useApi } from "@/lib/api";
 import { relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
+import { Pill } from "./ui";
 
 type Game = { slug: string; page: GroupPage; memberId: string };
 
@@ -51,14 +52,14 @@ export function YourGames({ title, exclude = [] }: { title?: string; exclude?: s
         const { group, session, roster } = page;
         const place = placeOf(roster, memberId);
         const answer = session.cancelled
-          ? { text: "No game this week", color: t.danger }
+          ? { label: "No game this week", color: t.danger, icon: "x" as const }
           : place.kind === "confirmed"
-            ? { text: "✅ You're in", color: t.accent }
+            ? { label: "You're in", color: t.accent, icon: "check" as const }
             : place.kind === "waitlist"
-              ? { text: `⏳ Waitlist #${place.position}`, color: t.waitlist }
+              ? { label: `Waitlist #${place.position}`, color: t.waitlist, icon: "hourglass" as const }
               : place.kind === "out"
-                ? { text: "❌ You're out", color: t.muted }
-                : { text: "Tap to answer", color: t.waitlist };
+                ? { label: "You're out", color: t.muted, icon: "x" as const }
+                : { label: "Tap to answer", color: t.waitlist, icon: "arrowRight" as const };
         const goal = group.cap ?? group.targetPlayers;
         return (
           <Pressable
@@ -76,9 +77,9 @@ export function YourGames({ title, exclude = [] }: { title?: string; exclude?: s
               {(session.location ?? group.location) ? ` · ${session.location ?? group.location}` : ""}
             </Text>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-              <Text style={{ color: answer.color, fontWeight: "800" }}>{answer.text}</Text>
+              <Pill {...answer} />
               {!session.cancelled && (
-                <Text style={{ color: t.muted, fontWeight: "700" }}>
+                <Text style={{ color: t.muted, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
                   {roster.confirmed.length}{goal ? ` / ${goal}` : ""} in
                 </Text>
               )}

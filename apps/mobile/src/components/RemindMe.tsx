@@ -5,7 +5,7 @@ import { useApi, type Membership } from "@/lib/api";
 import { browserSubscribed, pushSupport, subscribeBrowser, unsubscribeBrowser } from "@/lib/push";
 import { devicePushToken, pushPermission } from "@/lib/pushNative";
 import { useTheme } from "@/lib/theme";
-import { Button, Card, Field, Muted } from "./ui";
+import { Button, Card, Field, Muted, SectionTitle } from "./ui";
 
 const inApp = Platform.OS !== "web";
 
@@ -61,7 +61,7 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
 
   return (
     <Card>
-      <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>🔔 Remind me before the game</Text>
+      <SectionTitle icon="bell">Remind me before the game</SectionTitle>
       <Muted>The evening before and a couple of hours before. No account needed, and you can stop any time.</Muted>
 
       {pushAvailable && (
@@ -70,7 +70,7 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
             <Muted>On iPhone: tap Share, then “Add to Home Screen”. Open Turnout from your Home Screen to turn on notifications.</Muted>
           ) : onThisDevice ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }}>✓ Notifications on for this device</Text>
+              <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }}>Notifications on for this device</Text>
               <Button label="Turn off" variant="secondary" loading={busy === "push-off"} onPress={() => run("push-off", async () => {
                 if (!inApp) await unsubscribeBrowser();
                 return api.unsubscribePush(slug, me.token);
@@ -96,7 +96,7 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
         <View style={{ gap: 8 }}>
           {channels.email && channels.emailConfirmed ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }} numberOfLines={1}>✓ Emailing {channels.email}</Text>
+              <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }} numberOfLines={1}>Emailing {channels.email}</Text>
               <Button label="Stop" variant="secondary" loading={busy === "email-off"} onPress={() => run("email-off", () => api.removeEmail(slug, me.token))} />
             </View>
           ) : null}

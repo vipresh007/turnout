@@ -7,6 +7,7 @@ import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
+import { Icon } from "@/components/Icon";
 import { YourGames } from "@/components/YourGames";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
@@ -103,7 +104,7 @@ function DashboardView() {
           <View style={{ flex: 1, gap: 4 }}>
             <Text style={s.hello}>
               {greeting()}
-              {displayName ? `, ${displayName}` : ""} 👋
+              {displayName ? `, ${displayName}` : ""}
             </Text>
             <Text style={s.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
           </View>
@@ -213,7 +214,9 @@ function EmptyState() {
   return (
     <Reveal>
       <View style={[s.card, { gap: 18, padding: 28, alignItems: "flex-start" }]}>
-        <Text style={{ fontSize: 40 }}>🏐</Text>
+        <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" }}>
+          <Icon name="people" size={28} color={t.accent} />
+        </View>
         <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -0.8 }}>Start your first group</Text>
         <Text style={[s.muted, { fontSize: 16 }]}>It takes about a minute. Your players won't need an account or an app.</Text>
         <View style={{ gap: 10 }}>

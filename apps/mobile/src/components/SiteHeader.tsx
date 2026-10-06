@@ -119,8 +119,8 @@ function AccountMenu() {
         <Pop style={[styles.menu, { backgroundColor: t.card, borderColor: t.border }]}>
           {account?.email && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{account.email}</Text>}
           <MenuItem label="Your groups" onPress={() => go("/dashboard")} />
-          {account?.isAdmin && <MenuItem label="📈 Metrics" onPress={() => go("/admin")} />}
-          <MenuItem label="💡 Suggest an improvement" onPress={() => go("/feedback")} />
+          {account?.isAdmin && <MenuItem label="Metrics" onPress={() => go("/admin")} />}
+          <MenuItem label="Suggest an improvement" onPress={() => go("/feedback")} />
           <MenuItem label="Home page" onPress={() => go("/")} />
           <MenuItem
             label="Sign out"

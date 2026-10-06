@@ -3,7 +3,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SignInGate } from "@/components/SignInGate";
-import { BackLink, Muted, Screen, webTransition } from "@/components/ui";
+import { BackLink, Muted, Pill, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 
@@ -90,9 +90,13 @@ function GameRow({ game: g, open, onToggle }: { game: GameRecord; open: boolean;
             {g.players.map((p) => (
               <View key={p.name + p.status} style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
                 <Text style={{ color: p.status === "out" ? t.muted : t.text }}>{p.name}</Text>
-                <Text style={{ color: t.muted, fontSize: 13 }}>
-                  {p.status === "in" ? (p.paid ? "✅ played · paid" : "✅ played") : p.status === "waitlist" ? "⏳ waitlist" : p.lateDrop ? "❌ dropped late" : "❌ out"}
-                </Text>
+                {p.status === "in" ? (
+                  <Pill label={p.paid ? "played · paid" : "played"} color={t.accent} icon="check" />
+                ) : p.status === "waitlist" ? (
+                  <Pill label="waitlist" color={t.waitlist} icon="hourglass" />
+                ) : (
+                  <Pill label={p.lateDrop ? "dropped late" : "out"} color={p.lateDrop ? t.waitlist : t.muted} icon="x" />
+                )}
               </View>
             ))}
           </View>

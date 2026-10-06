@@ -20,6 +20,14 @@ export default function RootLayout() {
           <link rel="manifest" href="/manifest.json" />
           <link rel="apple-touch-icon" href="/icon.png" />
           <meta name="theme-color" content="#16A34A" />
+          {/* Inter everywhere on the web (the app uses the phone's own font). React Native sets the system stack
+              on each text node, so the override needs !important; nothing in the app sets its own fontFamily. */}
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap" />
+          <style>{`body, body * { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }
+            body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+            input::placeholder { opacity: 1; }`}</style>
         </Head>
       )}
       <StatusBar style="auto" />

@@ -104,7 +104,7 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
         {value.costMode === "split" && <Field label="One game costs ($)" placeholder="150" value={value.fee} onChangeText={amount("fee")} keyboardType="decimal-pad" />}
         {seasonHint && (
           <Pressable accessibilityRole="button" onPress={() => onChange({ ...value, costMode: "season", feeSplit: false, seasonFee: value.fee, fee: "" })}>
-            <Text style={{ color: t.waitlist, fontWeight: "700" }}>⚠️ That's a lot for one game. Is it the whole season's cost? Tap to switch to “Season, paid up front”.</Text>
+            <Text style={{ color: t.waitlist, fontWeight: "700" }}>That's a lot for one game. Is it the whole season's cost? Tap to switch to “Season, paid up front”.</Text>
           </Pressable>
         )}
         {value.costMode === "season" && (

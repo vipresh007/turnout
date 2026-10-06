@@ -6,8 +6,9 @@ import { shareUrl, trackEvent, useApi } from "@/lib/api";
 import { hoursUntil, relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
 import { Avatar } from "./Avatar";
+import { Icon } from "./Icon";
 import { Pop } from "./motion";
-import { Button, webTransition } from "./ui";
+import { Button, Eyebrow, IconLine, Pill, webTransition } from "./ui";
 
 /**
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
@@ -99,43 +100,41 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
             </Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 6 }}>
-            <View style={{ borderWidth: 1, borderColor: status.color, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-              <Text style={{ color: status.color, fontWeight: "800", fontSize: 12 }}>{status.text}</Text>
-            </View>
-            <Text style={{ color: t.muted, fontSize: 16, transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>▾</Text>
+            <Pill label={status.text} color={status.color} />
+            <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={t.muted} /></View>
           </View>
         </View>
 
         {!session.cancelled && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
+            <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1, fontVariant: ["tabular-nums"] }}>
               {item.confirmed}
               <Text style={{ color: t.muted, fontSize: 15, fontWeight: "700" }}>{group.cap ? ` / ${group.cap}` : goal ? ` in · target ${goal}` : " in"}</Text>
             </Text>
             {goal ? (
               <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
-                <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: t.accent }} />
+                <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: session.cancelled ? t.muted : t.accent }} />
               </View>
             ) : <View style={{ flex: 1 }} />}
           </View>
         )}
-        {!expanded && hint && <Text style={{ color: t.text, fontSize: 14 }}>{hint}</Text>}
+        {!expanded && hint && <IconLine icon="sparkles" color={t.text}>{hint}</IconLine>}
       </Pressable>
 
       {expanded && (
       <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 16 }}>
       {!session.cancelled && (
-          <Text style={{ color: t.muted, fontWeight: "700", fontSize: 13, letterSpacing: 0.4 }}>
-            {item.confirmed} IN · {item.out} OUT · {item.waitlist} WAITLIST{item.confirmed && !season ? ` · ${paidCount}/${item.confirmed} PAID` : ""}
-            {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} OF ${formatMoney(item.confirmed * share)}` : ""}
-          </Text>
+          <Eyebrow>
+            {item.confirmed} in · {item.out} out · {item.waitlist} waitlist{item.confirmed && !season ? ` · ${paidCount}/${item.confirmed} paid` : ""}
+            {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} of ${formatMoney(item.confirmed * share)}` : ""}
+          </Eyebrow>
       )}
       {session.cancelled && <Text style={{ color: t.danger, fontWeight: "800", fontSize: 16 }}>No game this week</Text>}
 
       <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        <Button label={item.spotsLeft && !session.cancelled ? `📣 Need ${item.spotsLeft} more` : "📣 Share"} onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
-        <Button label="⏰ Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", remind)} />
-        <Button label="Open group →" variant="secondary" onPress={open} />
+        <Button icon="megaphone" label={item.spotsLeft && !session.cancelled ? `Need ${item.spotsLeft} more` : "Share"} onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
+        <Button icon="bell" label="Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", remind)} />
+        <Button label="Open group" icon="arrowRight" variant="secondary" onPress={open} />
       </View>
       {reminder && (
         <Pop style={{ gap: 8 }}>
@@ -163,7 +162,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
             {!season && <Text style={{ color: t.muted, fontSize: 12, fontWeight: "800", width: 56, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.6 }}>Paid</Text>}
           </View>
           {players.map((p) => {
-            const label = p.status === "in" ? "✅ In" : p.status === "waitlist" ? `⏳ Waitlist #${++waitlistPos}` : "❌ Out";
+            const status = p.status === "in" ? { label: "In", color: t.accent, icon: "check" as const } : p.status === "waitlist" ? { label: `Waitlist #${++waitlistPos}`, color: t.waitlist, icon: "hourglass" as const } : { label: "Out", color: t.muted, icon: "x" as const };
             return (
               <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 7 }}>
                 <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -172,7 +171,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                     {p.name}
                   </Text>
                 </View>
-                <Text style={{ color: p.status === "out" ? t.muted : t.text, width: 110, fontSize: 14 }}>{label}</Text>
+                <View style={{ width: 110 }}><Pill {...status} /></View>
                 {!season && <View style={{ width: 56, alignItems: "center" }}>
                   {p.status === "out" ? (
                     <Text style={{ color: t.muted }}>—</Text>
@@ -188,7 +187,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
                       }))}
                       style={({ hovered }: { hovered?: boolean }) => ({ width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center", borderColor: p.paid || hovered ? t.accent : t.border, backgroundColor: p.paid || hovered ? t.soft : "transparent" })}
                     >
-                      <Text style={{ color: t.accent, fontWeight: "900" }}>{p.paid ? "✓" : ""}</Text>
+                      {p.paid && <Icon name="check" size={16} color={t.accent} strokeWidth={2.6} />}
                     </Pressable>
                   )}
                 </View>}
@@ -219,20 +218,20 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
 /** One line for a collapsed tile: the most useful thing to know or do. */
 function attentionHint({ group, session, spotsLeft, suggestions, players, confirmed }: DashboardGroup): string | null {
   if (session.cancelled) return null;
-  if (session.note) return `📝 ${session.note}`;
+  if (session.note) return session.note;
   const hours = hoursUntil(session.startsAt);
   const close = hours > 0 && hours <= ASK_WINDOW_HOURS;
   const { forecast } = suggestions;
-  if (close && forecast?.status === "short") return `⚠️ You may be ${forecast.short} short · tap to see who to ask`;
-  if (close && forecast?.status === "good") return `✅ You're probably good · ${forecast.unanswered} still to answer`;
+  if (close && forecast?.status === "short") return `You may be ${forecast.short} short · tap to see who to ask`;
+  if (close && forecast?.status === "good") return `You're probably good · ${forecast.unanswered} still to answer`;
   if (close && forecast?.status === "full" && hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0) return "Full · you usually lose a player late, a backup would help";
   const waiting = suggestions.invite.length;
   if (close && !forecast && spotsLeft > 0 && waiting > 0 && suggestions.games >= 2) {
-    return `👋 ${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
+    return `${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
   }
   const unpaid = players.filter((p) => p.status === "in" && !p.paid).length;
   // Season groups track the season fee on the group page; per-game payments there are only subs.
-  if (group.feeCents && !group.seasonFeeCents && confirmed > 0 && unpaid > 0) return `💵 ${unpaid} of ${confirmed} still to pay`;
+  if (group.feeCents && !group.seasonFeeCents && confirmed > 0 && unpaid > 0) return `${unpaid} of ${confirmed} still to pay`;
   return null;
 }
 
@@ -266,8 +265,11 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
 
   return (
     <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 10 }}>
-      <View style={{ gap: 2 }}>
-        <Text style={{ color: t.text, fontWeight: "800", fontSize: 15 }}>{headline}</Text>
+      <View style={{ gap: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Icon name={forecast && forecast.status !== "short" ? "check" : "warning"} size={18} color={forecast && forecast.status !== "short" ? t.accent : t.waitlist} strokeWidth={2.2} />
+          <Text style={{ color: t.text, fontWeight: "800", fontSize: 15, flex: 1 }}>{headline}</Text>
+        </View>
         {detail && <Text style={{ color: t.text }}>{detail}</Text>}
       </View>
       {ask.slice(0, askCount).map((p) => (

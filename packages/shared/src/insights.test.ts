@@ -94,8 +94,8 @@ test("forecast: in now + likely yeses − uncovered late drops", () => {
 
 test("forecast wording", () => {
   const f = { status: "short" as const, projected: 12, short: 2, unanswered: 3, expectedLateDrops: 1, likely: [{ memberId: "m", name: "Mike", played: 9, games: 10 }, { memberId: "r", name: "Raj", played: 8, games: 10 }] };
-  assert.deepEqual(describeForecast(f, 11, 14), { headline: "⚠️ You may be 2 short", detail: "11 of 14 in. You usually lose one close to game time. Mike and Raj usually play but haven't answered." });
-  assert.equal(describeForecast({ ...f, status: "good", short: 0 }, 12, 14).headline, "✅ You're probably good");
+  assert.deepEqual(describeForecast(f, 11, 14), { headline: "You may be 2 short", detail: "11 of 14 in. You usually lose one close to game time. Mike and Raj usually play but haven't answered." });
+  assert.equal(describeForecast({ ...f, status: "good", short: 0 }, 12, 14).headline, "You're probably good");
 });
 
 test("forecast works toward a target without a cap", () => {

@@ -6,7 +6,7 @@ import { BackLink, Button, Card, Field, Muted, Screen } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 
-/** 💡 Suggest an improvement, from the account menu. Goes straight to the people building Turnout. */
+/** Suggest an improvement, from the account menu. Goes straight to the people building Turnout. */
 export default function FeedbackScreen() {
   return (
     <SignInGate reason="Sign in to send a suggestion.">
@@ -36,7 +36,7 @@ function Suggest() {
           </>
         ) : (
           <>
-            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>💡 Suggest an improvement</Text>
+            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>Suggest an improvement</Text>
             <Muted>Something missing, confusing or annoying? Tell us what you were trying to do.</Muted>
             <Field label="Your idea" placeholder="It would help if…" value={message} onChangeText={setMessage} multiline style={{ minHeight: 120, textAlignVertical: "top" }} />
             <View style={{ flexDirection: "row" }}>

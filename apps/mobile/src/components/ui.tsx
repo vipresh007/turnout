@@ -1,8 +1,9 @@
 import type { ReactNode, Ref } from "react";
 import { router, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
-import { useTheme } from "@/lib/theme";
+import { tint, useTheme } from "@/lib/theme";
 import { webTransition } from "@/lib/webStyle";
+import { Icon, type IconName } from "./Icon";
 import { PageGlow, SiteHeader } from "./SiteHeader";
 
 /** A page: the site header and background glow (web), then a centred column of content. */
@@ -33,11 +34,59 @@ export function Muted({ children }: { children: ReactNode }) {
   return <Text style={{ color: t.muted, fontSize: 15, lineHeight: 21 }}>{children}</Text>;
 }
 
+/** A card's heading: an icon in a soft bubble, the title, and anything that belongs on the right (a link, a count). */
+export function SectionTitle({ icon, children, right }: { icon?: IconName; children: ReactNode; right?: ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+      {icon && (
+        <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" }}>
+          <Icon name={icon} size={17} color={t.accent} strokeWidth={2} />
+        </View>
+      )}
+      <Text style={{ color: t.text, fontSize: 17, fontWeight: "800", letterSpacing: -0.2, flex: 1 }}>{children}</Text>
+      {right}
+    </View>
+  );
+}
+
+/** Small uppercase label above a group of things ("IN · 12", "ORGANIZER"). */
+export function Eyebrow({ children, color }: { children: ReactNode; color?: string }) {
+  const t = useTheme();
+  return <Text style={{ color: color ?? t.muted, fontSize: 12, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.8 }}>{children}</Text>;
+}
+
+/** A status chip: tinted background, colored text, optional icon. "In", "Waitlist #2", "Out", "sub". */
+export function Pill({ label, color, icon, outline }: { label: string; color?: string; icon?: IconName; outline?: boolean }) {
+  const t = useTheme();
+  const c = color ?? t.muted;
+  return (
+    <View style={{
+      flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999,
+      backgroundColor: outline ? "transparent" : tint(c), borderWidth: outline ? 1 : 0, borderColor: tint(c, 0.5),
+    }}>
+      {icon && <Icon name={icon} size={12} color={c} strokeWidth={2.6} />}
+      <Text style={{ color: c, fontSize: 12, fontWeight: "800" }}>{label}</Text>
+    </View>
+  );
+}
+
+/** A line of secondary info with an icon in front: where, when, what it costs. */
+export function IconLine({ icon, children, color }: { icon: IconName; children: ReactNode; color?: string }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 7 }}>
+      <View style={{ paddingTop: 2 }}><Icon name={icon} size={16} color={color ?? t.muted} /></View>
+      <Text style={{ color: color ?? t.muted, fontSize: 15, lineHeight: 20, flexShrink: 1 }}>{children}</Text>
+    </View>
+  );
+}
+
 export { webTransition } from "@/lib/webStyle";
 
 type Variant = "primary" | "secondary" | "danger";
-export function Button({ label, onPress, variant = "primary", loading, disabled, big }: {
-  label: string; onPress: () => void; variant?: Variant; loading?: boolean; disabled?: boolean; big?: boolean;
+export function Button({ label, onPress, variant = "primary", loading, disabled, big, icon }: {
+  label: string; onPress: () => void; variant?: Variant; loading?: boolean; disabled?: boolean; big?: boolean; icon?: IconName;
 }) {
   const t = useTheme();
   const bg = variant === "primary" ? t.accent : variant === "danger" ? t.danger : t.card;
@@ -61,13 +110,17 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
         ];
       }}
     >
-      {({ hovered }: { hovered?: boolean }) =>
-        loading ? (
+      {({ hovered }: { hovered?: boolean }) => {
+        const color = hovered && !disabled && variant === "secondary" ? t.accent : fg;
+        return loading ? (
           <ActivityIndicator color={fg} />
         ) : (
-          <Text style={[styles.buttonText, big && styles.bigButtonText, { color: hovered && !disabled && variant === "secondary" ? t.accent : fg }]}>{label}</Text>
-        )
-      }
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            {icon && <Icon name={icon} size={big ? 20 : 17} color={color} strokeWidth={2.2} />}
+            <Text style={[styles.buttonText, big && styles.bigButtonText, { color }]}>{label}</Text>
+          </View>
+        );
+      }}
     </Pressable>
   );
 }
@@ -95,7 +148,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
       <TextInput
         placeholderTextColor={t.muted}
         {...props}
-        style={[styles.input, { color: t.text, borderColor: t.border, backgroundColor: t.card }, props.style]}
+        style={[styles.input, { color: t.text, borderColor: t.border, backgroundColor: t.bg }, props.style]}
       />
     </View>
   );
@@ -104,11 +157,11 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 const styles = StyleSheet.create({
   screen: { paddingBottom: 48, alignItems: "center" },
   column: { width: "100%", maxWidth: 560, gap: 16, paddingHorizontal: 16 },
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.5 },
-  button: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", flex: 1 },
-  bigButton: { paddingVertical: 20, borderRadius: 16 },
+  card: { borderWidth: 1, borderRadius: 20, padding: 18, gap: 12 },
+  title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.8 },
+  button: { borderWidth: 1, borderRadius: 14, minHeight: 46, paddingVertical: 11, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", flex: 1 },
+  bigButton: { paddingVertical: 18, borderRadius: 16 },
   buttonText: { fontSize: 16, fontWeight: "700" },
-  bigButtonText: { fontSize: 20 },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+  bigButtonText: { fontSize: 19 },
+  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
 });

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Linking, Platform, Pressable, Share, Text, View } from "react-native";
 import { trackEvent } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
-import { Card, webTransition } from "./ui";
+import { Card, SectionTitle, webTransition } from "./ui";
 
 /** Invite card: the ready-to-send message plus one-tap WhatsApp, Messages, and copy/share. */
 export function ShareCard({ input, title }: { input: ShareInput; title?: string }) {
@@ -33,16 +33,14 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
 
   return (
     <Card>
-      <Text style={{ color: t.text, fontSize: 17, fontWeight: "800" }}>
-        {title ?? (need > 0 ? `📣 Need ${need} more? Share it` : "📣 Invite people")}
-      </Text>
+      <SectionTitle icon="megaphone">{title ?? (need > 0 ? `Need ${need} more? Share it` : "Invite people")}</SectionTitle>
       <View style={{ backgroundColor: t.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.border }}>
         <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>{message}</Text>
       </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
         <ShareButton label="WhatsApp" color="#25D366" textColor="#06240F" onPress={() => { shared("whatsapp"); Linking.openURL(whatsappUrl(message)); }} />
         <ShareButton label="Messages" color={t.card} textColor={t.text} border={t.border} onPress={() => { shared("sms"); Linking.openURL(smsUrl(message)); }} />
-        <ShareButton label={copied ? "Copied ✓" : Platform.OS === "web" ? "Copy" : "More…"} color={t.card} textColor={t.text} border={t.border} onPress={copyOrShare} />
+        <ShareButton label={copied ? "Copied" : Platform.OS === "web" ? "Copy" : "More…"} color={t.card} textColor={t.text} border={t.border} onPress={copyOrShare} />
       </View>
     </Card>
   );

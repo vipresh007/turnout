@@ -33,7 +33,7 @@ export default function EmailLink() {
           <ActivityIndicator />
         ) : confirm ? (
           <>
-            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>You're all set ✅</Text>
+            <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>You're all set</Text>
             <Muted>We'll email you before each {result.groupName} game. Every email has a link to stop.</Muted>
           </>
         ) : (

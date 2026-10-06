@@ -91,7 +91,7 @@ function Members() {
               <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>{m.name}</Text>
               <Text style={{ color: t.muted, fontSize: 13 }}>
                 {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices ? `${m.devices} ${m.devices === 1 ? "device" : "devices"}` : "hasn't opened the link yet"}
-                {m.hasEmail ? " · 📧 reminders" : ""}
+                {m.hasEmail ? " · reminders on" : ""}
               </Text>
             </View>
             {season && (

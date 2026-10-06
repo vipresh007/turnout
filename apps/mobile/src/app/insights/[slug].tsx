@@ -78,7 +78,7 @@ function Insights() {
           <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Best times</Text>
           {timeSlots.map((s, i) => (
             <View key={s.label} style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ color: t.text, fontWeight: i === 0 ? "800" : "400" }}>{i === 0 ? "🏆 " : ""}{s.label}</Text>
+              <Text style={{ color: i === 0 ? t.accent : t.text, fontWeight: i === 0 ? "800" : "400" }}>{s.label}</Text>
               <Text style={{ color: t.muted }}>{one(s.avgPlayers)} players avg · {s.games} {s.games === 1 ? "game" : "games"}</Text>
             </View>
           ))}

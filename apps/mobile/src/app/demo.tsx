@@ -4,7 +4,7 @@ import Head from "expo-router/head";
 import { useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { GroupTile } from "@/components/GroupTile";
-import { Button, Card, Muted, Screen } from "@/components/ui";
+import { Button, Card, Muted, Screen, SectionTitle } from "@/components/ui";
 import { shareText } from "@/lib/share";
 import { useTheme } from "@/lib/theme";
 
@@ -119,10 +119,10 @@ export default function Demo() {
 
       <View onLayout={(e) => (playerCardY.current = e.nativeEvent.layout.y)}>
         <Card>
-          <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>👀 What your players see</Text>
+          <SectionTitle icon="eye">What your players see</SectionTitle>
           <Muted>You're Leo. Tap I'm out and watch the first person on the waitlist move in, up in the group above.</Muted>
           <Text style={{ color: t.text, fontSize: 15 }}>
-            {leo.status === "in" ? "✅ You're in" : leo.status === "waitlist" ? "⏳ You're on the waitlist" : "❌ You're out this week"} · {item.confirmed}/{item.group.cap} playing
+            {leo.status === "in" ? "You're in" : leo.status === "waitlist" ? "You're on the waitlist" : "You're out this week"} · {item.confirmed}/{item.group.cap} playing
           </Text>
           <View style={{ flexDirection: "row", gap: 8 }}>
             <View style={{ flex: 1 }}>
@@ -136,7 +136,7 @@ export default function Demo() {
       </View>
 
       <Card>
-        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>📊 Insights after a few weeks</Text>
+        <SectionTitle icon="chart">Insights after a few weeks</SectionTitle>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {insights.map(([label, value, hint]) => (
             <View key={label} style={{ flexGrow: 1, flexBasis: "45%", backgroundColor: t.bg, borderRadius: 14, padding: 12, gap: 2 }}>

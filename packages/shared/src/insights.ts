@@ -213,13 +213,13 @@ export function describeForecast(f: Forecast, confirmed: number, cap: number): {
   const usually = likelyNames.length ? ` ${likelyNames.join(" and ")} usually ${likelyNames.length === 1 ? "plays" : "play"} but ${likelyNames.length === 1 ? "hasn't" : "haven't"} answered.` : "";
   if (f.status === "full") {
     return {
-      headline: "✅ Full",
+      headline: "Full",
       detail: f.expectedLateDrops > 0 ? `You usually lose ${f.expectedLateDrops === 1 ? "a player" : `${f.expectedLateDrops} players`} late. A backup on the waitlist would cover it.` : "Nothing to do.",
     };
   }
   if (f.status === "good") {
-    return { headline: "✅ You're probably good", detail: `${confirmed} of ${cap} in, ${f.unanswered} haven't answered.${usually}` };
+    return { headline: "You're probably good", detail: `${confirmed} of ${cap} in, ${f.unanswered} haven't answered.${usually}` };
   }
   const late = f.expectedLateDrops > 0 ? ` You usually lose ${f.expectedLateDrops === 1 ? "one" : f.expectedLateDrops} close to game time.` : "";
-  return { headline: `⚠️ You may be ${f.short} short`, detail: `${confirmed} of ${cap} in.${late}${usually}` };
+  return { headline: `You may be ${f.short} short`, detail: `${confirmed} of ${cap} in.${late}${usually}` };
 }
