@@ -125,9 +125,10 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
   );
 }
 
-/** "← Back" for screens that open on top of another (they can be opened directly from a link, with nothing to go back to). */
+/** "← Back" on web pages that open on top of another (they can be opened directly from a link, with nothing to go back to). */
 export function BackLink({ fallback, label = "Back" }: { fallback: Href; label?: string }) {
   const t = useTheme();
+  if (Platform.OS !== "web") return null; // the app's nav bar already has a back arrow
   return (
     <Pressable
       accessibilityRole="link"

@@ -117,7 +117,11 @@ function DashboardView() {
         )}
 
         {groups.length === 0 ? (
-          <EmptyState />
+          <>
+            {/* Signed in as a player who doesn't run a group (yet): their games first. */}
+            <YourGames title="Your games" />
+            <EmptyState />
+          </>
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
@@ -167,7 +171,7 @@ function DashboardView() {
               </View>
             </View>
             </>}
-            {Platform.OS !== "web" && <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />}
+            <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />
             {/* Asks come last, so the games stay on top. */}
             {organizer.askFeedback && <FeedbackAsk />}
             {organizer.askPricing && <PricingAsk />}

@@ -83,6 +83,7 @@ npm run dev:mobile   # press w for web, i for iOS simulator
 | `/founding` | organizers | "I'd pay for this" (pricing test; nothing is charged). |
 | `/admin` | Turnout admins | Product metrics (`ADMIN_EMAILS`). |
 | `/email?confirm=…` / `?unsubscribe=…`, `/restore?t=…` | players | Links from emails: reminders, one-tap stop, restore on a new phone. |
+| `/stats` | players | Your own stats across the groups on this device (and, signed in, every device). |
 | `/privacy`, `/terms` | everyone | Privacy policy and terms. |
 
 ## Reminders
@@ -96,6 +97,8 @@ Members opt in on the group page, with no account: **browser notifications** (we
 - Reminders by email or browser notification; "a spot opened up" alerts
 - Add to calendar, maps, this week's changes, cost and how to pay, teams
 - "That's me" for duplicate names, restore on a new phone, one player across devices
+- Your own stats (private): games played, how often you show up, streaks, recent games, unpaid games; on the group page and `/stats`
+- Optional sign-in with the same Turnout account organizers use: your games and stats follow you to any phone or the website (organizers who also play see both)
 
 **Organizers**
 - Sign in with email code, Google, Microsoft or Apple (branded pages and code email)

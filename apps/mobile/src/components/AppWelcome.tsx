@@ -6,7 +6,7 @@ import { memberships } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Icon, type IconName } from "./Icon";
 import { Button } from "./ui";
-import { YourGames } from "./YourGames";
+import { StatsLink, YourGames } from "./YourGames";
 
 const points: [IconName, string, string][] = [
   ["link", "One link for your group chat", "Share it once. Everyone taps it each week."],
@@ -36,15 +36,25 @@ function PlayerHome() {
           <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
             turnout<Text style={{ color: t.accent }}>.</Text>
           </Text>
-          <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1, marginTop: 12 }}>Your games</Text>
+          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 12 }}>
+            <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1 }}>Your games</Text>
+            <View style={{ paddingBottom: 6 }}><StatsLink /></View>
+          </View>
         </View>
         <YourGames />
         <View style={{ flex: 1 }} />
-        <Pressable accessibilityRole="button" onPress={() => router.push("/sign-in")} style={{ alignSelf: "center", padding: 8 }}>
-          <Text style={{ color: t.muted, fontSize: 14 }}>
-            Run your own game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start a group</Text>
-          </Text>
-        </Pressable>
+        <View style={{ gap: 4, alignItems: "center" }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/sign-in", params: { next: "/stats" } })} style={{ padding: 6 }}>
+            <Text style={{ color: t.muted, fontSize: 14, textAlign: "center" }}>
+              New phone coming? <Text style={{ color: t.accent, fontWeight: "700" }}>Sign in to keep your games</Text>
+            </Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/sign-in")} style={{ padding: 6 }}>
+            <Text style={{ color: t.muted, fontSize: 14 }}>
+              Run your own game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start a group</Text>
+            </Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

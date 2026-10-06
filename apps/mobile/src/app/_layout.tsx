@@ -3,6 +3,7 @@ import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
 import { Platform } from "react-native";
 import { NotificationRouter } from "@/components/NotificationRouter";
+import { PlayerSync } from "@/components/PlayerSync";
 import { AuthProvider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -32,6 +33,7 @@ export default function RootLayout() {
       )}
       <StatusBar style="auto" />
       {Platform.OS !== "web" && <NotificationRouter />}
+      <PlayerSync />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: t.bg },
@@ -53,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="g/[slug]" options={{ title: "", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ title: "" }} />
+        <Stack.Screen name="stats" options={{ title: "Your stats" }} />
         <Stack.Screen name="email" options={{ title: "Email reminders" }} />
         <Stack.Screen name="restore" options={{ title: "New phone" }} />
         <Stack.Screen name="members/[slug]" options={{ title: "Members", presentation: "modal" }} />

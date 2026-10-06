@@ -19,6 +19,8 @@ import {
   promotedMembers,
   pushSubscriptionSchema,
   appPushSchema,
+  membershipLinksSchema,
+  type LinkedMembership,
   rsvpSchema,
   saveTeamsSchema,
   seasonMemberSchema,
@@ -43,7 +45,7 @@ import { groupCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, gameHistory, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, memberStats, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { APP_PUSH_PREFIX, emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -551,6 +553,7 @@ export async function buildApp(db: Db) {
     const found = await db.query(`SELECT id FROM members WHERE group_id = $1 AND id = ANY($2::uuid[])`, [group.id, [from, intoId]]);
     if (found.length !== 2) throw new HttpError(404, "Member not found");
     await db.query(`UPDATE member_tokens SET member_id = $2 WHERE member_id = $1`, [from, intoId]);
+    await db.query(`UPDATE members SET account_id = (SELECT account_id FROM members WHERE id = $1) WHERE id = $2 AND account_id IS NULL`, [from, intoId]);
     await db.query(
       `INSERT INTO push_subscriptions (member_id, endpoint, p256dh, auth)
        SELECT $2, endpoint, p256dh, auth FROM push_subscriptions WHERE member_id = $1 ON CONFLICT DO NOTHING`,
@@ -824,6 +827,57 @@ export async function buildApp(db: Db) {
   app.get<SlugParams>("/groups/:slug/me", async (req) => {
     const group = await groupOr404(req.params.slug);
     return memberSelf((await requireMember(db, req, group.id)).id);
+  });
+
+  // A player's own stats in this group. Only ever with their own member token: nobody else sees them here.
+  app.get<SlugParams>("/groups/:slug/me/stats", async (req) => {
+    const group = await groupOr404(req.params.slug);
+    return memberStats(db, group, (await requireMember(db, req, group.id)).id);
+  });
+
+  // ── Optional player accounts ──────────────────────────────
+  // Signed in, the app sends the player entries this device holds. They're linked to the account (never taken from
+  // another account), along with entries whose confirmed reminder email matches it. Back come all linked entries,
+  // with a fresh device token for any this device didn't have, so the same games show up on every device.
+  app.post("/me/memberships", strict(30), async (req) => {
+    const account = await requireOrganizer(db, req);
+    const { links } = membershipLinksSchema.parse(req.body ?? {});
+    const held = new Set<string>();
+    for (const { slug, token } of links) {
+      const [m] = await db.query<{ id: string }>(
+        `SELECT m.id FROM member_tokens t JOIN members m ON m.id = t.member_id JOIN groups g ON g.id = m.group_id WHERE t.token_hash = $1 AND g.slug = $2`,
+        [hashToken(token), slug],
+      );
+      if (!m) continue;
+      held.add(m.id);
+      await db.query(`UPDATE members SET account_id = $2 WHERE id = $1 AND account_id IS NULL`, [m.id, account.id]);
+    }
+    await db.query(
+      `UPDATE members m SET account_id = o.id FROM organizers o
+       WHERE o.id = $1 AND o.email IS NOT NULL AND m.account_id IS NULL AND m.email_confirmed_at IS NOT NULL AND lower(m.email) = lower(o.email)`,
+      [account.id],
+    );
+    const linked = await db.query<{ id: string; name: string; slug: string }>(
+      `SELECT m.id, m.name, g.slug FROM members m JOIN groups g ON g.id = m.group_id WHERE m.account_id = $1 ORDER BY m.created_at`,
+      [account.id],
+    );
+    const memberships: LinkedMembership[] = [];
+    for (const m of linked) {
+      let token: string | null = null;
+      if (!held.has(m.id)) {
+        token = newMemberToken();
+        await db.query(`INSERT INTO member_tokens (token_hash, member_id) VALUES ($1, $2)`, [hashToken(token), m.id]);
+      }
+      memberships.push({ slug: m.slug, memberId: m.id, name: m.name, token });
+    }
+    return { memberships };
+  });
+
+  // "That's not me": unlink one player entry from the account. The entry and its history stay in the group.
+  app.delete<{ Params: { memberId: string } }>("/me/memberships/:memberId", async (req) => {
+    const account = await requireOrganizer(db, req);
+    await db.query(`UPDATE members SET account_id = NULL WHERE id = $1 AND account_id = $2`, [req.params.memberId, account.id]);
+    return { ok: true };
   });
 
   app.put<SlugParams>("/groups/:slug/me/push", strict(20), async (req) => {

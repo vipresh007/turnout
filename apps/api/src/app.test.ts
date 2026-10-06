@@ -678,3 +678,48 @@ test("player app: reminders go to the phone through Expo push", async () => {
   // Expo said the app was deleted, so the token is forgotten.
   assert.equal((await app.inject({ url: `/groups/${group.slug}/me`, headers: me })).json().channels.push, 0);
 });
+
+test("player accounts: link this phone's entries, pick them up on a new device, see only your own stats", async () => {
+  const org = { "x-dev-user": "stats-org" };
+  const pat = { "x-dev-user": "stats-pat" };
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Stats Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 1 } })).json().group;
+  const p = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Pat" } })).json();
+  const q = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Quinn" } })).json();
+
+  // Two past games: Pat played the first; the second was full (cap 1) so Pat sat on the waitlist behind Quinn.
+  const group = (await db.query<{ id: string }>(`SELECT id FROM groups WHERE slug = $1`, [slug]))[0]!;
+  await db.query(`UPDATE members SET created_at = now() - interval '30 days' WHERE group_id = $1`, [group.id]);
+  const day = 86_400_000;
+  const sessions = [];
+  for (const ago of [14, 7]) {
+    const [s] = await db.query<{ id: string }>(`INSERT INTO sessions (group_id, starts_at) VALUES ($1, $2) RETURNING id`, [group.id, new Date(Date.now() - ago * day).toISOString()]);
+    sessions.push(s!.id);
+  }
+  const answer = (session: string, member: string, minutesAgo: number) =>
+    db.query(`INSERT INTO rsvps (session_id, member_id, status, responded_at) VALUES ($1, $2, 'in', now() - ($3 || ' minutes')::interval)`, [session, member, String(minutesAgo)]);
+  await answer(sessions[0]!, p.member.id, 100);
+  await answer(sessions[1]!, q.member.id, 100);
+  await answer(sessions[1]!, p.member.id, 50);
+
+  const stats = (await app.inject({ url: `/groups/${slug}/me/stats`, headers: { "x-member-token": p.token } })).json();
+  assert.deepEqual([stats.stats.games, stats.stats.played, stats.stats.streak], [2, 1, 0]);
+  assert.deepEqual(stats.recent.map((g: { status: string }) => g.status), ["waitlist", "played"]);
+  assert.equal((await app.inject({ url: `/groups/${slug}/me/stats` })).statusCode, 401); // no token, no stats
+
+  // Pat signs in on this phone: the entry links. A second device gets its own token for the same entry.
+  const first = (await app.inject({ method: "POST", url: "/me/memberships", headers: pat, payload: { links: [{ slug, token: p.token }, { slug, token: "not-a-real-token" }] } })).json();
+  assert.deepEqual(first.memberships.map((m: { slug: string; token: string | null }) => [m.slug, m.token]), [[slug, null]]);
+  const second = (await app.inject({ method: "POST", url: "/me/memberships", headers: pat, payload: { links: [] } })).json();
+  const newToken = second.memberships[0].token as string;
+  assert.ok(newToken);
+  assert.equal((await app.inject({ url: `/groups/${slug}/me/stats`, headers: { "x-member-token": newToken } })).json().stats.played, 1);
+
+  // Someone else can't take Pat's entry, even holding a token for it.
+  const other = (await app.inject({ method: "POST", url: "/me/memberships", headers: { "x-dev-user": "stats-other" }, payload: { links: [{ slug, token: p.token }] } })).json();
+  assert.equal(other.memberships.length, 0);
+
+  // Unlink: the entry stays in the group, it just isn't on Pat's account any more.
+  assert.equal((await app.inject({ method: "DELETE", url: `/me/memberships/${p.member.id}`, headers: pat })).statusCode, 200);
+  assert.equal((await app.inject({ method: "POST", url: "/me/memberships", headers: pat, payload: { links: [] } })).json().memberships.length, 0);
+  assert.equal((await app.inject({ url: `/groups/${slug}/me/stats`, headers: { "x-member-token": p.token } })).statusCode, 200);
+});

@@ -1,3 +1,4 @@
+import type { PlayerGame, PlayerStats } from "./playerStats.ts";
 import type { Forecast, InviteSuggestion } from "./insights.ts";
 import type { ReminderSettings } from "./reminders.ts";
 import type { Roster, RsvpStatus } from "./roster.ts";
@@ -174,6 +175,20 @@ export interface GroupOrganizer {
 }
 
 /** One past game, as it ended: who played, who dropped, what was collected, the teams. */
+/** A player's own record in one group: their stats and their last few games (newest first). */
+export interface MyPlayerStats {
+  stats: PlayerStats;
+  recent: PlayerGame[];
+}
+
+/** A player entry linked to the signed-in account. `token` is set when this device didn't have one yet. */
+export interface LinkedMembership {
+  slug: string;
+  memberId: string;
+  name: string;
+  token: string | null;
+}
+
 export interface GameRecord {
   startsAt: string;
   cancelled: boolean;

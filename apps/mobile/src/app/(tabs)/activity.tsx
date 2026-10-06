@@ -3,6 +3,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { Regulars, StatRow, TurnoutChart } from "@/components/DashboardInsights";
+import { MyStatsCard } from "@/components/MyStatsCard";
 import { SignInGate } from "@/components/SignInGate";
 import { Muted } from "@/components/ui";
 import { useApi } from "@/lib/api";
@@ -42,6 +43,7 @@ function Activity() {
     >
       {!items && !error && <ActivityIndicator style={{ marginTop: 32 }} />}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
+      <MyStatsCard />
       {dash && dash.groups.length > 0 && (
         <>
           <StatRow groups={dash.groups} stats={dash.stats} />

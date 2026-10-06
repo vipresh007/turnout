@@ -1,4 +1,4 @@
-import { ASK_WINDOW_HOURS, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, type MyPlayerStats, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import * as Haptics from "expo-haptics";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -7,7 +7,9 @@ import { ActionGrid, ActionTile } from "@/components/ActionTile";
 import { Icon } from "@/components/Icon";
 import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
+import { GameDots, StatsStrip } from "@/components/PlayerStats";
 import { RemindMe } from "@/components/RemindMe";
+import { StatsLink } from "@/components/YourGames";
 import { ReadyCard } from "@/components/ReadyCard";
 import { ShareCard } from "@/components/ShareCard";
 import { Button, Card, Eyebrow, Field, IconLine, Muted, Pill, Screen, SectionTitle, Title, webTransition } from "@/components/ui";
@@ -264,6 +266,7 @@ export default function GroupScreen() {
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
 
       {me && !session.cancelled && place.kind !== "out" && <RemindMe slug={slug} me={me} />}
+      {me && <MyGroupStats slug={slug} token={me.token} />}
 
       {session.teams && <TeamsCard teams={session.teams.teams} roster={[...roster.confirmed, ...roster.waitlist, ...roster.out]} onShare={share} groupName={group.name} />}
 
@@ -712,5 +715,22 @@ function IdentityPrompt({ existing, step, onThatsMe, onSomeoneElse, onJoinAs }: 
         <Button label="No, someone else" variant="secondary" onPress={onSomeoneElse} />
       </View>
     </View>
+  );
+}
+
+/** Your own record in this group (only with your member token), once you've had a game. */
+function MyGroupStats({ slug, token }: { slug: string; token: string }) {
+  const api = useApi();
+  const [mine, setMine] = useState<MyPlayerStats | null>(null);
+  useEffect(() => {
+    api.memberStats(slug, token).then(setMine, () => {});
+  }, [api, slug, token]);
+  if (!mine || mine.stats.games === 0) return null;
+  return (
+    <Card>
+      <SectionTitle icon="trending" right={<StatsLink label="All groups" />}>Your stats</SectionTitle>
+      <StatsStrip stats={mine.stats} />
+      <GameDots games={mine.recent} />
+    </Card>
   );
 }

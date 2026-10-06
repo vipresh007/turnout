@@ -196,4 +196,10 @@ export const migrations: string[] = [
   );
   CREATE INDEX organizer_push_tokens_organizer_idx ON organizer_push_tokens (organizer_id);
   `,
+  // Optional player accounts: a player who signs in (the same Turnout account organizers use) links their
+  // player entries to it, so their games and stats follow them to any device.
+  `
+  ALTER TABLE members ADD COLUMN account_id uuid REFERENCES organizers(id) ON DELETE SET NULL;
+  CREATE INDEX members_account_idx ON members (account_id) WHERE account_id IS NOT NULL;
+  `,
 ];

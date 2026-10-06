@@ -1,4 +1,4 @@
-import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, MemberSelf, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, LinkedMembership, MemberSelf, MyPlayerStats, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -62,6 +62,13 @@ export function trackEvent(kind: ClientEvent, slug?: string, props?: Record<stri
   })().catch(() => {});
 }
 
+const membershipListeners = new Set<() => void>();
+/** Called whenever the groups joined on this device change (joined, forgotten, synced from the account). */
+export function onMembershipsChanged(listener: () => void): () => void {
+  membershipListeners.add(listener);
+  return () => void membershipListeners.delete(listener);
+}
+
 export const memberships = {
   get: async (slug: string): Promise<Membership | null> => {
     const raw = await storage.get(membershipKey(slug));
@@ -70,10 +77,13 @@ export const memberships = {
   forget: async (slug: string) => {
     await storage.remove(membershipKey(slug));
     await storage.set(JOINED_KEY, JSON.stringify((await memberships.slugs()).filter((s) => s !== slug)));
+    membershipListeners.forEach((l) => l());
   },
-  set: async (slug: string, m: Membership) => {
+  set: async (slug: string, m: Membership, { quiet = false }: { quiet?: boolean } = {}) => {
+    const before = await memberships.slugs();
     await storage.set(membershipKey(slug), JSON.stringify(m));
-    await storage.set(JOINED_KEY, JSON.stringify([slug, ...(await memberships.slugs()).filter((s) => s !== slug)]));
+    await storage.set(JOINED_KEY, JSON.stringify([slug, ...before.filter((s) => s !== slug)]));
+    if (!quiet && !before.includes(slug)) membershipListeners.forEach((l) => l());
   },
   slugs: async (): Promise<string[]> => {
     try {
@@ -96,6 +106,10 @@ function createApi(authHeaders: () => Promise<Headers>) {
     me: async () => request<Account>("/me", await asOrganizer()),
     activity: async (limit = 50) => request<{ activity: ActivityItem[] }>(`/me/activity?limit=${limit}`, await asOrganizer()),
     setPushToken: async (token: string, platform: "ios" | "android") => request<{ ok: true }>("/me/push-token", await asOrganizer({ method: "PUT", body: { token, platform } })),
+    /** Link this device's player entries to the signed-in account and get any linked ones it doesn't have. */
+    syncMemberships: async (links: { slug: string; token: string }[]) =>
+      request<{ memberships: LinkedMembership[] }>("/me/memberships", await asOrganizer({ method: "POST", body: { links } })),
+    unlinkMembership: async (memberId: string) => request<{ ok: true }>(`/me/memberships/${memberId}`, await asOrganizer({ method: "DELETE" })),
     removePushToken: async (token: string) => request<{ ok: true }>("/me/push-token", await asOrganizer({ method: "DELETE", body: { token } })),
     deleteAccount: async () => request<{ deletedGroups: number; handedOverGroups: number }>("/me", await asOrganizer({ method: "DELETE" })),
     dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
@@ -170,6 +184,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
 
     // Reminder channels (member token)
     reminderOptions: () => request<{ publicKey: string | null; email: boolean }>("/push/key"),
+    memberStats: (slug: string, token: string) => request<MyPlayerStats>(`/groups/${slug}/me/stats`, { headers: { "x-member-token": token } }),
     memberSelf: (slug: string, token: string) => request<MemberSelf>(`/groups/${slug}/me`, { headers: { "x-member-token": token } }),
     subscribePush: (slug: string, token: string, subscription: PushSubscriptionJSON) =>
       request<MemberSelf>(`/groups/${slug}/me/push`, { method: "PUT", body: subscription, headers: { "x-member-token": token } }),

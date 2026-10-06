@@ -84,6 +84,10 @@ export const pushSubscriptionSchema = z.object({
   endpoint: z.string().url().max(1000),
   keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
 });
+/** Player entries this device holds, to link to the signed-in account. */
+export const membershipLinksSchema = z.object({
+  links: z.array(z.object({ slug: z.string().min(1).max(100), token: z.string().min(10).max(100) })).max(100),
+});
 /** A phone running the Turnout app (Expo push token). */
 export const appPushSchema = z.object({ token: z.string().max(200).regex(/^Expo(nent)?PushToken\[[^\]]+\]$/) });
 export const emailSchema = z.object({ email: z.string().trim().toLowerCase().email().max(200) });

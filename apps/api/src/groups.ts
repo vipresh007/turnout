@@ -1,4 +1,4 @@
-import { buildRoster, groupInsights, playersNeeded, seasonShareCents, shareCents, type GameRecord, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
+import { buildRoster, groupInsights, playerStats, type MyPlayerStats, type PlayerGame, playersNeeded, seasonShareCents, shareCents, type GameRecord, type ActivityItem, type GroupInsights, type PastGame, type Roster, type Dashboard, type DashboardPlayer, type Group, type GroupPage, type GroupRole, type OrganizerStats, type Rsvp, type Session, type UpcomingWeek } from "@turnout/shared";
 import type { Db } from "./db/client.ts";
 import { currentSessionStart, lastScheduledStart, scheduledStarts } from "./schedule.ts";
 
@@ -324,6 +324,41 @@ export async function gameHistory(db: Db, group: GroupRow, limit = 26, now = new
       players,
     };
   });
+}
+
+/**
+ * One player's own record in a group: every past, not-cancelled game since they joined, with whether they played
+ * (in and within the cap at game time), sat on the waitlist, said out, or never answered.
+ */
+export async function memberStats(db: Db, group: GroupRow, memberId: string, limit = 52, now = new Date()): Promise<MyPlayerStats> {
+  const [member] = await db.query<{ joinedAt: Date | string; seasonMember: boolean }>(
+    `SELECT created_at AS "joinedAt", season_member AS "seasonMember" FROM members WHERE id = $1 AND group_id = $2`,
+    [memberId, group.id],
+  );
+  if (!member) return { stats: playerStats([]), recent: [] };
+  const sessions = await db.query<{ id: string; startsAt: Date | string }>(
+    `SELECT id, COALESCE(starts_at_override, starts_at) AS "startsAt" FROM sessions
+     WHERE group_id = $1 AND NOT cancelled AND COALESCE(starts_at_override, starts_at) < $2 AND COALESCE(starts_at_override, starts_at) >= $3
+     ORDER BY starts_at DESC LIMIT $4`,
+    [group.id, now.toISOString(), new Date(member.joinedAt).toISOString(), limit],
+  );
+  const answers = sessions.length
+    ? await db.query<{ sessionId: string; memberId: string; name: string; status: "in" | "out"; respondedAt: Date | string; lateDrop: boolean; paid: boolean }>(
+        `SELECT r.session_id AS "sessionId", r.member_id AS "memberId", m.name, r.status, r.responded_at AS "respondedAt", r.late_drop AS "lateDrop", r.paid_at IS NOT NULL AS paid
+         FROM rsvps r JOIN members m ON m.id = r.member_id WHERE r.session_id = ANY($1::uuid[])`,
+        [sessions.map((x) => x.id)],
+      )
+    : [];
+  const games: PlayerGame[] = sessions.map((x) => {
+    const here = answers.filter((a) => a.sessionId === x.id).map((a) => ({ ...a, respondedAt: new Date(a.respondedAt).toISOString() }));
+    const mine = here.find((a) => a.memberId === memberId);
+    const roster = buildRoster(here, group.cap);
+    const status = !mine ? "none" : roster.confirmed.some((r) => r.memberId === memberId) ? "played" : roster.waitlist.some((r) => r.memberId === memberId) ? "waitlist" : "out";
+    return { startsAt: new Date(x.startsAt).toISOString(), status, lateDrop: !!mine?.lateDrop && mine.status === "out", paid: !!mine?.paid };
+  });
+  // Season members paid up front, so only drop-in players owe per game.
+  const tracksPayment = !!group.feeCents && !(group.seasonFeeCents && member.seasonMember);
+  return { stats: playerStats(games, tracksPayment), recent: games.slice(0, 12) };
 }
 
 /** Answers across the organizer's groups, newest first. */
