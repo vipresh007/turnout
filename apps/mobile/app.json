@@ -16,7 +16,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "appleTeamId": "253QMGHP88"
+      "appleTeamId": "253QMGHP88",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -42,7 +43,12 @@
       "typedRoutes": true
     },
     "plugins": [
-      ["expo-router", { "origin": "https://turnout.dataeaver.ca" }],
+      [
+        "expo-router",
+        {
+          "origin": "https://turnout.dataeaver.ca"
+        }
+      ],
       "expo-secure-store",
       "expo-web-browser",
       [
