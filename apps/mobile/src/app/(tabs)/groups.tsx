@@ -33,12 +33,14 @@ function Groups() {
       contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
     >
-      <View style={{ flexDirection: "row" }}>
-        <Button label="+ New group" onPress={() => router.push("/new")} />
-      </View>
       {!groups && !error && <ActivityIndicator style={{ marginTop: 32 }} />}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
-      {groups?.length === 0 && <Muted>No groups yet. Create one and share the link in your group chat.</Muted>}
+      {groups?.length === 0 && (
+        <View style={{ gap: 12, alignItems: "flex-start" }}>
+          <Muted>No groups yet. Create one and share the link in your group chat.</Muted>
+          <View style={{ flexDirection: "row" }}><Button icon="plus" label="New group" onPress={() => router.push("/new")} /></View>
+        </View>
+      )}
       {groups?.map((g) => <GroupRow key={g.group.id} item={g} />)}
     </ScrollView>
   );

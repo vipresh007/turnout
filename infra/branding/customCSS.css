@@ -29,8 +29,8 @@ a:focus, .ext-link:focus { outline: 2px solid #22C55E; outline-offset: 2px; bord
 }
 
 .ext-subtitle { color: #9CA3AF; font-size: 15px; line-height: 22px; }
-/* The note under the form ("Players never need an account...") has its own light panel by default. */
-.ext-boilerplate-text { color: #9CA3AF; background-color: #13171B; border-top: 1px solid #262B31; font-size: 14px; line-height: 21px; }
+/* The note under the form ("Players don't need an account...") has its own light panel by default: keep it plain. */
+.ext-boilerplate-text { color: #9CA3AF; background-color: transparent; border-top: 1px solid #262B31; font-size: 14px; line-height: 21px; }
 
 .ext-input.ext-text-box {
   background-color: #0E1113;
@@ -53,8 +53,9 @@ a:focus, .ext-link:focus { outline: 2px solid #22C55E; outline-offset: 2px; bord
   border-radius: 12px;
   font-weight: 800;
   font-size: 16px;
-  min-height: 44px;
-  padding: 10px 24px;
+  min-height: 48px;
+  width: 100%;
+  padding: 12px 24px;
   box-shadow: 0 6px 18px rgba(22, 163, 74, 0.35);
 }
 .ext-button.ext-primary:hover, .ext-button.ext-primary:focus:hover { background-color: #15803D; border-color: #15803D; }
@@ -87,3 +88,15 @@ a:focus, .ext-link:focus { outline: 2px solid #22C55E; outline-offset: 2px; bord
 
 .ext-footer { background-color: transparent; }
 .ext-footer-item, .ext-footer-links a, .ext-debug-item { color: #9CA3AF; }
+
+/* Phones: no floating card (it ran into the screen edges); the form sits on the page with comfortable side space. */
+@media (max-width: 600px) {
+  .ext-sign-in-box {
+    background-color: #0E1113;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 40px 24px 28px;
+  }
+  .ext-title { font-size: 30px; }
+}

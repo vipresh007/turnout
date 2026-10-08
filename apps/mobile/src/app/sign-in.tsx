@@ -7,7 +7,7 @@ export default function SignIn() {
   const { next } = useLocalSearchParams<{ next?: string }>();
   const target = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
   return (
-    <SignInGate reason={target === "/stats" ? "Sign in to keep your games and stats on every device." : "Sign in to start your group."}>
+    <SignInGate reason={target === "/stats" ? "Keep your games and stats on every device." : "Set up your group in about a minute."}>
       <Redirect href={target as Href} />
     </SignInGate>
   );

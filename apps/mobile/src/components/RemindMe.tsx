@@ -61,13 +61,13 @@ export function RemindMe({ slug, me }: { slug: string; me: Membership }) {
 
   return (
     <Card>
-      <SectionTitle icon="bell">Remind me before the game</SectionTitle>
-      <Muted>The evening before and a couple of hours before. No account needed, and you can stop any time.</Muted>
+      <SectionTitle icon="bell">Remind me before games</SectionTitle>
+      <Muted>A nudge before each game. Stop any time.</Muted>
 
       {pushAvailable && (
         <View style={{ gap: 6 }}>
           {!inApp && support === "ios-needs-home-screen" ? (
-            <Muted>On iPhone: tap Share, then “Add to Home Screen”. Open Turnout from your Home Screen to turn on notifications.</Muted>
+            <Muted>On iPhone, add Turnout to your Home Screen (Share, then Add to Home Screen) to get notifications.</Muted>
           ) : onThisDevice ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <Text style={{ color: t.accent, fontWeight: "700", flex: 1 }}>Notifications on for this device</Text>

@@ -11,7 +11,7 @@ URL="https://graph.microsoft.com/v1.0/organization/$TENANT_ID/branding"
 body='{
   "backgroundColor": "#0E1113",
   "usernameHintText": "you@example.com",
-  "signInPageText": "Players never need an account. Only organizers sign in. [Back to Turnout](https://turnout.dataeaver.ca)",
+  "signInPageText": "Players don\u0027t need an account to play. [Back to Turnout](https://turnout.dataeaver.ca)",
   "loginPageLayoutConfiguration": { "layoutTemplateType": "default", "isHeaderShown": false, "isFooterShown": true }
 }'
 status=$(curl -s -o /tmp/branding.out -w "%{http_code}" -X PATCH "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$body")

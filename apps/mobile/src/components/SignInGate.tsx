@@ -1,11 +1,11 @@
 import { Link } from "expo-router";
 import { useEffect, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { wakeApi } from "@/lib/api";
 import { useAuth, type Provider } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { AppleLogo, EmailIcon, GoogleLogo, MicrosoftLogo } from "./BrandLogos";
-import { Card, Muted, Screen } from "./ui";
+import { Muted, Screen } from "./ui";
 
 const labels: Record<Provider, string> = {
   microsoft: "Continue with Microsoft",
@@ -27,21 +27,27 @@ export function SignInGate({ children, reason }: { children: ReactNode; reason: 
       {status === "loading" ? (
         <ActivityIndicator style={{ marginTop: 48 }} />
       ) : (
-        <View style={{ marginTop: 16 }}>
-          <Card>
-            <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>Sign in to Turnout</Text>
-            <Muted>{reason} Players never need an account to play.</Muted>
-            <View style={{ gap: 10, marginTop: 4 }}>
-              {providers.map((p) => (
-                <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />
-              ))}
-            </View>
-            <Text style={{ color: t.muted, fontSize: 12, textAlign: "center" }}>
-              New here? Any option creates your account automatically. By continuing you agree to the{" "}
-              <Link href="/terms" style={{ textDecorationLine: "underline" }}>terms</Link> and{" "}
-              <Link href="/privacy" style={{ textDecorationLine: "underline" }}>privacy policy</Link>.
-            </Text>
-          </Card>
+        // No card: just the logo, a title and the buttons, with room to breathe on a phone.
+        <View style={{ gap: 28, paddingTop: 24, paddingHorizontal: 8, width: "100%", maxWidth: 420, alignSelf: "center" }}>
+          <View style={{ gap: 10 }}>
+            {Platform.OS !== "web" && ( // the website's header already shows the logo
+              <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
+                turnout<Text style={{ color: t.accent }}>.</Text>
+              </Text>
+            )}
+            <Text style={{ color: t.text, fontSize: 32, fontWeight: "900", letterSpacing: -1 }}>Sign in</Text>
+            <Muted>{reason}</Muted>
+          </View>
+          <View style={{ gap: 10 }}>
+            {providers.map((p) => (
+              <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />
+            ))}
+          </View>
+          <Text style={{ color: t.muted, fontSize: 12, lineHeight: 18, textAlign: "center" }}>
+            New here? Any option creates your account. You agree to the{" "}
+            <Link href="/terms" style={{ textDecorationLine: "underline" }}>terms</Link> and{" "}
+            <Link href="/privacy" style={{ textDecorationLine: "underline" }}>privacy policy</Link>.
+          </Text>
         </View>
       )}
     </Screen>

@@ -219,7 +219,7 @@ export default function GroupScreen() {
             </View>
           )}
           {roster.waitlist.length > 0 && <Text style={{ color: t.waitlist, fontWeight: "600" }}>{roster.waitlist.length} on the waitlist</Text>}
-          {needed > 0 && <Muted>{group.cap ? `${needed} ${needed === 1 ? "spot" : "spots"} left` : `Need ${needed} more to get to ${goal}`}</Muted>}
+          {needed > 0 && group.cap && <Muted>{`${needed} ${needed === 1 ? "spot" : "spots"} left`}</Muted>}
 
           <StatusLine place={place} name={me?.name} />
           {page.season ? (
@@ -348,13 +348,13 @@ export default function GroupScreen() {
         </Card>
       )}
 
-      <View style={{ alignItems: "center", marginTop: 24 }}>
+      {!viewer.isOrganizer && <View style={{ alignItems: "center", marginTop: 24 }}>
         <Link href="/new">
           <Text style={{ color: t.muted }}>
             Run a weekly game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start your own group on Turnout</Text>
           </Text>
         </Link>
-      </View>
+      </View>}
     </Screen>
   );
 }
@@ -380,8 +380,9 @@ function ForecastCard({ page, onAsk }: { page: GroupPage; onAsk: (name: string) 
   const goal = playerGoal(group);
   if (!forecast || !goal || session.cancelled || hours <= 0 || hours > ASK_WINDOW_HOURS) return null;
   const { headline, detail } = describeForecast(forecast, roster.confirmed.length, goal);
-  const showDetail = forecast.status !== "full" || (hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0);
-  const ask = forecast.status === "full" ? [] : forecast.likely.slice(0, Math.max(2, forecast.short + 1));
+  const ask = forecast.status === "full" ? [] : forecast.likely.slice(0, Math.min(3, Math.max(2, forecast.short + 1)));
+  // The Ask buttons already name the likely players, so the sentence only shows when there's no one to ask.
+  const showDetail = ask.length === 0 && (forecast.status !== "full" || (hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0));
   return (
     <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

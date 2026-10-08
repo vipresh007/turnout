@@ -59,7 +59,7 @@ function EditGroup() {
     <Screen>
       <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <GroupFields value={form} onChange={setForm} timezone={group.timezone} />
-      <Muted>Lowering the cap moves the latest sign-ups to the waitlist.</Muted>
+      {group.cap !== null && Number(form.cap) > 0 && Number(form.cap) < group.cap && <Muted>Lowering the max moves the latest sign-ups to the waitlist.</Muted>}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
       <View style={{ flexDirection: "row" }}>
         <Button label="Save changes" onPress={save} loading={saving} big />

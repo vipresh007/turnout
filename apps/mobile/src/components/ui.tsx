@@ -117,7 +117,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
         ) : (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
             {icon && <Icon name={icon} size={big ? 20 : 17} color={color} strokeWidth={2.2} />}
-            <Text style={[styles.buttonText, big && styles.bigButtonText, { color }]}>{label}</Text>
+            <Text numberOfLines={1} style={[styles.buttonText, big && styles.bigButtonText, { color, flexShrink: 1 }]}>{label}</Text>
           </View>
         );
       }}
@@ -145,7 +145,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
   const t = useTheme();
   return (
     <View style={{ gap: 6, flex: 1 }}>
-      <Text style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13, fontWeight: "600" }}>{label}</Text>
       <TextInput
         placeholderTextColor={t.muted}
         {...props}
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   column: { width: "100%", maxWidth: 560, gap: 16, paddingHorizontal: 16 },
   card: { borderWidth: 1, borderRadius: 20, padding: 18, gap: 12 },
   title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.8 },
-  button: { borderWidth: 1, borderRadius: 14, minHeight: 46, paddingVertical: 11, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", flex: 1 },
+  button: { borderWidth: 1, borderRadius: 14, minHeight: 46, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", flex: 1 },
   bigButton: { paddingVertical: 18, borderRadius: 16 },
   buttonText: { fontSize: 16, fontWeight: "700" },
   bigButtonText: { fontSize: 19 },

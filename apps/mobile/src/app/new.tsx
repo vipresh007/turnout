@@ -58,7 +58,7 @@ function NewGroup() {
       <BackLink fallback="/dashboard" />
       <Card>
         <Text style={{ color: t.text, fontSize: 20, fontWeight: "900" }}>Tell us about your game</Text>
-        <Muted>One sentence and Turnout fills in the rest. You can check everything below.</Muted>
+        <Muted>One sentence fills in the form below.</Muted>
         <Field
           label="Your game"
           placeholder="Thursday basketball 8-10pm at GoodLife, 14 players, $10 each"

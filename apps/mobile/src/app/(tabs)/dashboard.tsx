@@ -47,7 +47,13 @@ function DashboardView() {
       return next;
     });
 
-  const load = useCallback(() => api.dashboard().then(setData, (e: Error) => setError(e.message)), [api]);
+  const load = useCallback(
+    () => api.dashboard().then((d) => {
+      setData(d);
+      setError(null);
+    }, (e: Error) => setError(e.message)),
+    [api],
+  );
 
   const [focused, setFocused] = useState(false);
   useFocusEffect(
@@ -83,7 +89,7 @@ function DashboardView() {
   }
 
   const { organizer, groups, activity } = data;
-  const displayName = organizer.name ?? organizer.email?.split("@")[0] ?? null;
+  const displayName = organizer.name?.split(" ")[0] ?? organizer.email?.split("@")[0] ?? null;
   const next = groups.find((g) => !g.session.cancelled) ?? groups[0];
   const others = groups.filter((g) => g !== next);
   const tile = (g: DashboardGroup) => (
@@ -109,12 +115,6 @@ function DashboardView() {
             <Text style={s.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
           </View>
         </View>
-
-        {!web && (
-          <View style={{ flexDirection: "row" }}>
-            <Button label="+ New group" onPress={() => router.push("/new")} />
-          </View>
-        )}
 
         {groups.length === 0 ? (
           <>
@@ -177,7 +177,7 @@ function DashboardView() {
             {organizer.askPricing && <PricingAsk />}
           </>
         )}
-        {error && <Text style={{ color: t.danger }}>{error}</Text>}
+        {/* A failed background refresh keeps showing the last good data; errors only show when there's nothing to show. */}
       </View>
     </RevealScrollView>
   );
@@ -222,7 +222,7 @@ function EmptyState() {
           <Icon name="people" size={28} color={t.accent} />
         </View>
         <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -0.8 }}>Start your first group</Text>
-        <Text style={[s.muted, { fontSize: 16 }]}>It takes about a minute. Your players won't need an account or an app.</Text>
+        <Text style={[s.muted, { fontSize: 16 }]}>Takes a minute. Players don't need the app.</Text>
         <View style={{ gap: 10 }}>
           {steps.map(([n, text]) => (
             <View key={n} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
@@ -233,9 +233,7 @@ function EmptyState() {
             </View>
           ))}
         </View>
-        <View style={[s.chip, { borderColor: t.border, paddingVertical: 10, paddingHorizontal: 14 }]}>
-          <Text style={[s.muted, { fontStyle: "italic" }]}>“Tuesday soccer at Riverside Park, 7:30pm, 14 players”</Text>
-        </View>
+        
         <View style={{ flexDirection: "row" }}>
           <Button label="Create a group" onPress={() => router.push("/new")} big />
         </View>

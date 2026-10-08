@@ -8,7 +8,7 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 export type IconName =
   | "edit" | "bell" | "teams" | "calendar" | "people" | "chart" | "clock" | "key" | "refresh" | "cash"
   | "pin" | "megaphone" | "check" | "x" | "hourglass" | "warning" | "link" | "sparkles" | "mail" | "bulb"
-  | "trending" | "flag" | "shuffle" | "bolt" | "eye" | "user" | "plus" | "chevronDown" | "arrowRight" | "trophy" | "note";
+  | "trending" | "flag" | "shuffle" | "bolt" | "eye" | "user" | "plus" | "chevronDown" | "chevronRight" | "arrowRight" | "trophy" | "note";
 
 export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: { name: IconName; size?: number; color: ColorValue; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
@@ -41,6 +41,7 @@ export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: { name: Icon
     user: <><Circle {...p} cx="12" cy="8" r="4" /><Path {...p} d="M4 21c.8-4 4-6 8-6s7.2 2 8 6" /></>,
     plus: <Path {...p} d="M12 5v14M5 12h14" />,
     chevronDown: <Path {...p} d="M6 9l6 6 6-6" />,
+    chevronRight: <Path {...p} d="M9 6l6 6-6 6" />,
     arrowRight: <Path {...p} d="M5 12h14M13 6l6 6-6 6" />,
     trophy: <Path {...p} d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 21h6M10 17h4" />,
     note: <Path {...p} d="M6 3h9l4 4v14H6zM15 3v4h4M9 12h6M9 16h6" />,

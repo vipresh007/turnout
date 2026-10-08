@@ -133,22 +133,26 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
   const validTokens = useCallback(async (): Promise<Tokens | null> => {
     if (!tokens) return null;
     if (tokens.expiresAt - 60_000 > Date.now()) return tokens;
-    if (!tokens.refreshToken || !discovery) return null;
-    refreshing.current ??= AuthSession.refreshAsync({ clientId: entra.clientId, refreshToken: tokens.refreshToken }, discovery)
+    if (!tokens.refreshToken) return null;
+    const refreshToken = tokens.refreshToken;
+    // Right after launch the sign-in service's settings may still be loading; fetch them rather than give up
+    // (which sent requests without a token and showed "Sign in required").
+    refreshing.current ??= (async () => AuthSession.refreshAsync({ clientId: entra.clientId, refreshToken }, discovery ?? (await AuthSession.fetchDiscoveryAsync(entra.authority))))()
       .then(async (r) => {
-        const next = { ...toTokens(r), refreshToken: r.refreshToken ?? tokens.refreshToken };
+        const next = { ...toTokens(r), refreshToken: r.refreshToken ?? refreshToken };
         await save(next);
         return next;
       })
-      .catch(async () => {
-        await save(null);
+      .catch(async (e: { code?: string }) => {
+        // Only a refused refresh token means signed out; a network blip keeps you signed in for the next try.
+        if (e?.code === "invalid_grant") await save(null);
         return null;
       })
       .finally(() => {
         refreshing.current = null;
       });
     return refreshing.current;
-  }, [tokens, discovery, entra.clientId, save]);
+  }, [tokens, discovery, entra.clientId, entra.authority, save]);
 
   const authHeaders = useCallback(async (): Promise<Record<string, string>> => {
     const t = await validTokens();
@@ -180,7 +184,7 @@ function DevAuthProvider({ children }: { children: ReactNode }) {
       providers: ["email"],
       completeRedirect: async () => "/dashboard",
       signIn: async () => {
-        const next = Math.random().toString(36).slice(2);
+        const next = process.env.EXPO_PUBLIC_DEV_USER || Math.random().toString(36).slice(2); // a fixed one to reuse seed data
         await storage.set("devOrganizerId", next);
         setId(next);
       },

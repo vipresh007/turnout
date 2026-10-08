@@ -122,8 +122,14 @@ export function CalendarView({ groups }: { groups: DashboardGroup[] }) {
   );
   const header = narrow ? (
     <View style={{ gap: 8 }}>
-      <Text style={{ color: t.text, fontSize: 16, fontWeight: "800" }}>{title}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>{controls}</View>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <Seg options={[["list", "List"], ["month", "Month"]]} value={mode} onChange={(m) => { setMode(m as typeof mode); setOffset(0); setSelected(null); }} />
+        <View style={{ flex: 1 }} />
+        {offset !== 0 && <NavButton label="Today" onPress={() => { setOffset(0); setSelected(null); }} a11y="Today" />}
+        <NavButton label="‹" onPress={() => setOffset((o) => o - 1)} a11y="Previous" />
+        <NavButton label="›" onPress={() => setOffset((o) => o + 1)} a11y="Next" />
+      </View>
+      {(offset !== 0 || mode === "month") && <Text style={{ color: t.muted, fontSize: 14, fontWeight: "700" }}>{title}</Text>}
     </View>
   ) : (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -294,7 +300,6 @@ export function TurnoutChart({ stats }: { stats: OrganizerStats }) {
       </View>
 
       <View style={{ flexDirection: "row", gap: 24, flexWrap: "wrap" }}>
-        <Metric label="Fill rate" value={stats.fillRate === null ? "–" : `${Math.round(stats.fillRate * 100)}%`} hint="of spots filled, past 8 weeks" />
         <Metric label="Responses" value={String(stats.responses)} hint="in and out taps" />
       </View>
     </View>
@@ -382,6 +387,26 @@ export function StatRow({ groups, stats }: { groups: DashboardGroup[]; stats: Or
   const live = groups.filter((g) => !g.session.cancelled);
   const playersIn = live.reduce((n, g) => n + g.confirmed, 0);
   const spots = live.reduce((n, g) => n + (g.group.cap ?? 0), 0);
+  const t = useTheme();
+  const narrow = useWindowDimensions().width < 600;
+  const fill = stats.fillRate === null ? "–" : `${Math.round(stats.fillRate * 100)}%`;
+  if (narrow) {
+    // Phones: one compact row, like the player stats, instead of big boxes that wrap.
+    const figure = (label: string, value: string, hint: string) => (
+      <View key={label} style={{ flex: 1, backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 12, gap: 2 }}>
+        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>{label}</Text>
+        <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.8, fontVariant: ["tabular-nums"] }}>{value}</Text>
+        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{hint}</Text>
+      </View>
+    );
+    return (
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        {figure("Groups", String(groups.length), "running")}
+        {figure("In now", String(playersIn), spots ? `of ${spots}` : "this week")}
+        {figure("Fill rate", fill, "8 weeks")}
+      </View>
+    );
+  }
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
       <Stat label="Groups" value={String(groups.length)} hint="running" />

@@ -48,7 +48,6 @@ export function GameDots({ games }: { games: PlayerGame[] }) {
           />
         ))}
       </View>
-      <Text style={{ color: t.muted, fontSize: 12 }}>Last {games.length} {games.length === 1 ? "game" : "games"}, newest on the right</Text>
     </View>
   );
 }

@@ -5,10 +5,11 @@ import { Pressable, Text, View } from "react-native";
 import { shareUrl, trackEvent, useApi } from "@/lib/api";
 import { hoursUntil, relativeDay, sessionWhen } from "@/lib/format";
 import { useTheme } from "@/lib/theme";
+import { ActionGrid, ActionTile } from "./ActionTile";
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
 import { Pop } from "./motion";
-import { Button, Eyebrow, IconLine, Pill, webTransition } from "./ui";
+import { Eyebrow, IconLine, Pill, webTransition } from "./ui";
 
 /**
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
@@ -123,7 +124,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
 
       {expanded && (
       <View style={{ paddingHorizontal: 18, paddingBottom: 18, gap: 16 }}>
-      {!session.cancelled && (
+      {!session.cancelled && item.confirmed + item.out + item.waitlist > 0 && (
           <Eyebrow>
             {item.confirmed} in · {item.out} out · {item.waitlist} waitlist{item.confirmed && !season ? ` · ${paidCount}/${item.confirmed} paid` : ""}
             {share !== null && item.confirmed ? ` · ${formatMoney(paidCount * share)} of ${formatMoney(item.confirmed * share)}` : ""}
@@ -131,11 +132,11 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
       )}
       {session.cancelled && <Text style={{ color: t.danger, fontWeight: "800", fontSize: 16 }}>No game this week</Text>}
 
-      <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-        <Button icon="megaphone" label={item.spotsLeft && !session.cancelled ? `Need ${item.spotsLeft} more` : "Share"} onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
-        <Button icon="bell" label="Remind" variant="secondary" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", remind)} />
-        <Button label="Open group" icon="arrowRight" variant="secondary" onPress={open} />
-      </View>
+      <ActionGrid>
+        <ActionTile compact primary icon="megaphone" label="Share" onPress={() => { trackEvent("link_shared", group.slug, { via: "share", from: "dashboard" }); onShare(message); }} />
+        <ActionTile compact icon="bell" label="Remind" disabled={session.cancelled} loading={busy === "remind"} onPress={() => act("remind", remind)} />
+        <ActionTile compact icon="arrowRight" label="Open" onPress={open} />
+      </ActionGrid>
       {reminder && (
         <Pop style={{ gap: 8 }}>
           <Text style={{ color: t.text, fontWeight: "700" }}>
@@ -222,12 +223,12 @@ function attentionHint({ group, session, spotsLeft, suggestions, players, confir
   const hours = hoursUntil(session.startsAt);
   const close = hours > 0 && hours <= ASK_WINDOW_HOURS;
   const { forecast } = suggestions;
-  if (close && forecast?.status === "short") return `You may be ${forecast.short} short · tap to see who to ask`;
-  if (close && forecast?.status === "good") return `You're probably good · ${forecast.unanswered} still to answer`;
-  if (close && forecast?.status === "full" && hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0) return "Full · you usually lose a player late, a backup would help";
+  if (close && forecast?.status === "short") return `May be ${forecast.short} short · see who to ask`;
+  if (close && forecast?.status === "good") return `Probably good · ${forecast.unanswered} yet to answer`;
+  if (close && forecast?.status === "full" && hours <= LATE_WARNING_HOURS && forecast.expectedLateDrops > 0) return "Full · a backup would help";
   const waiting = suggestions.invite.length;
   if (close && !forecast && spotsLeft > 0 && waiting > 0 && suggestions.games >= 2) {
-    return `${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered yet · tap to ask`;
+    return `${waiting} ${waiting === 1 ? "regular hasn't" : "regulars haven't"} answered`;
   }
   const unpaid = players.filter((p) => p.status === "in" && !p.paid).length;
   // Season groups track the season fee on the group page; per-game payments there are only subs.
@@ -257,6 +258,7 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
     if (forecast.status === "full" && (hours > LATE_WARNING_HOURS || forecast.expectedLateDrops === 0)) detail = null;
     ask = forecast.status === "full" ? [] : forecast.likely;
     askCount = Math.max(2, forecast.short + 1);
+    if (ask.length) detail = null; // the list below says it
   } else if (spotsLeft > 0 && suggestions.invite.length && suggestions.games >= 2) {
     headline = `Need ${spotsLeft} more? These regulars haven't answered yet:`;
   }
@@ -272,7 +274,7 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
         </View>
         {detail && <Text style={{ color: t.text }}>{detail}</Text>}
       </View>
-      {ask.slice(0, askCount).map((p) => (
+      {ask.slice(0, Math.min(askCount, 3)).map((p) => (
         <View key={p.memberId} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Avatar name={p.name} size={26} />
           <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
