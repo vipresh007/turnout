@@ -11,7 +11,15 @@ export function Screen({ children, signInLabel, scrollRef }: { children: ReactNo
   const t = useTheme();
   const web = Platform.OS === "web";
   return (
-    <ScrollView ref={scrollRef} style={{ backgroundColor: t.bg }} contentContainerStyle={[styles.screen, !web && { paddingTop: 16 }]} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      ref={scrollRef}
+      style={{ backgroundColor: t.bg }}
+      contentContainerStyle={[styles.screen, !web && { paddingTop: 16 }]}
+      keyboardShouldPersistTaps="handled"
+      // iOS: make room for the keyboard and keep the field you're typing in visible; swipe down to close it.
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
+    >
       {web && <PageGlow />}
       {web && <SiteHeader signInLabel={signInLabel} />}
       <View style={styles.column}>{children}</View>

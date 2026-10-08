@@ -101,6 +101,9 @@ function DashboardView() {
       style={s.page}
       contentContainerStyle={{ alignItems: "center", paddingBottom: 64 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="interactive"
     >
       {web && <PageGlow />}
       {web && <SiteHeader />}
