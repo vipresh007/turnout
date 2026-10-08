@@ -52,7 +52,9 @@ function History() {
             // Bring the game asked for into view once it's laid out.
             if (at && localDay(g.startsAt) === at && scrolledTo.current !== at) {
               scrolledTo.current = at;
-              setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 16), animated: true }), 50);
+              // Read the position now: React Native recycles the event object, so it's gone inside the timeout.
+              const y = e.nativeEvent.layout.y;
+              setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, y - 16), animated: true }), 50);
             }
           }}
         >
