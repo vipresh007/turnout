@@ -1,4 +1,4 @@
-import { ASK_WINDOW_HOURS, type MyPlayerStats, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, isOneOff, type MyPlayerStats, describeCost, describeForecast, describeRecurrence, formatMoney, inviteMessage, LATE_WARNING_HOURS, placeOf, playerGoal, playersNeeded, shareCents, shortWhen, teamNames, teamsText, type GroupPage, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import * as Haptics from "expo-haptics";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -193,11 +193,13 @@ export default function GroupScreen() {
 
       {page.seasonOver ? (
         <Card>
-          <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }}>That's a wrap for this season 🎉</Text>
+          <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }}>{isOneOff(group) ? "This event is over 🎉" : "That's a wrap for this season 🎉"}</Text>
           <Muted>
-            {viewer.isOrganizer
-              ? "The last game has been played. To keep going, set a new last game in Edit group, or start a new season below."
-              : "The last game has been played. Thanks for playing! Your organizer will share the next season here."}
+            {isOneOff(group)
+              ? viewer.isOrganizer ? "Thanks for running it. To do it again, change the date in Edit group." : "Thanks for coming!"
+              : viewer.isOrganizer
+                ? "The last game has been played. To keep going, set a new last game in Edit group, or start a new season below."
+                : "The last game has been played. Thanks for playing! Your organizer will share the next season here."}
           </Muted>
         </Card>
       ) : session.cancelled ? (

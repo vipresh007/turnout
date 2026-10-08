@@ -43,3 +43,10 @@ test("start and end times ↔ duration", () => {
   assert.equal(minutesBetween("19:30", "19:30"), null);
   assert.equal(minutesBetween("7pm", "9pm"), null);
 });
+
+test("a one-time event: one date, then nothing", () => {
+  const r = { weekdays: [6], intervalWeeks: 1, startsOn: "2026-10-24", endsOn: "2026-10-24" };
+  assert.deepEqual(nextDates("2026-10-01", r, 3), ["2026-10-24"]);
+  assert.equal(describeRecurrence(r), "One-time");
+  assert.equal(describeRecurrence({ ...r, endsOn: null }), "Every Sat");
+});

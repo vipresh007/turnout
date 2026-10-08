@@ -1,4 +1,4 @@
-import { createGroupSchema, endTimeFor, minutesBetween, parseMoney, defaultReminderSettings, type CreateGroupInput, type Group, type GroupDraft, type ReminderSettings } from "@turnout/shared";
+import { createGroupSchema, endTimeFor, isOneOff, minutesBetween, weekdayOf, parseMoney, defaultReminderSettings, type CreateGroupInput, type Group, type GroupDraft, type ReminderSettings } from "@turnout/shared";
 
 /** Form state as the inputs hold it: strings, plus the day chips and repeat choice. */
 export interface GroupFormValues {
@@ -7,6 +7,10 @@ export interface GroupFormValues {
   location: string;
   weekdays: number[];
   intervalWeeks: number;
+  /** A one-time event on `date` instead of a repeating schedule. */
+  once: boolean;
+  /** The event's date when `once`, YYYY-MM-DD. */
+  date: string;
   /** Optional last date, YYYY-MM-DD. */
   endsOn: string;
   startTime: string;
@@ -26,7 +30,7 @@ export interface GroupFormValues {
   reminders: ReminderSettings;
 }
 
-export const emptyGroupForm: GroupFormValues = { name: "", activity: "", location: "", weekdays: [], intervalWeeks: 1, endsOn: "", startTime: "", endTime: "", cap: "", costMode: "none", fee: "", feeSplit: false, seasonFee: "", target: "", payNote: "", reminders: defaultReminderSettings };
+export const emptyGroupForm: GroupFormValues = { name: "", activity: "", location: "", weekdays: [], intervalWeeks: 1, once: false, date: "", endsOn: "", startTime: "", endTime: "", cap: "", costMode: "none", fee: "", feeSplit: false, seasonFee: "", target: "", payNote: "", reminders: defaultReminderSettings };
 
 const dollars = (cents: number | null) => (cents ? String(cents / 100) : "");
 
@@ -36,7 +40,9 @@ export const fromGroup = (g: Group): GroupFormValues => ({
   location: g.location ?? "",
   weekdays: g.weekdays,
   intervalWeeks: g.intervalWeeks,
-  endsOn: g.endsOn ?? "",
+  once: isOneOff(g),
+  date: isOneOff(g) ? g.startsOn : "",
+  endsOn: isOneOff(g) ? "" : g.endsOn ?? "",
   startTime: g.startTime,
   endTime: endTimeFor(g.startTime, g.durationMinutes),
   cap: g.cap ? String(g.cap) : "",
@@ -56,6 +62,8 @@ export const applyDraft = (v: GroupFormValues, d: GroupDraft): GroupFormValues =
   location: d.location ?? v.location,
   weekdays: d.weekdays?.length ? d.weekdays : v.weekdays,
   intervalWeeks: d.intervalWeeks ?? v.intervalWeeks,
+  once: v.once,
+  date: v.date,
   endsOn: v.endsOn,
   startTime: d.startTime ?? v.startTime,
   endTime: d.startTime && d.durationMinutes ? endTimeFor(d.startTime, d.durationMinutes) : v.endTime,
@@ -79,13 +87,17 @@ export function toGroupInput(v: GroupFormValues, timezone: string): { ok: true; 
   if (feeCents === undefined) return { ok: false, error: `${v.costMode === "season" ? "Drop-in price" : "Cost"}: enter an amount like 10 or 7.50` };
   const seasonFeeCents = v.costMode === "season" ? parseMoney(v.seasonFee) : null;
   if (seasonFeeCents === undefined) return { ok: false, error: "Season fee: enter an amount like 2500" };
+  const date = v.date.trim();
+  if (v.once && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Date: enter it like 2026-10-24" };
   const parsed = createGroupSchema.safeParse({
     name: v.name,
     activity: v.activity || undefined,
     location: v.location || undefined,
-    weekdays: v.weekdays,
-    intervalWeeks: v.intervalWeeks,
-    endsOn: v.endsOn.trim() || null,
+    // A one-time event is a schedule whose first and last game are the same day.
+    weekdays: v.once ? [weekdayOf(date)] : v.weekdays,
+    intervalWeeks: v.once ? 1 : v.intervalWeeks,
+    ...(v.once ? { startsOn: date } : {}),
+    endsOn: v.once ? date : v.endsOn.trim() || null,
     startTime: v.startTime,
     durationMinutes,
     timezone,

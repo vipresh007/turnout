@@ -26,7 +26,7 @@ Weekly in/out headcounts for recurring games. See README.md for layout, routes, 
 - Local dev without Entra: leave `EXPO_PUBLIC_ENTRA_AUTHORITY` empty; the API accepts `x-dev-user` when `ALLOW_DEV_AUTH=true`.
 
 ## Features worth knowing before changing them
-- Schedules: `groups.weekdays[]` + `interval_weeks` + `starts_on`/`ends_on` (rules in `packages/shared/src/schedule.ts`). `sessions.starts_at` is the *scheduled* time and identifies the week; per-week `starts_at_override`, `location_override`, `note`, `cancelled`.
+- Schedules: `groups.weekdays[]` + `interval_weeks` + `starts_on`/`ends_on` (rules in `packages/shared/src/schedule.ts`). A one-time event is `starts_on = ends_on` (`isOneOff`), shown as "One-time". `sessions.starts_at` is the *scheduled* time and identifies the week; per-week `starts_at_override`, `location_override`, `note`, `cancelled`.
 - Link previews: `/og/:slug.png` (API, resvg + fonts-inter in the Docker image) and the Static Web App function `apps/mobile/api/og-page` that serves `/g/*` with Open Graph tags (index.html copied in by `scripts/add-meta.mjs` at build).
 - Members may have several devices (`member_tokens`); `/restore` links and organizer merge keep one person as one member.
 - Optional player accounts: `members.account_id` links player entries to an `organizers` row (one account type for organizers and players). `POST /me/memberships` (run by `PlayerSync` on sign-in) links the device's entries plus confirmed-email matches and returns device tokens for linked entries the device lacks, so every client screen keeps using device memberships. Player stats: `playerStats()` in packages/shared, `GET /groups/:slug/me/stats` (member token only; private to the player).

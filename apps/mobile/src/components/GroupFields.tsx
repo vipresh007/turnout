@@ -15,6 +15,13 @@ const COST_HELP: Record<GroupFormValues["costMode"], string | null> = {
   season: "Members pay once, up front. Others join as subs.",
 };
 
+/** "Sat, Oct 24" for a typed YYYY-MM-DD, or null while it isn't a date yet. */
+const niceDate = (ymd: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd.trim())) return null;
+  const d = new Date(`${ymd.trim()}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+};
+
 /** The player goal as typed: the max if set, otherwise the target. */
 const goalFromForm = (v: GroupFormValues) => Number(v.cap) || Number(v.target) || null;
 
@@ -61,23 +68,34 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
       </Section>
 
       <Section title="When">
-        <View style={{ flexDirection: "row", gap: 6 }}>
-          {days.map((d, i) => {
-            const selected = value.weekdays.includes(i);
-            return <DayDot key={d} label={d} selected={selected} onPress={() => set("weekdays")(selected ? value.weekdays.filter((x) => x !== i) : [...value.weekdays, i].sort())} />;
-          })}
-        </View>
         <Segmented
-          options={[[1, "Weekly"], [2, "2 wks"], [3, "3 wks"], [4, "4 wks"]]}
-          value={value.intervalWeeks}
-          onChange={(n) => set("intervalWeeks")(n)}
+          options={[["repeat", "Repeats"], ["once", "One-time"]]}
+          value={value.once ? "once" : "repeat"}
+          onChange={(v) => onChange({ ...value, once: v === "once" })}
         />
+        {value.once ? (
+          <Field label="Date" placeholder="2026-10-24" value={value.date} onChangeText={set("date")} />
+        ) : (
+          <>
+            <View style={{ flexDirection: "row", gap: 6 }}>
+              {days.map((d, i) => {
+                const selected = value.weekdays.includes(i);
+                return <DayDot key={d} label={d} selected={selected} onPress={() => set("weekdays")(selected ? value.weekdays.filter((x) => x !== i) : [...value.weekdays, i].sort())} />;
+              })}
+            </View>
+            <Segmented
+              options={[[1, "Weekly"], [2, "2 wks"], [3, "3 wks"], [4, "4 wks"]]}
+              value={value.intervalWeeks}
+              onChange={(n) => set("intervalWeeks")(n)}
+            />
+          </>
+        )}
         <View style={{ flexDirection: "row", gap: 12 }}>
           <Field label="Starts" placeholder="19:30" value={value.startTime} onChangeText={set("startTime")} />
           <Field label="Ends" placeholder="21:30" value={value.endTime} onChangeText={set("endTime")} />
-          <Field label="Last game" placeholder="Optional" value={value.endsOn} onChangeText={set("endsOn")} />
+          {!value.once && <Field label="Last game" placeholder="Optional" value={value.endsOn} onChangeText={set("endsOn")} />}
         </View>
-        <Hint>{[length, timezone].filter(Boolean).join(" · ")}</Hint>
+        <Hint>{[value.once ? niceDate(value.date) : null, length, timezone].filter(Boolean).join(" · ")}</Hint>
       </Section>
 
       <Section title="Players">

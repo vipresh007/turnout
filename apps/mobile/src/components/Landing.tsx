@@ -260,17 +260,35 @@ export function Landing() {
         </Reveal>
       </View>
 
-      <View style={[s.section, { paddingVertical: 32, flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 12, borderTopWidth: 1, borderColor: t.border }]}>
-        <Text style={s.logoSmall}>
-          turnout<Text style={{ color: t.accent }}>.</Text>
-        </Text>
-        <View style={{ flexDirection: "row", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
-          <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout · Made for people who organize the game.</Text>
-          <Link href="/privacy"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Privacy</Text></Link>
-          <Link href="/terms"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Terms</Text></Link>
-          <Link href="/support"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Support</Text></Link>
-        </View>
-      </View>
+      <Footer
+        wide={wide}
+        links={[
+          {
+            title: "Product",
+            items: [
+              { label: "How it works", onPress: () => scrollTo(howY.current) },
+              { label: "Features", onPress: () => scrollTo(featuresY.current) },
+              { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
+              { label: "Try the demo", onPress: () => router.push("/demo") },
+            ],
+          },
+          {
+            title: "Help",
+            items: [
+              { label: "Support", onPress: () => router.push("/support") },
+              { label: "Contact us", onPress: () => router.push("/support") },
+              { label: "Start a group", onPress: start },
+            ],
+          },
+          {
+            title: "Legal",
+            items: [
+              { label: "Privacy policy", onPress: () => router.push("/privacy") },
+              { label: "Terms of service", onPress: () => router.push("/terms") },
+            ],
+          },
+        ]}
+      />
     </RevealScrollView>
   );
 }
@@ -538,6 +556,44 @@ function PriceCard({ name, price, per, items, featured, cta, onPress }: { name: 
           <Text style={{ color: t.accentText, fontWeight: "800", fontSize: 16 }}>{cta}</Text>
         </Pressable>
       )}
+    </View>
+  );
+}
+
+/** The site footer: what Turnout is, links by topic, and who makes it. */
+function Footer({ wide, links }: { wide: boolean; links: { title: string; items: { label: string; onPress: () => void }[] }[] }) {
+  const t = useTheme();
+  return (
+    <View style={{ width: "100%", alignItems: "center", backgroundColor: t.card, borderTopWidth: 1, borderColor: t.border }}>
+      <View style={{ width: "100%", maxWidth: 1140, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 28, gap: 40 }}>
+        <View style={{ flexDirection: wide ? "row" : "column", gap: wide ? 48 : 32 }}>
+          <View style={{ flex: wide ? 1.4 : undefined, gap: 12, maxWidth: 360 }}>
+            <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 }}>
+              turnout<Text style={{ color: t.accent }}>.</Text>
+            </Text>
+            <Text style={{ color: t.muted, fontSize: 15, lineHeight: 22 }}>One link for your weekly game. Players tap I'm in, and Turnout handles the count, the waitlist and the reminders.</Text>
+            <Text style={{ color: t.muted, fontSize: 15 }}>
+              Questions? <Link href="/support"><Text style={{ color: t.accent, fontWeight: "700" }}>Get in touch</Text></Link>
+            </Text>
+          </View>
+          <View style={{ flex: wide ? 2 : undefined, flexDirection: "row", flexWrap: "wrap", gap: 32 }}>
+            {links.map((col) => (
+              <View key={col.title} style={{ flexGrow: 1, flexBasis: wide ? 0 : "40%", gap: 12 }}>
+                <Text style={{ color: t.text, fontSize: 13, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>{col.title}</Text>
+                {col.items.map((item) => (
+                  <Pressable key={item.label} accessibilityRole="link" onPress={item.onPress} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1, ...webTransition })}>
+                    <Text style={{ color: t.muted, fontSize: 15 }}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+        <View style={{ flexDirection: wide ? "row" : "column", justifyContent: "space-between", gap: 8, borderTopWidth: 1, borderColor: t.border, paddingTop: 20 }}>
+          <Text style={{ color: t.muted, fontSize: 13 }}>© {new Date().getFullYear()} Data Eaver Inc. All rights reserved.</Text>
+          <Text style={{ color: t.muted, fontSize: 13 }}>Made in Ontario, Canada · Free for organizers</Text>
+        </View>
+      </View>
     </View>
   );
 }

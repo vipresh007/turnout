@@ -734,3 +734,17 @@ test("support contact form: checks the reply address, ignores bots, keeps the me
   await app.inject({ method: "POST", url: "/support/contact", payload: { email: "bot@example.com", message: "Buy cheap things now", website: "http://spam" } });
   assert.equal((await db.query(`SELECT 1 FROM feedback WHERE email = 'bot@example.com'`)).length, 0);
 });
+
+test("a one-time event: one date, shown as one-time", async () => {
+  const day = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+  const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+  const res = await app.inject({
+    method: "POST", url: "/groups", headers: organizer,
+    payload: { name: "Fall BBQ", weekdays: [weekday], intervalWeeks: 1, startsOn: day, endsOn: day, startTime: "18:00", timezone: "UTC", cap: 30 },
+  });
+  assert.equal(res.statusCode, 201);
+  const page = (await app.inject({ url: `/groups/${res.json().group.slug}` })).json();
+  assert.equal(page.session.startsAt.slice(0, 10), day);
+  assert.deepEqual([page.group.startsOn, page.group.endsOn], [day, day]);
+  assert.equal(page.seasonOver, false);
+});

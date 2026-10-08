@@ -37,8 +37,12 @@ export function nextDates(from: string, r: Recurrence, count: number): string[] 
   return out;
 }
 
-/** "Tue & Thu", "Every other Wed", "Every 3 weeks on Mon". */
-export function describeRecurrence(r: Pick<Recurrence, "weekdays" | "intervalWeeks">): string {
+/** A one-time event: its first and last game are the same day. */
+export const isOneOff = (r: { startsOn?: string; endsOn?: string | null }) => !!r.startsOn && r.startsOn === r.endsOn;
+
+/** "Tue & Thu", "Every other Wed", "Every 3 weeks on Mon", or "One-time". */
+export function describeRecurrence(r: Pick<Recurrence, "weekdays" | "intervalWeeks"> & { startsOn?: string; endsOn?: string | null }): string {
+  if (isOneOff(r)) return "One-time";
   const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const days = [...r.weekdays].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => names[d]);
   const list = days.length <= 2 ? days.join(" & ") : `${days.slice(0, -1).join(", ")} & ${days.at(-1)}`;

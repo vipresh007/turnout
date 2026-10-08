@@ -102,7 +102,7 @@ Members opt in on the group page, with no account: **browser notifications** (we
 
 **Organizers**
 - Sign in with email code, Google, Microsoft or Apple (branded pages and code email)
-- Create in one sentence (AI draft) or by hand: several days, every N weeks, start/end dates, cap, reminder timing, optional cost (per player or split) and payment note
+- Create in one sentence (AI draft) or by hand: a one-time event or a repeating schedule (several days, every N weeks, start/end dates), cap, reminder timing, optional cost (per player or split) and payment note
 - Share cards for WhatsApp/SMS and rich link previews
 - Week by week: skip, move, change the place, add a note, cancel
 - Remind now, payment tracking with $ collected, skill ratings and balanced teams, late-dropout flags and emails, members list with merge

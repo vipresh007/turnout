@@ -1,4 +1,4 @@
-import { describeRecurrence, formatMoney, playerGoal, type GroupPage, type ShareInput } from "@turnout/shared";
+import { describeRecurrence, formatMoney, playerGoal, type GroupPage, type ShareInput, isOneOff } from "@turnout/shared";
 import { router } from "expo-router";
 import { Platform, Text, View } from "react-native";
 import { relativeDay, sessionWhen } from "@/lib/format";
@@ -32,7 +32,7 @@ export function ReadyCard({ page, shareInput, onDone }: { page: GroupPage; share
         <View style={{ gap: 4 }}>
           {facts.map((f) => <Text key={f} style={{ color: t.text, fontSize: 15 }}>{f}</Text>)}
         </View>
-        <Text style={{ color: t.text, fontWeight: "700" }}>Your first game is {relativeDay(session.startsAt, group.timezone).toLowerCase()}.</Text>
+        <Text style={{ color: t.text, fontWeight: "700" }}>{isOneOff(group) ? "It's" : "Your first game is"} {relativeDay(session.startsAt, group.timezone).toLowerCase()}.</Text>
       </Card>
 
       <Card>
