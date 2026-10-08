@@ -71,6 +71,7 @@ export default function RootLayout() {
         <Stack.Screen name="organize" options={{ title: "Help run a group" }} />
         <Stack.Screen name="privacy" options={{ title: "Privacy", headerShown: Platform.OS !== "web" }} />
         <Stack.Screen name="terms" options={{ title: "Terms", headerShown: Platform.OS !== "web" }} />
+        <Stack.Screen name="support" options={{ title: "Support", headerShown: Platform.OS !== "web" }} />
       </Stack>
     </AuthProvider>
   );

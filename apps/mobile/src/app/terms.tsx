@@ -3,9 +3,9 @@ import { Email, H, LegalPage, Li, P } from "@/components/LegalPage";
 
 export default function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="September 27, 2026">
+    <LegalPage title="Terms of service" updated="October 7, 2026">
       <P>
-        These terms cover your use of Turnout (turnout.dataeaver.ca), operated by Dataeaver (“we”). By using Turnout, as an organizer or a player,
+        These terms cover your use of Turnout (turnout.dataeaver.ca), operated by Data Eaver Inc. (“we”). By using Turnout, as an organizer or a player,
         you agree to them. If you don't agree, please don't use Turnout.
       </P>
 

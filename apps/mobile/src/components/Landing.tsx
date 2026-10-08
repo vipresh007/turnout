@@ -268,6 +268,7 @@ export function Landing() {
           <Text style={{ color: t.muted }}>© {new Date().getFullYear()} Turnout · Made for people who organize the game.</Text>
           <Link href="/privacy"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Privacy</Text></Link>
           <Link href="/terms"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Terms</Text></Link>
+          <Link href="/support"><Text style={{ color: t.muted, textDecorationLine: "underline" }}>Support</Text></Link>
         </View>
       </View>
     </RevealScrollView>

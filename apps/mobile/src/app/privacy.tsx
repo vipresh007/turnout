@@ -3,10 +3,10 @@ import { Email, H, LegalPage, Li, P } from "@/components/LegalPage";
 
 export default function Privacy() {
   return (
-    <LegalPage title="Privacy policy" updated="September 28, 2026">
+    <LegalPage title="Privacy policy" updated="October 7, 2026">
       <P>
         Turnout (turnout.dataeaver.ca) helps people run recurring games: organizers set up a group, and players tap “I'm in” or “I'm out” each week.
-        Turnout is operated by Dataeaver (“we”). This policy explains what we collect, why, and the choices you have. We collect as little as we can.
+        Turnout, on the web and in the iPhone app, is operated by Data Eaver Inc. (“we”), in Ontario, Canada. This policy explains what we collect, why, and the choices you have. We collect as little as we can.
       </P>
 
       <H>What we collect</H>
@@ -17,7 +17,9 @@ export default function Privacy() {
       <P>If you play (no account needed):</P>
       <Li>The name you type when you join a group, and your in/out answers each week, with when you answered.</Li>
       <Li>A random code stored on your device so Turnout remembers you. We keep only a scrambled (hashed) copy.</Li>
-      <Li>Optional: an email address, if you ask for reminder emails, and a browser notification subscription, if you turn on notifications.</Li>
+      <Li>Optional: an email address, if you ask for reminder emails, and a notification subscription (browser) or push token (Turnout app), if you turn on notifications.</Li>
+      <Li>Optional: if you sign in as a player, your name and email address from the sign-in method you choose, linked to the groups you play in, so your games follow you to other devices.</Li>
+      <Li>Your own stats (games played, attendance, streaks) are worked out from your answers and shown only to you.</Li>
       <P>Everyone:</P>
       <Li>Basic technical logs (such as IP address, browser type, errors and timings) to keep Turnout running and secure.</Li>
 
@@ -49,10 +51,11 @@ export default function Privacy() {
         and may be processed in the United States. Don't include personal details in it.
       </Li>
       <Li>Your browser's push service (for example Google, Apple or Mozilla) delivers notifications, if you turn them on.</Li>
+      <Li>Expo (650 Industries) relays notifications to the Turnout app through Apple's push service, if you turn them on in the app. It receives the notification text and a device token, nothing else.</Li>
 
       <H>Cookies and storage</H>
       <P>
-        Turnout stores a few items on your device: your sign-in session (organizers), your player code for each group you join, and small preferences.
+        Turnout stores a few items on your device: your sign-in session (if you sign in), your player code for each group you join, and small preferences.
         We don't use advertising or tracking cookies.
       </P>
 
@@ -60,7 +63,7 @@ export default function Privacy() {
       <Li>Group data stays while the group exists. An organizer can remove a player at any time, which deletes that player's answers for the group.</Li>
       <Li>Reminder email addresses are deleted when you stop reminders.</Li>
       <Li>Technical logs are kept for up to 90 days.</Li>
-      <Li>You can ask us to delete your account or data at any time (see below).</Li>
+      <Li>You can delete your account at any time in the app (Account, then Delete account), or ask us to delete your account or data (see below).</Li>
 
       <H>Your choices and rights</H>
       <P>
@@ -76,14 +79,14 @@ export default function Privacy() {
       </P>
 
       <H>Children</H>
-      <P>Organizer accounts are for people 16 and older. Players join by name only; a parent or coach can manage a youth group's sign-ups.</P>
+      <P>Accounts are for people 16 and older. Players join by name only; a parent or coach can manage a youth group's sign-ups.</P>
 
       <H>Changes</H>
       <P>If we make significant changes, we'll update the date above and let organizers know in the app or by email.</P>
 
       <H>Contact</H>
       <P>
-        Questions or requests: <Email />. See also our <Link href="/terms" style={{ textDecorationLine: "underline" }}>terms of service</Link>.
+        Questions or requests: <Email />. See also our <Link href="/terms" style={{ textDecorationLine: "underline" }}>terms of service</Link> and <Link href="/support" style={{ textDecorationLine: "underline" }}>support</Link>.
       </P>
     </LegalPage>
   );
