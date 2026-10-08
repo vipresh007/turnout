@@ -1,5 +1,8 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "base": {
       "env": {
@@ -27,6 +30,11 @@
     }
   },
   "submit": {
-    "production": { "ios": { "appleTeamId": "253QMGHP88" } }
+    "production": {
+      "ios": {
+        "appleTeamId": "253QMGHP88",
+        "ascAppId": "6820230750"
+      }
+    }
   }
 }
