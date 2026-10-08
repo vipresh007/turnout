@@ -9,10 +9,37 @@ import { Card, SectionTitle, webTransition } from "./ui";
 /** Invite card: the ready-to-send message plus one-tap WhatsApp, Messages, and copy/share. */
 export function ShareCard({ input, title }: { input: ShareInput; title?: string }) {
   const t = useTheme();
-  const [copied, setCopied] = useState(false);
   const [preview, setPreview] = useState(false);
   const message = groupShareMessage(input);
   const need = input.cap && !input.cancelled ? input.cap - input.confirmed : 0;
+
+  return (
+    <Card>
+      <SectionTitle
+        icon="megaphone"
+        right={
+          <Pressable accessibilityRole="button" onPress={() => setPreview((p) => !p)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
+            <Text style={{ color: t.accent, fontWeight: "700" }}>{preview ? "Hide" : "Preview"}</Text>
+          </Pressable>
+        }
+      >
+        {title ?? (need > 0 ? `Need ${need} more? Share it` : "Invite people")}
+      </SectionTitle>
+      {preview && (
+        <View style={{ backgroundColor: t.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.border }}>
+          <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>{message}</Text>
+        </View>
+      )}
+      <ShareButtons input={input} />
+    </Card>
+  );
+}
+
+/** WhatsApp, Messages and Copy (or the share sheet), for the group's ready-made message. */
+export function ShareButtons({ input }: { input: ShareInput }) {
+  const t = useTheme();
+  const [copied, setCopied] = useState(false);
+  const message = groupShareMessage(input);
   const slug = input.link.split("/g/")[1]?.split(/[?#]/)[0];
   const shared = (via: string) => trackEvent("link_shared", slug, { via, from: "group" });
 
@@ -33,28 +60,11 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
   };
 
   return (
-    <Card>
-      <SectionTitle
-        icon="megaphone"
-        right={
-          <Pressable accessibilityRole="button" onPress={() => setPreview((p) => !p)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-            <Text style={{ color: t.accent, fontWeight: "700" }}>{preview ? "Hide" : "Preview"}</Text>
-          </Pressable>
-        }
-      >
-        {title ?? (need > 0 ? `Need ${need} more? Share it` : "Invite people")}
-      </SectionTitle>
-      {preview && (
-        <View style={{ backgroundColor: t.bg, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: t.border }}>
-          <Text style={{ color: t.muted, fontSize: 14, lineHeight: 21 }}>{message}</Text>
-        </View>
-      )}
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <ShareButton label="WhatsApp" color="#25D366" textColor="#06240F" onPress={() => { shared("whatsapp"); Linking.openURL(whatsappUrl(message)); }} />
-        <ShareButton label="Messages" color={t.card} textColor={t.text} border={t.border} onPress={() => { shared("sms"); Linking.openURL(smsUrl(message)); }} />
-        <ShareButton label={copied ? "Copied" : Platform.OS === "web" ? "Copy" : "More…"} color={t.card} textColor={t.text} border={t.border} onPress={copyOrShare} />
-      </View>
-    </Card>
+    <View style={{ flexDirection: "row", gap: 8 }}>
+      <ShareButton label="WhatsApp" color="#25D366" textColor="#06240F" onPress={() => { shared("whatsapp"); Linking.openURL(whatsappUrl(message)); }} />
+      <ShareButton label="Messages" color={t.card} textColor={t.text} border={t.border} onPress={() => { shared("sms"); Linking.openURL(smsUrl(message)); }} />
+      <ShareButton label={copied ? "Copied" : Platform.OS === "web" ? "Copy" : "More…"} color={t.card} textColor={t.text} border={t.border} onPress={copyOrShare} />
+    </View>
   );
 }
 
