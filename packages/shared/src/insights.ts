@@ -196,7 +196,7 @@ export function groupInsights(input: {
 /** "Hey Mike! We're short 3 for Tuesday Soccer (Tue, Sep 30 · 7:30 PM). Want to play? Tap in here: …" */
 export function inviteMessage(firstName: string, groupName: string, needed: number, when: string, link: string): string {
   const short = needed > 0 ? `We're short ${needed} for ${groupName}` : `We might lose a couple of players for ${groupName}`;
-  return `Hey ${firstName}! ${short} (${when}). Want to play? Tap in here: ${link}`;
+  return `Hey ${firstName}! ${short} (${when}). Want to play?\n\nTap in here: ${link}`;
 }
 
 /** "about 2h", "about 1 day", "about 3 days". */

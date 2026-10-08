@@ -37,7 +37,7 @@ test("morning games drop the day-before reminder when it would collide", () => {
 test("group chat reminder text", () => {
   assert.equal(
     groupChatReminder("Volleyball", "Wed 8pm", 9, 14, "https://x/g/a"),
-    "⏰ Volleyball: Wed 8pm. 9/14 in so far. We need 5 more! Tap to confirm: https://x/g/a",
+    "⏰ Reminder: Volleyball\n📅 Wed 8pm\n👥 9/14 in · need 5 more!\n\nTap to confirm: https://x/g/a",
   );
 });
 

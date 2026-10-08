@@ -81,7 +81,8 @@ export function reminderText(kind: ReminderKind | "nudge", groupName: string, wh
   }
 }
 
+/** The reminder to paste into the group chat: one fact per line (like the invite), so it reads well in WhatsApp. */
 export function groupChatReminder(groupName: string, whenLabel: string, confirmed: number, cap: number | null, link: string): string {
-  const need = cap && confirmed < cap ? ` We need ${cap - confirmed} more!` : cap && confirmed >= cap ? " We're full 🎉" : "";
-  return `⏰ ${groupName}: ${whenLabel}. ${cap ? `${confirmed}/${cap}` : confirmed} in so far.${need} Tap to confirm: ${link}`;
+  const need = cap && confirmed < cap ? ` · need ${cap - confirmed} more!` : cap && confirmed >= cap ? " · we're full 🎉" : "";
+  return [`⏰ Reminder: ${groupName}`, `📅 ${whenLabel}`, `👥 ${cap ? `${confirmed}/${cap}` : confirmed} in${need}`, "", `Tap to confirm: ${link}`].join("\n");
 }

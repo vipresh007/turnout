@@ -694,12 +694,12 @@ export async function buildApp(db: Db) {
     if (!season?.shareCents) throw new HttpError(409, "This group doesn't have a season fee");
     const unpaid = await db.query<{ id: string; name: string }>(`SELECT id, name FROM members WHERE group_id = $1 AND season_member AND season_paid_at IS NULL`, [group.id]);
     const amount = formatMoney(season.shareCents);
-    const how = group.payNote ? ` ${group.payNote}.` : "";
+    const how = group.payNote ? ` ${group.payNote}.` : ""; // for the push/email body
     let notified = 0;
     for (const m of unpaid) {
       notified += (await notifyMember(db, m.id, { title: `Season fee for ${group.name}: ${amount}`, body: `Your share of the season is ${amount}.${how} Thanks!`, url: `${webUrl()}/g/${group.slug}?from=season` }).catch(() => 0)) > 0 ? 1 : 0;
     }
-    const message = `💵 ${group.name} season fee: ${amount} each.${how} Still to pay: ${unpaid.map((m) => m.name).join(", ") || "nobody 🎉"}`;
+    const message = [`💵 ${group.name} season fee: ${amount} each`, group.payNote, `Still to pay: ${unpaid.map((m) => m.name).join(", ") || "nobody 🎉"}`].filter(Boolean).join("\n");
     return { unpaid: unpaid.length, notified, message };
   });
 

@@ -55,7 +55,7 @@ test("new members only count games since they joined", () => {
 });
 
 test("messages and durations", () => {
-  assert.equal(inviteMessage("Mike", "Tuesday Hoops", 3, "Tue · 7 PM", "https://x/g/a"), "Hey Mike! We're short 3 for Tuesday Hoops (Tue · 7 PM). Want to play? Tap in here: https://x/g/a");
+  assert.equal(inviteMessage("Mike", "Tuesday Hoops", 3, "Tue · 7 PM", "https://x/g/a"), "Hey Mike! We're short 3 for Tuesday Hoops (Tue · 7 PM). Want to play?\n\nTap in here: https://x/g/a");
   assert.equal(describeLead(0.5), "under an hour");
   assert.equal(describeLead(5), "about 5h");
   assert.equal(describeLead(50), "about 2 days");

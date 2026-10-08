@@ -592,7 +592,7 @@ test("season groups: upfront fee split between members, season payments, subs, t
   // Remind unpaid: Bo.
   const remind = (await app.inject({ method: "POST", url: `/groups/${slug}/season/remind`, headers: org, payload: {} })).json();
   assert.equal(remind.unpaid, 1);
-  assert.match(remind.message, /\$1,250 each.*Still to pay: Bo/);
+  assert.match(remind.message, /\$1,250 each\n(.*\n)?Still to pay: Bo/);
   // Without a cap, "need N more" counts toward the target.
   await app.inject({ method: "PUT", url: `/groups/${slug}/rsvp`, headers: { "x-member-token": a.token }, payload: { status: "in" } });
   const dash = (await app.inject({ url: "/me/dashboard", headers: org })).json();
