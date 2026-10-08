@@ -1,7 +1,8 @@
 import { formatMoney, teamNames, type GameRecord } from "@turnout/shared";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Muted, Pill, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
@@ -18,7 +19,10 @@ export default function HistoryScreen() {
 function History() {
   const t = useTheme();
   const api = useApi();
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  // `at` (YYYY-MM-DD, local) opens that game, e.g. from a past day in the dashboard calendar.
+  const { slug, at } = useLocalSearchParams<{ slug: string; at?: string }>();
+  const scroll = useRef<ScrollView>(null);
+  const scrolledTo = useRef<string | null>(null);
   const [games, setGames] = useState<GameRecord[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,26 +30,43 @@ function History() {
   useEffect(() => {
     api.history(slug).then((r) => {
       setGames(r.games);
-      setOpen(r.games.find((g) => !g.cancelled)?.startsAt ?? null); // the latest game starts open
+      const asked = at ? r.games.find((g) => localDay(g.startsAt) === at) : undefined;
+      setOpen(asked?.startsAt ?? r.games.find((g) => !g.cancelled)?.startsAt ?? null); // otherwise the latest game starts open
     }, (e: Error) => setError(e.message));
-  }, [api, slug]);
+  }, [api, slug, at]);
 
   if (!games) return <Screen>{error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator style={{ marginTop: 48 }} />}</Screen>;
 
   return (
-    <Screen>
+    <Screen scrollRef={scroll}>
       <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Past games</Text>
         <Muted>{games.length ? "What happened each week. Tap a game for the details." : "Nothing yet. After your first game, it shows up here."}</Muted>
       </View>
+      {at && !games.some((g) => localDay(g.startsAt) === at) && <Muted>No game was recorded for that day.</Muted>}
       {games.map((g) => (
-        <GameRow key={g.startsAt} game={g} open={open === g.startsAt} onToggle={() => setOpen(open === g.startsAt ? null : g.startsAt)} />
+        <View
+          key={g.startsAt}
+          onLayout={(e) => {
+            // Bring the game asked for into view once it's laid out.
+            if (at && localDay(g.startsAt) === at && scrolledTo.current !== at) {
+              scrolledTo.current = at;
+              setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 16), animated: true }), 50);
+            }
+          }}
+        >
+          <GameRow game={g} open={open === g.startsAt} onToggle={() => setOpen(open === g.startsAt ? null : g.startsAt)} />
+        </View>
       ))}
     </Screen>
   );
 }
 
+const localDay = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
 function GameRow({ game: g, open, onToggle }: { game: GameRecord; open: boolean; onToggle: () => void }) {
@@ -65,7 +86,7 @@ function GameRow({ game: g, open, onToggle }: { game: GameRecord; open: boolean;
           {(g.note || g.location) && <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>{[g.location, g.note].filter(Boolean).join(" · ")}</Text>}
         </View>
         <Text style={{ color: g.cancelled ? t.danger : full ? t.accent : t.text, fontWeight: "800" }}>{summary}</Text>
-        <Text style={{ color: t.muted, transform: [{ rotate: open ? "180deg" : "0deg" }] }}>▾</Text>
+        <View style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={t.muted} /></View>
       </Pressable>
       {open && !g.cancelled && (
         <View style={{ paddingHorizontal: 14, paddingBottom: 14, gap: 12 }}>

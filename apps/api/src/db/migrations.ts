@@ -202,4 +202,9 @@ export const migrations: string[] = [
   ALTER TABLE members ADD COLUMN account_id uuid REFERENCES organizers(id) ON DELETE SET NULL;
   CREATE INDEX members_account_idx ON members (account_id) WHERE account_id IS NOT NULL;
   `,
+  // The support page's contact form: who wrote, so we can reply.
+  `
+  ALTER TABLE feedback ADD COLUMN email text;
+  ALTER TABLE feedback ADD COLUMN name text;
+  `,
 ];

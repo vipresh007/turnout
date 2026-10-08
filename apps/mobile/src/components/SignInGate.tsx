@@ -30,7 +30,7 @@ export function SignInGate({ children, reason }: { children: ReactNode; reason: 
         <View style={{ marginTop: 16 }}>
           <Card>
             <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.5 }}>Sign in to Turnout</Text>
-            <Muted>{reason} Players never need an account. Only organizers sign in.</Muted>
+            <Muted>{reason} Players never need an account to play.</Muted>
             <View style={{ gap: 10, marginTop: 4 }}>
               {providers.map((p) => (
                 <ProviderButton key={p} provider={p} disabled={!ready} onPress={() => signIn(p)} />

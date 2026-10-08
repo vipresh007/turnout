@@ -20,6 +20,7 @@ import {
   pushSubscriptionSchema,
   appPushSchema,
   membershipLinksSchema,
+  contactSchema,
   type LinkedMembership,
   rsvpSchema,
   saveTeamsSchema,
@@ -238,6 +239,24 @@ export async function buildApp(db: Db) {
   });
 
   // Organizer feedback. Anything that isn't "great" (or has words) is emailed to the admins.
+  // The support page's contact form. Anyone can write; it lands in our inbox with Reply going to them.
+  app.post("/support/contact", strict(3), async (req) => {
+    const { name, email: from, message, website } = contactSchema.parse(req.body ?? {});
+    if (website) return { ok: true }; // a bot filled the hidden field
+    const organizer = await currentOrganizer(db, req).catch(() => null);
+    await db.query(`INSERT INTO feedback (organizer_id, source, message, email, name) VALUES ($1, 'support', $2, $3, $4)`, [organizer?.id ?? null, message, from, name || null]);
+    const to = process.env.SUPPORT_EMAIL ?? "contact@dataeaver.ca";
+    const title = `Support: ${name || from}`;
+    const body = `${message}\n\nFrom ${name ? `${name} <${from}>` : from}${organizer ? " (signed in)" : ""}`;
+    try {
+      await sendEmail(to, title, emailHtml({ title, body, url: `mailto:${from}` }, undefined, "Reply"), body, undefined, { replyTo: from });
+    } catch (err) {
+      console.warn("support email failed", (err as Error).message);
+      throw new HttpError(502, "Couldn't send that just now. Please email contact@dataeaver.ca instead.");
+    }
+    return { ok: true };
+  });
+
   app.post("/me/feedback", strict(10), async (req) => {
     const organizer = await requireOrganizer(db, req);
     const { source, rating, message } = feedbackSchema.parse(req.body);

@@ -1,4 +1,5 @@
 import { Link } from "expo-router";
+import { ContactForm } from "@/components/ContactForm";
 import { Email, H, LegalPage, Li, P } from "@/components/LegalPage";
 
 // The App Store's support URL (turnout.dataeaver.ca/support): how to reach us, and answers to common questions.
@@ -6,8 +7,9 @@ export default function Support() {
   return (
     <LegalPage title="Support" updated="October 7, 2026">
       <P>
-        Need a hand with Turnout? Email <Email />. A real person reads every message, and we usually reply within one business day.
+        Need a hand with Turnout? Send us a message below or email <Email />. A real person reads every message, and we usually reply within one business day.
       </P>
+      <ContactForm />
       <P>It helps if you include your group's link or name, what you were trying to do, what happened instead, and whether you're on the iPhone app or a browser.</P>
 
       <H>For players</H>

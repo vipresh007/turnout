@@ -115,6 +115,13 @@ export const newSeasonSchema = z.object({
 });
 
 /** Organizer feedback: the check-in (a rating, and what was missing) or a suggestion (just a message). */
+/** The support page's contact form. `website` is a honeypot: people never see it, bots fill it in. */
+export const contactSchema = z.object({
+  name: z.string().trim().max(100).optional(),
+  email: z.string().trim().toLowerCase().email("Enter an email address we can reply to").max(200),
+  message: z.string().trim().min(5, "Tell us a little more").max(4000),
+  website: z.string().max(200).optional(),
+});
 export const feedbackSchema = z
   .object({
     source: z.enum(["checkin", "suggestion"]),

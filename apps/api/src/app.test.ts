@@ -723,3 +723,14 @@ test("player accounts: link this phone's entries, pick them up on a new device, 
   assert.equal((await app.inject({ method: "POST", url: "/me/memberships", headers: pat, payload: { links: [] } })).json().memberships.length, 0);
   assert.equal((await app.inject({ url: `/groups/${slug}/me/stats`, headers: { "x-member-token": p.token } })).statusCode, 200);
 });
+
+test("support contact form: checks the reply address, ignores bots, keeps the message", async () => {
+  assert.equal((await app.inject({ method: "POST", url: "/support/contact", payload: { email: "nope", message: "Hello there" } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "POST", url: "/support/contact", payload: { email: "sam@example.com", message: "hi" } })).statusCode, 400);
+  const ok = await app.inject({ method: "POST", url: "/support/contact", payload: { name: "Sam", email: "Sam@Example.com", message: "How do I add a co-organizer?" } });
+  assert.equal(ok.statusCode, 200);
+  const [row] = await db.query<{ email: string; name: string; source: string }>(`SELECT email, name, source FROM feedback WHERE source = 'support' ORDER BY id DESC LIMIT 1`);
+  assert.deepEqual(row, { email: "sam@example.com", name: "Sam", source: "support" });
+  await app.inject({ method: "POST", url: "/support/contact", payload: { email: "bot@example.com", message: "Buy cheap things now", website: "http://spam" } });
+  assert.equal((await db.query(`SELECT 1 FROM feedback WHERE email = 'bot@example.com'`)).length, 0);
+});

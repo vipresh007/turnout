@@ -184,6 +184,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
 
     // Reminder channels (member token)
     reminderOptions: () => request<{ publicKey: string | null; email: boolean }>("/push/key"),
+    contactSupport: async (input: { name?: string; email: string; message: string }) =>
+      request<{ ok: true }>("/support/contact", { method: "POST", body: input, headers: await authHeaders().catch(() => ({})) }),
     memberStats: (slug: string, token: string) => request<MyPlayerStats>(`/groups/${slug}/me/stats`, { headers: { "x-member-token": token } }),
     memberSelf: (slug: string, token: string) => request<MemberSelf>(`/groups/${slug}/me`, { headers: { "x-member-token": token } }),
     subscribePush: (slug: string, token: string, subscription: PushSubscriptionJSON) =>

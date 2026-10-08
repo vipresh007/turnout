@@ -11,6 +11,8 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 
 interface DayGame {
   item: DashboardGroup;
+  /** The calendar day, YYYY-MM-DD local. */
+  day: string;
   /** When it starts that day (moved time if changed), for display. */
   startsAt: Date | null;
   cancelled: boolean;
@@ -26,6 +28,7 @@ function gamesOn(day: Date, groups: DashboardGroup[]): DayGame[] {
       const week = g.weeks.find((w) => sameDay(new Date(w.scheduledAt), day));
       return {
         item: g,
+        day: key,
         startsAt: week ? new Date(week.startsAt) : null,
         cancelled: week?.cancelled ?? false,
         isCurrent: sameDay(new Date(g.session.scheduledAt), day),
@@ -178,15 +181,21 @@ function GamePill({ game, large }: { game: DayGame; large?: boolean }) {
   const t = useTheme();
   const s = styles(t);
   const { item, cancelled, isCurrent } = game;
+  // Already played (before this week's game): open that game in Past games instead of this week's page.
+  const past = !isCurrent && game.day <= localYmd(new Date());
   const time = game.startsAt
     ? game.startsAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: item.group.timezone })
     : formatTime(item.group.startTime);
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={`${item.group.name} at ${time}${isCurrent ? `, ${item.confirmed} in` : ""}${cancelled ? ", skipped" : ""}`}
-      onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: item.group.slug } })}
-      style={({ hovered }: { hovered?: boolean }) => [s.game, large && { paddingVertical: 8 }, hovered && { borderColor: t.accent }, cancelled && { borderLeftColor: t.danger, opacity: 0.6 }]}
+      accessibilityLabel={`${item.group.name} at ${time}${isCurrent ? `, ${item.confirmed} in` : ""}${cancelled ? ", skipped" : ""}${past ? ", past game" : ""}`}
+      onPress={() =>
+        past
+          ? router.push({ pathname: "/history/[slug]", params: { slug: item.group.slug, at: game.day } })
+          : router.push({ pathname: "/g/[slug]", params: { slug: item.group.slug } })
+      }
+      style={({ hovered }: { hovered?: boolean }) => [s.game, large && { paddingVertical: 8 }, past && { borderLeftColor: t.muted }, hovered && { borderColor: t.accent }, cancelled && { borderLeftColor: t.danger, opacity: 0.6 }]}
     >
       <Text style={[s.gameName, large && { fontSize: 15 }, cancelled && { textDecorationLine: "line-through" }]} numberOfLines={1}>
         {item.group.name}
@@ -194,7 +203,7 @@ function GamePill({ game, large }: { game: DayGame; large?: boolean }) {
       <Text style={[s.gameMeta, large && { fontSize: 13 }]} numberOfLines={1}>
         {time}
         {isCurrent && !cancelled ? ` · ${item.confirmed}${item.group.cap ? `/${item.group.cap}` : ""}` : ""}
-        {cancelled ? " · skipped" : ""}
+        {cancelled ? " · skipped" : past ? " · see who came" : ""}
       </Text>
     </Pressable>
   );

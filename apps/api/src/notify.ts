@@ -83,7 +83,7 @@ export async function sendEmail(
   html: string,
   plainText: string,
   unsubscribeUrl?: string,
-  { wait = true }: { wait?: boolean } = {},
+  { wait = true, replyTo }: { wait?: boolean; replyTo?: string } = {},
 ): Promise<void> {
   if (!email) return;
   const poller = await email.client.beginSend({
@@ -91,6 +91,7 @@ export async function sendEmail(
     recipients: { to: [{ address: to }] },
     content: { subject, html, plainText },
     headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>` } : undefined,
+    replyTo: replyTo ? [{ address: replyTo }] : undefined,
   });
   // beginSend returns once the service has accepted the message; waiting confirms delivery started.
   if (wait) await poller.pollUntilDone();
