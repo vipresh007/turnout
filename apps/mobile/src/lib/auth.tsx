@@ -175,7 +175,8 @@ function EntraAuthProvider({ entra, children }: { entra: NonNullable<typeof conf
 function DevAuthProvider({ children }: { children: ReactNode }) {
   const [id, setId] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    storage.get("devOrganizerId").then(setId);
+    // EXPO_PUBLIC_DEV_AUTO signs in as that dev user straight away (e.g. for store screenshots).
+    storage.get("devOrganizerId").then((stored) => setId(stored ?? process.env.EXPO_PUBLIC_DEV_AUTO ?? null));
   }, []);
   const value = useMemo<AuthState>(
     () => ({
