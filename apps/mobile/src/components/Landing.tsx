@@ -1,7 +1,7 @@
 import { buildRoster, type Rsvp } from "@turnout/shared";
 import { Link, router } from "expo-router";
 import Head from "expo-router/head";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { wakeApi } from "@/lib/api";
 import { useTheme, type Theme } from "@/lib/theme";
@@ -55,10 +55,12 @@ export function Landing() {
   const wide = width >= 900;
   const s = styles(t);
   const scrollRef = useRef<ScrollView>(null);
-  const howY = useRef(0);
-  const featuresY = useRef(0);
-  const pricingY = useRef(0);
-  const scrollTo = (y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 24), animated: true });
+  // Section links scroll to the element itself: positions measured at load go stale as the page above them
+  // changes height (fonts, the animated chat), and the web doesn't re-report a position that only moved.
+  const howRef = useRef<View>(null);
+  const featuresRef = useRef<View>(null);
+  const pricingRef = useRef<View>(null);
+  const scrollTo = (ref: RefObject<View | null>) => (ref.current as unknown as HTMLElement | null)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
   // Signed out, /new asks for sign-in first and comes back to the form; "Sign in" goes to the dashboard.
   const start = () => router.push("/new");
   useEffect(() => wakeApi(), []); // most visitors head to sign-in next
@@ -78,10 +80,10 @@ export function Landing() {
 
         <SiteHeader
           sections={[
-            { label: "How it works", onPress: () => scrollTo(howY.current) },
-            { label: "Features", onPress: () => scrollTo(featuresY.current) },
+            { label: "How it works", onPress: () => scrollTo(howRef) },
+            { label: "Features", onPress: () => scrollTo(featuresRef) },
             { label: "Demo", onPress: () => router.push("/demo") },
-            { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
+            { label: "Pricing", onPress: () => scrollTo(pricingRef) },
           ]}
         />
 
@@ -129,8 +131,8 @@ export function Landing() {
         </Reveal>
         <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: wide ? "stretch" : "center" }}>
           <ChatMess />
-          <Reveal delay={200} style={{ flex: 1, width: "100%", maxWidth: wide ? undefined : 520 }}>
-            <View style={[s.panel, { borderColor: t.accent, gap: 14, flex: 1 }]}>
+          <Reveal delay={200} style={wide ? { flex: 1, width: "100%" } : { width: "100%", maxWidth: 520 }}>
+            <View style={[s.panel, { borderColor: t.accent, gap: 14 }, wide && { flex: 1 }]}>
               <Text style={s.panelLabel}>With Turnout</Text>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
                 <Text style={{ color: t.text, fontSize: 64, fontWeight: "900", letterSpacing: -3 }}>12</Text>
@@ -151,7 +153,7 @@ export function Landing() {
       </View>
 
       {/* ── How it works ── */}
-      <View onLayout={(e) => (howY.current = e.nativeEvent.layout.y)} style={[s.band, { backgroundColor: t.card, borderColor: t.border }]}>
+      <View ref={howRef} style={[s.band, { backgroundColor: t.card, borderColor: t.border }]}>
         <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
           <Reveal style={{ gap: 12 }}>
             <Text style={s.kicker}>How it works</Text>
@@ -170,7 +172,7 @@ export function Landing() {
       </View>
 
       {/* ── Features ── */}
-      <View onLayout={(e) => (featuresY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 40, paddingVertical: 80 }]}>
+      <View ref={featuresRef} style={[s.section, { gap: 40, paddingVertical: 80 }]}>
         <Reveal style={{ gap: 12 }}>
           <Text style={s.kicker}>Features</Text>
           <Text style={s.h2}>Everything the group chat can't do</Text>
@@ -206,7 +208,7 @@ export function Landing() {
       </View>
 
       {/* ── Pricing ── */}
-      <View onLayout={(e) => (pricingY.current = e.nativeEvent.layout.y)} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 960 }]}>
+      <View ref={pricingRef} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 960 }]}>
         <Reveal style={{ gap: 12, alignItems: "center" }}>
           <Text style={s.kicker}>Pricing</Text>
           <Text style={[s.h2, { textAlign: "center" }]}>Free while we're getting started</Text>
@@ -266,9 +268,9 @@ export function Landing() {
           {
             title: "Product",
             items: [
-              { label: "How it works", onPress: () => scrollTo(howY.current) },
-              { label: "Features", onPress: () => scrollTo(featuresY.current) },
-              { label: "Pricing", onPress: () => scrollTo(pricingY.current) },
+              { label: "How it works", onPress: () => scrollTo(howRef) },
+              { label: "Features", onPress: () => scrollTo(featuresRef) },
+              { label: "Pricing", onPress: () => scrollTo(pricingRef) },
               { label: "Try the demo", onPress: () => router.push("/demo") },
             ],
           },
@@ -356,8 +358,9 @@ function ChatMess() {
   }, [started, count]);
 
   return (
-    <Reveal onReveal={() => setStarted(true)} style={{ flex: 1, width: "100%", maxWidth: width >= 900 ? undefined : 520 }}>
-      <View style={[s.panel, { gap: 8, minHeight: 420, flex: 1 }]}>
+    // Side by side on desktop the two panels share a height; stacked on a phone this one grows to fit its messages.
+    <Reveal onReveal={() => setStarted(true)} style={width >= 900 ? { flex: 1, width: "100%" } : { width: "100%", maxWidth: 520 }}>
+      <View style={[s.panel, { gap: 8, minHeight: 420 }, width >= 900 && { flex: 1 }]}>
         <Text style={s.panelLabel}>The group chat</Text>
         {chat.slice(0, count).map((m, i) => (
           <Pop key={i} style={{ alignSelf: m.own ? "flex-end" : "flex-start", maxWidth: "85%" }}>
