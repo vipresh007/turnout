@@ -1,5 +1,6 @@
 // Draws every app icon from the Turnout mark (white "t" and a dark green dot on green).
 // Run from the repo root after changing the mark: node apps/mobile/scripts/make-icons.mjs
+import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
 
@@ -28,6 +29,9 @@ function png(path, body, size) {
 }
 
 png("assets/icon.png", tile(0) + glyph(), 1024); // iOS rounds the corners itself
+// The App Store icon must have no alpha channel at all: round-trip through JPEG (macOS sips) to drop it.
+execFileSync("sips", ["-s", "format", "jpeg", out("assets/icon.png").pathname, "--out", "/tmp/turnout-icon.jpg"], { stdio: "ignore" });
+execFileSync("sips", ["-s", "format", "png", "/tmp/turnout-icon.jpg", "--out", out("assets/icon.png").pathname], { stdio: "ignore" });
 png("assets/favicon.png", tile(52) + glyph(), 64); // browser tab
 png("assets/splash-icon.png", tile(56) + glyph(), 1024);
 png("assets/android-icon-foreground.png", glyph({ scale: 0.62 }), 512); // inside Android's safe zone
