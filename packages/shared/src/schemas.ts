@@ -1,3 +1,4 @@
+import { isOffensive, OFFENSIVE_MESSAGE } from "./moderation.ts";
 import { z } from "zod";
 
 export const weekdaySchema = z.number().int().min(0).max(6); // 0 = Sunday
@@ -6,10 +7,13 @@ export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
 /** The fields of a group. Requests may still send a single `weekday`; see withLegacyWeekday. */
+/** Text other people will see, checked against the offensive-words filter. */
+const clean = <T extends z.ZodTypeAny>(schema: T) => schema.refine((v: unknown) => typeof v !== "string" || !isOffensive(v), OFFENSIVE_MESSAGE);
+
 export const groupFields = z.object({
-  name: z.string().trim().min(1).max(80),
-  activity: z.string().trim().max(40).optional(),
-  location: z.string().trim().max(120).optional(),
+  name: clean(z.string().trim().min(1).max(80)),
+  activity: clean(z.string().trim().max(40)).optional(),
+  location: clean(z.string().trim().max(120)).optional(),
   weekdays: z.array(weekdaySchema).min(1).max(7).transform((d) => [...new Set(d)].sort()),
   intervalWeeks: z.number().int().min(1).max(4).default(1),
   startsOn: dateSchema.optional(),
@@ -72,7 +76,7 @@ export const groupDraftSchema = z.preprocess(withLegacyWeekday, groupFields.part
 export type GroupDraft = Partial<CreateGroupInput>;
 
 export const joinGroupSchema = z.object({
-  name: z.string().trim().min(1).max(40),
+  name: clean(z.string().trim().min(1).max(40)),
   /** Join even though someone with this name is already in the group. */
   confirmNew: z.boolean().optional(),
 });
@@ -104,7 +108,7 @@ export const seasonMemberSchema = z.object({ member: z.boolean().optional(), pai
 
 /** Organizer adds players up front (e.g. a season roster): names, and an email for reminders if they have one. */
 export const addPlayersSchema = z.object({
-  players: z.array(z.object({ name: z.string().trim().min(1).max(40), email: z.string().trim().email().max(254).optional() })).min(1).max(60),
+  players: z.array(z.object({ name: clean(z.string().trim().min(1).max(40)), email: z.string().trim().email().max(254).optional() })).min(1).max(60),
 });
 
 /** Organizer: start a new season (payments reset), optionally with a new fee and dates. */
@@ -115,6 +119,13 @@ export const newSeasonSchema = z.object({
 });
 
 /** Organizer feedback: the check-in (a rating, and what was missing) or a suggestion (just a message). */
+/** Reporting a group or a person in it (offensive names, abuse, spam). */
+export const reportSchema = z.object({
+  reason: z.string().trim().min(3, "Tell us what's wrong").max(1000),
+  /** The player being reported, if it's about one person. */
+  memberId: z.string().uuid().optional(),
+  email: z.string().trim().toLowerCase().email().max(200).optional(),
+});
 /** The support page's contact form. `website` is a honeypot: people never see it, bots fill it in. */
 export const contactSchema = z.object({
   name: z.string().trim().max(100).optional(),

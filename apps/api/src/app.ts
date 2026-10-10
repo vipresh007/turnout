@@ -21,6 +21,7 @@ import {
   appPushSchema,
   membershipLinksSchema,
   contactSchema,
+  reportSchema,
   type LinkedMembership,
   rsvpSchema,
   saveTeamsSchema,
@@ -239,6 +240,21 @@ export async function buildApp(db: Db) {
   });
 
   // Organizer feedback. Anything that isn't "great" (or has words) is emailed to the admins.
+  // Report a group or a person in it. Anyone with the link can report; it goes to our inbox to review within 24 hours.
+  app.post<SlugParams>("/groups/:slug/report", strict(5), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const { reason, memberId, email: from } = reportSchema.parse(req.body ?? {});
+    const [who] = memberId ? await db.query<{ name: string }>(`SELECT name FROM members WHERE id = $1 AND group_id = $2`, [memberId, group.id]) : [];
+    const organizer = await currentOrganizer(db, req).catch(() => null);
+    const message = `Report on group "${group.name}" (${webUrl()}/g/${group.slug})${who ? ` about player "${who.name}"` : ""}: ${reason}`;
+    await db.query(`INSERT INTO feedback (organizer_id, source, message, email) VALUES ($1, 'report', $2, $3)`, [organizer?.id ?? null, message, from ?? null]);
+    const to = process.env.SUPPORT_EMAIL ?? "contact@dataeaver.ca";
+    const title = `Report: ${group.name}`;
+    await sendEmail(to, title, emailHtml({ title, body: message, url: `${webUrl()}/g/${group.slug}` }, undefined, "Open the group"), message, undefined, from ? { replyTo: from } : {})
+      .catch((err) => console.warn("report email failed", (err as Error).message));
+    return { ok: true };
+  });
+
   // The support page's contact form. Anyone can write; it lands in our inbox with Reply going to them.
   app.post("/support/contact", strict(3), async (req) => {
     const { name, email: from, message, website } = contactSchema.parse(req.body ?? {});

@@ -3,7 +3,7 @@ import { Email, H, LegalPage, Li, P } from "@/components/LegalPage";
 
 export default function Terms() {
   return (
-    <LegalPage title="Terms of service" updated="October 7, 2026">
+    <LegalPage title="Terms of service" updated="October 10, 2026">
       <P>
         These terms cover your use of Turnout (turnout.dataeaver.ca), operated by Data Eaver Inc. (“we”). By using Turnout, as an organizer or a player,
         you agree to them. If you don't agree, please don't use Turnout.
@@ -34,7 +34,11 @@ export default function Terms() {
       <Li>Break the law, or harass, threaten or impersonate anyone.</Li>
       <Li>Send spam, or put offensive or misleading content in group names, notes or player names.</Li>
       <Li>Try to break, overload or get around the security of the service, or access groups or data that aren't yours.</Li>
-      <P>We may remove content, or suspend groups or accounts, that break these rules.</P>
+      <P>
+        There is no tolerance for objectionable content or abusive users. Turnout filters offensive words in names, and anyone can report a
+        group or a person with “Report a problem” at the bottom of any group page. We review reports within 24 hours and remove content,
+        groups or accounts that break these rules. Organizers can also remove players from their group, and players can leave any group.
+      </P>
 
       <H>Your content</H>
       <P>

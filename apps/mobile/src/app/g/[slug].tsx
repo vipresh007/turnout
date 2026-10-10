@@ -9,6 +9,7 @@ import { Bump, Pop } from "@/components/motion";
 import { Avatar } from "@/components/Avatar";
 import { GameDots, StatsStrip } from "@/components/PlayerStats";
 import { RemindMe } from "@/components/RemindMe";
+import { ReportAndLeave } from "@/components/ReportAndLeave";
 import { StatsLink } from "@/components/YourGames";
 import { ReadyCard } from "@/components/ReadyCard";
 import { ShareCard } from "@/components/ShareCard";
@@ -350,6 +351,12 @@ export default function GroupScreen() {
         </Card>
       )}
 
+      <ReportAndLeave
+        slug={slug}
+        me={me}
+        people={[...roster.confirmed, ...roster.waitlist, ...roster.out].map((r) => ({ id: r.memberId, name: r.name })).filter((p) => p.id !== me?.memberId)}
+      />
+
       {!viewer.isOrganizer && <View style={{ alignItems: "center", marginTop: 24 }}>
         <Link href="/new">
           <Text style={{ color: t.muted }}>
@@ -542,7 +549,7 @@ function PeopleList({ title, people, numbered, onRemove, paid, onTogglePaid, lat
       {people.map((p, i) => (
         <Pop key={p.memberId} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-            {numbered && <Text style={{ color: t.muted, width: 18, textAlign: "right", fontVariant: ["tabular-nums"] }}>{i + 1}</Text>}
+            {numbered && <Text numberOfLines={1} style={{ color: t.muted, width: 24, textAlign: "right", fontVariant: ["tabular-nums"] }}>{i + 1}</Text>}
             <Avatar name={p.name} />
             <Text style={{ color: t.text, fontSize: 16, flexShrink: 1 }} numberOfLines={1}>
               {p.name}

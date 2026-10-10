@@ -748,3 +748,16 @@ test("a one-time event: one date, shown as one-time", async () => {
   assert.deepEqual([page.group.startsOn, page.group.endsOn], [day, day]);
   assert.equal(page.seasonOver, false);
 });
+
+test("reports and the offensive-words filter", async () => {
+  const bad = await app.inject({ method: "POST", url: "/groups", headers: organizer, payload: { name: "F u c k Ball", weekdays: [1], startTime: "19:00", timezone: "UTC", cap: 8 } });
+  assert.equal(bad.statusCode, 400);
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: organizer, payload: { name: "Report Hoops", weekdays: [1], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "shithead" } })).statusCode, 400);
+  const p = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Pat" } })).json();
+  const res = await app.inject({ method: "POST", url: `/groups/${slug}/report`, payload: { reason: "Rude nickname", memberId: p.member.id } });
+  assert.equal(res.statusCode, 200);
+  const [row] = await db.query<{ message: string }>(`SELECT message FROM feedback WHERE source = 'report' ORDER BY id DESC LIMIT 1`);
+  assert.match(row!.message, /Report Hoops.*"Pat".*Rude nickname/);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/report`, payload: { reason: "" } })).statusCode, 400);
+});
