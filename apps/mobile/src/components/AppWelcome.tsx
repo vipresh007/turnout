@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { memberships } from "@/lib/api";
+import { memberships, onMembershipsChanged } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Icon, type IconName } from "./Icon";
 import { Button } from "./ui";
@@ -21,7 +21,10 @@ const points: [IconName, string, string][] = [
 export function AppWelcome() {
   const [player, setPlayer] = useState<boolean | null>(null);
   useEffect(() => {
-    memberships.slugs().then((s) => setPlayer(s.length > 0));
+    const check = () => memberships.slugs().then((s) => setPlayer(s.length > 0));
+    check();
+    // Groups can disappear (deleted, or the player left): back to the welcome screen when none are left.
+    return onMembershipsChanged(() => void check());
   }, []);
   if (player === null) return null;
   return player ? <PlayerHome /> : <Pitch />;

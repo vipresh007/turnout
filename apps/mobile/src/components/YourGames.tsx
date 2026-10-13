@@ -41,6 +41,7 @@ export function YourGames({ title, exclude = [] }: { title?: string; exclude?: s
   if (!games) return title ? null : <ActivityIndicator style={{ marginTop: 24 }} />;
   const shown = games.filter((g) => !exclude.includes(g.slug));
   if (title && shown.length === 0) return null;
+  if (shown.length === 0) return <Text style={{ color: t.muted, fontSize: 15 }}>Couldn't load your games right now. Check your connection and try again.</Text>;
   return (
     <View style={{ gap: 12 }}>
       {title && (
