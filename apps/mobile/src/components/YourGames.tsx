@@ -15,7 +15,7 @@ type Game = { slug: string; page: GroupPage; memberId: string; stats: PlayerStat
  * Groups this phone has joined (players have no account), each with this week's game and your answer.
  * With a `title` (organizer Home), groups in `exclude` are left out and nothing renders when none are left.
  */
-export function YourGames({ title, exclude = [] }: { title?: string; exclude?: string[] } = {}) {
+export function YourGames({ title, exclude = [], onEmpty }: { title?: string; exclude?: string[]; onEmpty?: () => void } = {}) {
   const t = useTheme();
   const api = useApi();
   const [games, setGames] = useState<Game[] | null>(null);
@@ -23,7 +23,10 @@ export function YourGames({ title, exclude = [] }: { title?: string; exclude?: s
     const found = await Promise.all(
       (await memberships.slugs()).map(async (slug): Promise<Game | null> => {
         const me = await memberships.get(slug);
-        if (!me) return null;
+        if (!me) {
+          await memberships.forget(slug); // listed without its saved entry: tidy it away
+          return null;
+        }
         try {
           const [page, mine] = await Promise.all([api.groupPage(slug), api.memberStats(slug, me.token).catch(() => null)]);
           return { slug, page, memberId: me.memberId, stats: mine?.stats ?? null };
@@ -33,8 +36,10 @@ export function YourGames({ title, exclude = [] }: { title?: string; exclude?: s
         }
       }),
     );
-    setGames(found.filter((g): g is Game => g !== null));
-  }, [api]);
+    const games = found.filter((g): g is Game => g !== null);
+    setGames(games);
+    if (games.length === 0) onEmpty?.();
+  }, [api, onEmpty]);
   useFocusEffect(useCallback(() => void load(), [load]));
   useEffect(() => onMembershipsChanged(() => void load()), [load]); // games arriving from your account
 

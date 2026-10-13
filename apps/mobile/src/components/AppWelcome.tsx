@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { memberships, onMembershipsChanged } from "@/lib/api";
@@ -26,11 +26,13 @@ export function AppWelcome() {
     // Groups can disappear (deleted, or the player left): back to the welcome screen when none are left.
     return onMembershipsChanged(() => void check());
   }, []);
+  const showWelcome = useCallback(() => setPlayer(false), []);
   if (player === null) return null;
-  return player ? <PlayerHome /> : <Pitch />;
+  // Nothing to show (all gone, or they can't load right now): the welcome screen, which still has sign-in.
+  return player ? <PlayerHome onEmpty={showWelcome} /> : <Pitch />;
 }
 
-function PlayerHome() {
+function PlayerHome({ onEmpty }: { onEmpty: () => void }) {
   const t = useTheme();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
@@ -44,7 +46,7 @@ function PlayerHome() {
             <View style={{ paddingBottom: 6 }}><StatsLink /></View>
           </View>
         </View>
-        <YourGames />
+        <YourGames onEmpty={onEmpty} />
         <View style={{ flex: 1 }} />
         <View style={{ gap: 4, alignItems: "center" }}>
           <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/sign-in", params: { next: "/stats" } })} style={{ padding: 6 }}>
