@@ -9,6 +9,7 @@ import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
 import { Icon } from "@/components/Icon";
 import { YourGames } from "@/components/YourGames";
+import { maybeAskForReview } from "@/lib/review";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button } from "@/components/ui";
@@ -51,6 +52,7 @@ function DashboardView() {
     () => api.dashboard().then((d) => {
       setData(d);
       setError(null);
+      void maybeAskForReview(d.stats).catch(() => {});
     }, (e: Error) => setError(e.message)),
     [api],
   );

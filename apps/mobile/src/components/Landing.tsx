@@ -6,6 +6,7 @@ import { Pressable, type ScrollView, StyleSheet, Text, useWindowDimensions, View
 import { wakeApi } from "@/lib/api";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView } from "./motion";
+import { activities, faqs, features, steps, uses } from "@/content/site";
 import { Icon, type IconName } from "./Icon";
 import { SiteHeader } from "./SiteHeader";
 import { webTransition } from "./ui";
@@ -19,32 +20,6 @@ const chat: { who: string; text: string; own?: boolean }[] = [
   { who: "Luis", text: "who's bringing the ball 😅" },
   { who: "Jordan", text: "actually can't make it sorry" },
   { who: "You", text: "ok so that's… 9? 10?", own: true },
-];
-
-const steps = [
-  { n: "1", title: "Describe your game", body: "“Tuesday soccer at Riverside, 7:30pm, 14 players.” One sentence and Turnout sets up the group." },
-  { n: "2", title: "Share one link", body: "Drop it in the group chat once. Players tap it, type their name, done. No app, no account." },
-  { n: "3", title: "Watch it fill up", body: "The headcount updates live. When it's full a waitlist forms, and people move up automatically." },
-];
-
-const features: { icon: IconName; title: string; body: string }[] = [
-  { icon: "bolt", title: "Live headcount", body: "Everyone sees who's in the second it changes. No more counting thumbs-up emojis." },
-  { icon: "refresh", title: "Self-running waitlist", body: "Set a cap. When someone drops, the next person moves up without you lifting a finger." },
-  { icon: "link", title: "No app for players", body: "Players tap a link in any browser. Only the organizer signs in." },
-  { icon: "megaphone", title: "“We need 2 more”", body: "Short on players? Share a ready-made message with the live count and a join link." },
-  { icon: "bell", title: "Reminders that land", body: "Players can turn on a game-day reminder by email or notification. Still no account, and one tap to stop." },
-  { icon: "people", title: "Run it together", body: "Add co-organizers, split the court fee, track who's paid, make balanced teams, and see who you can count on." },
-];
-
-const uses = ["⚽️ Pickup soccer", "🏀 Basketball runs", "🏐 Volleyball", "🏃 Run clubs", "🃏 Poker nights", "🧘 Yoga classes", "🤝 Volunteer shifts", "🎲 Board game nights", "🏸 Badminton", "🥏 Ultimate", "🎾 Pickleball", "🏒 Shinny"];
-
-const faqs = [
-  { q: "Do players need to download an app or make an account?", a: "No. Players open the link in any browser, type their name once, and tap in or out. Only organizers sign in." },
-  { q: "Is it free?", a: "Yes, everything is free right now, and players will always be free. We're planning an optional Organizer plan ($49/year founding price). You'll hear from us well before anything changes." },
-  { q: "What happens when the game is full?", a: "New players join a waitlist. If someone drops out, the next person moves up automatically and gets a heads-up." },
-  { q: "How do reminders work without an account?", a: "On the group page, players can ask for a reminder by email or turn on browser notifications. Every email has a one-tap stop link." },
-  { q: "Can someone else help run the group?", a: "Yes. Invite co-organizers with a private link. They can remind, cancel or move a week, make teams, and mark payments." },
-  { q: "Does Turnout collect money?", a: "No. You can set a cost per player or split a total, and tick off who's paid. The money itself goes however your group already pays." },
 ];
 
 const demoNames = ["Maya", "Jordan", "Priya", "Sam", "Luis", "Aisha", "Chen"];
@@ -182,7 +157,7 @@ export function Landing() {
             <Reveal key={f.title} delay={(i % 3) * 110} style={{ flexBasis: wide ? "31%" : "100%", flexGrow: 1 }}>
               <HoverCard>
                 <View style={s.iconBubble}>
-                  <Icon name={f.icon} size={24} color={t.accent} />
+                  <Icon name={f.icon as IconName} size={24} color={t.accent} />
                 </View>
                 <Text style={s.h3}>{f.title}</Text>
                 <Text style={s.body}>{f.body}</Text>
@@ -272,7 +247,12 @@ export function Landing() {
               { label: "Features", onPress: () => scrollTo(featuresRef) },
               { label: "Pricing", onPress: () => scrollTo(pricingRef) },
               { label: "Try the demo", onPress: () => router.push("/demo") },
+              { label: "Compare", onPress: () => router.push("/compare") },
             ],
+          },
+          {
+            title: "Use cases",
+            items: activities.slice(0, 5).map((a) => ({ label: a.name[0]!.toUpperCase() + a.name.slice(1), onPress: () => router.push({ pathname: "/for/[activity]", params: { activity: a.slug } }) })),
           },
           {
             title: "Help",

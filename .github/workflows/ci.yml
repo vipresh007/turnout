@@ -22,5 +22,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint -w @turnout/mobile
       - name: Web build
-        run: npx expo export -p web
+        run: npx expo export -p web && node scripts/prerender.mjs dist https://turnout-test.dataeaver.ca
         working-directory: apps/mobile

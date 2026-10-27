@@ -48,6 +48,7 @@ EXPO_PUBLIC_ENTRA_PROVIDERS="$(gh variable get ENTRA_PROVIDERS -R "$REPO" -e "$T
   npx expo export -p web --clear >/dev/null
 # Variables set here take precedence over apps/mobile/.env (Expo never overrides the shell).
 node scripts/add-meta.mjs dist "$API_URL" "$WEB_URL"
+node scripts/prerender.mjs dist "$WEB_URL"
 TOKEN="$(az staticwebapp secrets list -g "$RG" -n "swa-turnout-$TARGET" --query properties.apiKey -o tsv)"
 # The Static Web Apps uploader is x86-only; run it in a Linux container on the registry instead
 # (works from Apple Silicon without Rosetta). The token goes in as a secret, never on a command line.

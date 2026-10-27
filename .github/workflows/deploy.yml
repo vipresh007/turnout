@@ -94,6 +94,7 @@ jobs:
         run: |
           rm -f .env && npx expo export -p web
           node scripts/add-meta.mjs dist "$API_URL" "$WEB_URL"
+          node scripts/prerender.mjs dist "$WEB_URL"
 
       - name: Deploy web
         run: |

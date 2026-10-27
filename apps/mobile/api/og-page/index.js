@@ -12,6 +12,7 @@ function tags({ title, description, image, url }) {
   return [
     `<title>${esc(title)}</title>`,
     `<meta name="description" content="${esc(description)}">`,
+    `<meta name="robots" content="noindex">`, // group pages are private: shared by link, never in search results
     `<meta property="og:type" content="website">`,
     `<meta property="og:site_name" content="Turnout">`,
     `<meta property="og:title" content="${esc(title)}">`,
