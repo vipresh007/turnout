@@ -59,6 +59,17 @@ const PRICING_ASK_AFTER_GAMES = 5;
 
 type SlugParams = { Params: { slug: string } };
 
+/** A readable message for the first validation problem ("Name is required" rather than zod's defaults). */
+function friendlyIssue(err: ZodError): string {
+  const issue = err.issues[0];
+  if (!issue) return "Invalid input";
+  const field = String(issue.path.at(-1) ?? "");
+  const label = field ? field.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()) : "A value";
+  if (issue.code === "invalid_type" || (issue.code === "too_small" && issue.minimum === 1)) return `${label} is required`;
+  if (issue.code === "too_big") return `${label} is too long`;
+  return issue.message;
+}
+
 export async function buildApp(db: Db) {
   const app = Fastify({
     logger: process.env.NODE_ENV !== "test",
@@ -68,13 +79,21 @@ export async function buildApp(db: Db) {
     origin: process.env.CORS_ORIGIN?.split(",") ?? true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   });
+  // Security headers on every API response (it only serves JSON, images and calendar files; nothing may frame it).
+  app.addHook("onSend", async (_req, reply) => {
+    reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
+    reply.header("Referrer-Policy", "no-referrer");
+    reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    reply.header("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  });
   // Tests make many requests from one address; production limits are per client.
   const limit = (max: number) => (process.env.NODE_ENV === "test" ? 100_000 : max);
   await app.register(rateLimit, { max: limit(300), timeWindow: "1 minute" });
   const strict = (max: number) => ({ config: { rateLimit: { max: limit(max), timeWindow: "1 minute" } } });
 
   app.setErrorHandler((err, _req, reply) => {
-    if (err instanceof ZodError) return reply.status(400).send({ error: err.issues[0]?.message ?? "Invalid input", issues: err.issues });
+    if (err instanceof ZodError) return reply.status(400).send({ error: friendlyIssue(err), issues: err.issues });
     if (err instanceof HttpError) return reply.status(err.statusCode).send({ error: err.message });
     const status = (err as { statusCode?: number }).statusCode;
     if (status && status < 500) return reply.status(status).send({ error: (err as Error).message });

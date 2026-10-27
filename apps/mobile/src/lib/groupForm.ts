@@ -112,6 +112,10 @@ export function toGroupInput(v: GroupFormValues, timezone: string): { ok: true; 
   if (parsed.success) return { ok: true, input: parsed.data };
   const issue = parsed.error.issues[0]!;
   const field = String(issue.path[0] ?? "");
-  const message = field === "weekdays" ? "pick at least one day" : issue.message === "Required" ? "required" : issue.message;
+  const message =
+    field === "weekdays" ? "pick at least one day"
+    : issue.code === "invalid_type" || (issue.code === "too_small" && issue.minimum === 1) ? "required"
+    : issue.code === "too_big" ? "that's too long"
+    : issue.message;
   return { ok: false, error: `${labels[field] ?? "Form"}: ${message}` };
 }
