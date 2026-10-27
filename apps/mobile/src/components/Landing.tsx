@@ -7,6 +7,7 @@ import { wakeApi } from "@/lib/api";
 import { useTheme, type Theme } from "@/lib/theme";
 import { Bump, Glow, Marquee, Pop, Pulse, Reveal, RevealScrollView } from "./motion";
 import { activities, faqs, features, steps, uses } from "@/content/site";
+import { AppStoreBadge } from "./AppStoreBadge";
 import { Icon, type IconName } from "./Icon";
 import { SiteHeader } from "./SiteHeader";
 import { webTransition } from "./ui";
@@ -82,6 +83,10 @@ export function Landing() {
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
               <CTA label="Start a group, it's free" onPress={start} />
               <CTA label="Try the demo, no sign-up" secondary onPress={() => router.push("/demo")} />
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+              <AppStoreBadge height={44} />
+              <Text style={{ color: t.muted, fontSize: 14, flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
             </View>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
               {["No app for players", "Free for organizers", "Set up in a minute"].map((x) => (
@@ -233,6 +238,7 @@ export function Landing() {
                 <Text style={{ color: "#0B3D1E", fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
               </Pressable>
             </Pulse>
+            <AppStoreBadge height={44} />
           </View>
         </Reveal>
       </View>
@@ -558,6 +564,9 @@ function Footer({ wide, links }: { wide: boolean; links: { title: string; items:
             <Text style={{ color: t.muted, fontSize: 15 }}>
               Questions? <Link href="/support"><Text style={{ color: t.accent, fontWeight: "700" }}>Get in touch</Text></Link>
             </Text>
+            <View style={{ marginTop: 4 }}>
+              <AppStoreBadge height={40} />
+            </View>
           </View>
           <View style={{ flex: wide ? 2 : undefined, flexDirection: "row", flexWrap: "wrap", gap: 32 }}>
             {links.map((col) => (

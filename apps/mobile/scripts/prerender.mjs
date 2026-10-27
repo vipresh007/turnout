@@ -16,7 +16,7 @@ const abs = (path) => `${webUrl}${path === "/" ? "" : path}`;
 /** @typedef {{ path: string, title: string, description: string, body: string, jsonLd?: object[] }} Page */
 
 const nav = `<nav><a href="/">Turnout</a> · <a href="/compare">Compare</a> · ${activities.slice(0, 4).map((a) => `<a href="/for/${a.slug}">${esc(a.name)}</a>`).join(" · ")} · <a href="/support">Support</a></nav>`;
-const cta = `<p><a href="/new">Start a group, it's free</a> · <a href="/demo">Try the demo</a> · <a href="${SITE.appStoreUrl}">Get the iPhone app</a></p>`;
+const cta = `<p><a href="/new">Start a group, it's free</a> · <a href="/demo">Try the demo</a> · <a href="${SITE.appStoreUrl}"><img src="/app-store-badge.svg" alt="Download Turnout on the App Store" height="40"></a></p>`;
 const faqHtml = (list) => `<section><h2>Questions organizers ask</h2>${list.map((f) => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join("")}</section>`;
 const footer = `<footer><p>Turnout is made by ${esc(SITE.company)} in Ontario, Canada. Contact: <a href="mailto:${SITE.contact}">${SITE.contact}</a>. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/support">Support</a></p><p>Use cases: ${activities.map((a) => `<a href="/for/${a.slug}">${esc(a.name)}</a>`).join(" · ")}</p></footer>`;
 
@@ -31,6 +31,8 @@ const app = {
   applicationCategory: "SportsApplication",
   operatingSystem: "iOS, Web",
   installUrl: SITE.appStoreUrl,
+  downloadUrl: SITE.appStoreUrl,
+  sameAs: [SITE.appStoreUrl],
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   publisher: organization,
 };

@@ -1,8 +1,9 @@
 import { Link, router } from "expo-router";
 import Head from "expo-router/head";
 import type { ReactNode } from "react";
-import { Linking, Platform, Text, View } from "react-native";
-import { activities, SITE } from "@/content/site";
+import { Text, View } from "react-native";
+import { activities } from "@/content/site";
+import { AppStoreBadge } from "./AppStoreBadge";
 import { useTheme } from "@/lib/theme";
 import { Icon } from "./Icon";
 import { Button, Card, Screen } from "./ui";
@@ -24,9 +25,9 @@ export function MarketingPage({ title, description, eyebrow, heading, intro, chi
         <Text style={{ color: t.muted, fontSize: 17, lineHeight: 25 }}>{intro}</Text>
         <View style={{ gap: 10, marginTop: 6 }}>
           <Button big label="Start a group, it's free" onPress={() => router.push("/new")} />
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Button label="Try the demo" variant="secondary" onPress={() => router.push("/demo")} />
-            {Platform.OS === "web" && <Button label="Get the iPhone app" variant="secondary" onPress={() => Linking.openURL(SITE.appStoreUrl)} />}
+          <Button label="Try the demo" variant="secondary" onPress={() => router.push("/demo")} />
+          <View style={{ alignItems: "center", marginTop: 4 }}>
+            <AppStoreBadge height={44} />
           </View>
         </View>
       </View>
