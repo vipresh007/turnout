@@ -12,7 +12,7 @@ param postgresPassword string
 param postgresAdmin string = 'turnoutadmin'
 
 @description('Always-on API replicas per environment (0 = scale to zero; cold starts take a while and Entra waits ~2s for the sign-in code endpoint).')
-param apiMinReplicas object = { test: 1, live: 0 }
+param apiMinReplicas object = { test: 0, live: 1 }
 
 @description('Current API image per environment, so re-provisioning never rolls back a deploy.')
 param apiImages object = { test: '', live: '' }
@@ -62,6 +62,7 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   properties: { sku: { name: 'PerGB2018' }, retentionInDays: 30 }
 }
 
+// Shared registry: Turnout and Tally (ai-receipt-app) both build and pull here.
 resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: 'acrturnout${suffix}'
   location: location
