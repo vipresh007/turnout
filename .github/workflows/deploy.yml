@@ -70,11 +70,13 @@ jobs:
           if az containerapp job show -g $RG -n caj-turnout-reminders-$TARGET -o none 2>/dev/null; then
             az containerapp job update -g $RG -n caj-turnout-reminders-$TARGET --image $IMAGE -o none
           fi
+          # Wait for the NEW version: the previous revision keeps answering /health if the new one fails to start.
           for i in $(seq 1 30); do
-            curl -fsS "$API_URL/health" && exit 0
+            curl -fsS "$API_URL/health" | grep -q "\"$IMAGE_TAG\"" && echo "API $IMAGE_TAG is up" && exit 0
             sleep 10
           done
-          echo "API did not become healthy"; exit 1
+          az containerapp revision list -g $RG -n ca-turnout-api-$TARGET --query "[?properties.active].{name:name,state:properties.runningState,image:properties.template.containers[0].image}" -o table
+          echo "API $IMAGE_TAG did not start (the previous version is still serving)"; exit 1
 
       - uses: actions/setup-node@v4
         with:

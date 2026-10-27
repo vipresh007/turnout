@@ -135,7 +135,8 @@ export async function buildApp(db: Db) {
     return page;
   };
 
-  app.get("/health", async () => ({ ok: true }));
+  // The deploy waits for its own version here, so a new revision that fails to start can't pass as healthy.
+  app.get("/health", async () => ({ ok: true, version: process.env.APP_VERSION ?? null }));
   registerAuthEvents(app);
 
   // ── Organizer ──────────────────────────────────────────────
