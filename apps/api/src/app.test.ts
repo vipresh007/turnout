@@ -19,6 +19,8 @@ after(async () => {
 });
 
 const organizer = { "x-dev-user": "alex" };
+// A weekday three days out, so "this week's" game is never already over when tests count past games.
+const laterDay = (new Date().getUTCDay() + 3) % 7;
 
 test("create a group, join, RSVP, and auto-promote from the waitlist", async () => {
   const created = await app.inject({
@@ -419,7 +421,7 @@ test("co-organizers: invite, admin powers, owner-only actions, handover", async 
   const owner = { "x-dev-user": "co-owner" };
   const mike = { "x-dev-user": "co-mike" };
   const stranger = { "x-dev-user": "co-stranger" };
-  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: owner, payload: { name: "Co Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 10 } })).json().group;
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: owner, payload: { name: "Co Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 10 } })).json().group;
 
   assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/remind`, headers: mike, payload: {} })).statusCode, 403);
 
@@ -455,7 +457,7 @@ test("co-organizers: invite, admin powers, owner-only actions, handover", async 
 
 test("insights: reliability from past games and who to invite when short", async () => {
   const org = { "x-dev-user": "ins-org" };
-  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Ins Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 3 } })).json().group;
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Ins Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 3 } })).json().group;
   const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json().member.id as string;
   const mike = await join("Mike");
   const raj = await join("Raj");
@@ -482,7 +484,7 @@ test("insights: reliability from past games and who to invite when short", async
 
 test("events, game history, metrics and the autopilot heads-up", async () => {
   const org = { "x-dev-user": "hist-org" };
-  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Hist Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 4, feeCents: 1000 } })).json().group;
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Hist Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 4, feeCents: 1000 } })).json().group;
   const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json() as { member: { id: string }; token: string };
   const players = await Promise.all(["Ann", "Bo", "Cy", "Di", "Ed"].map(join));
   await db.query(`UPDATE members SET created_at = now() - interval '60 days' WHERE group_id = $1`, [id]);
@@ -531,7 +533,7 @@ test("events, game history, metrics and the autopilot heads-up", async () => {
 
 test("check-in after 3 games, then pricing after 5 once they've checked in; answers shown to admins", async () => {
   const org = { "x-dev-user": "price-org" };
-  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Price Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Price Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
   assert.equal((await app.inject({ url: "/me/dashboard", headers: org })).json().organizer.askPricing, false);
   const a = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "A" } })).json().member.id;
   const b = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "B" } })).json().member.id;
@@ -631,7 +633,7 @@ test("organizer adds players up front; players claim their name on their phone",
 test("organizer app: push tokens, activity feed, and deleting your account", async () => {
   const me = { "x-dev-user": "app-org" };
   const partner = { "x-dev-user": "app-partner" };
-  const solo = (await app.inject({ method: "POST", url: "/groups", headers: me, payload: { name: "Solo Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
+  const solo = (await app.inject({ method: "POST", url: "/groups", headers: me, payload: { name: "Solo Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
   const shared = (await app.inject({ method: "POST", url: "/groups", headers: me, payload: { name: "Shared Hoops", weekdays: [4], startTime: "19:00", timezone: "UTC", cap: 8 } })).json().group;
   const { url } = (await app.inject({ method: "POST", url: `/groups/${shared.slug}/organizers/invite`, headers: me, payload: {} })).json();
   await app.inject({ method: "POST", url: "/organizer-invites/accept", headers: partner, payload: { token: new URL(url).searchParams.get("t") } });
@@ -682,7 +684,7 @@ test("player app: reminders go to the phone through Expo push", async () => {
 test("player accounts: link this phone's entries, pick them up on a new device, see only your own stats", async () => {
   const org = { "x-dev-user": "stats-org" };
   const pat = { "x-dev-user": "stats-pat" };
-  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Stats Hoops", weekdays: [2], startTime: "19:00", timezone: "UTC", cap: 1 } })).json().group;
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Stats Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 1 } })).json().group;
   const p = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Pat" } })).json();
   const q = (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name: "Quinn" } })).json();
 
