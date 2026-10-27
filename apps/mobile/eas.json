@@ -18,7 +18,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ca-turnout-api-test.bluecoast-34346b94.canadacentral.azurecontainerapps.io",
         "EXPO_PUBLIC_WEB_URL": "https://turnout-test.dataeaver.ca"
-      }
+      },
+      "channel": "preview",
+      "environment": "preview"
     },
     "production": {
       "extends": "base",
@@ -26,7 +28,9 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://ca-turnout-api-live.bluecoast-34346b94.canadacentral.azurecontainerapps.io",
         "EXPO_PUBLIC_WEB_URL": "https://turnout.dataeaver.ca"
-      }
+      },
+      "channel": "production",
+      "environment": "production"
     }
   },
   "submit": {

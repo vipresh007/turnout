@@ -83,6 +83,12 @@
         "projectId": "117f314d-0932-4d16-a1c4-f037cca7c085"
       }
     },
-    "owner": "vipresh1993"
+    "owner": "vipresh1993",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/117f314d-0932-4d16-a1c4-f037cca7c085"
+    }
   }
 }

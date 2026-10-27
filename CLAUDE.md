@@ -34,6 +34,7 @@ Weekly in/out headcounts for recurring games. See README.md for layout, routes, 
 - Product events: `track()` in `apps/api/src/analytics.ts` writes to our own `events` table (no third-party analytics); the app reports a few browser-only events via `POST /events` (`trackEvent` in lib/api). `/admin/metrics` (and the app's /admin) is limited to `ADMIN_EMAILS`. North Star: games run (past, not cancelled, ≥2 in).
 - Autopilot: `groupInsights().forecast` in packages/shared (in now + non-answerers' history − uncovered late drops). Shown within `ASK_WINDOW_HOURS` (48h) of the game; the reminder job's `runForecastAlerts` emails organizers once when a game looks short within 24h (`sessions.forecast_alerted_at`).
 - Game history: `GET /groups/:slug/history` (past sessions with turnout, drops, payments at the current cost setting, teams).
+- iPhone over-the-air updates (EAS Update, `runtimeVersion` policy fingerprint, channel `production`): `apps/mobile/scripts/ota.sh "message"` ships a JS-only change without App Store review; native changes (new modules, SDK, app.json plugins/permissions) need a new build. The production `EXPO_PUBLIC_*` values live in both eas.json and the EAS `production` environment; keep them in sync. EAS free plan: 15 iOS cloud builds a month (`eas build --local` builds on this Mac instead).
 - Sign-in codes are emailed by our API (`/auth-events/otp-send`, Entra custom email OTP provider; `infra/setup-otp-email.sh test|live` picks which API receives them).
 
 ## Known gotchas
