@@ -1,6 +1,7 @@
 import type { PlayerGame, PlayerStats } from "@turnout/shared";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { useTheme } from "@/lib/theme";
+import { StatTile } from "./ui";
 
 // A player's own numbers: big figures for played, attendance and streak, and a row of dots for recent games.
 
@@ -24,13 +25,7 @@ export function StatsStrip({ stats }: { stats: PlayerStats }) {
 
 function Figure({ label, value, hint, accent }: { label: string; value: string; hint: string; accent?: boolean }) {
   const t = useTheme();
-  return (
-    <View style={{ flex: 1, backgroundColor: accent ? t.soft : t.bg, borderRadius: 14, padding: 12, gap: 2 }}>
-      <Text style={{ color: t.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>{label}</Text>
-      <Text style={{ color: accent ? t.accent : t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.8, fontVariant: ["tabular-nums"] }}>{value}</Text>
-      <Text style={{ color: t.muted, fontSize: 12 }} numberOfLines={1}>{hint}</Text>
-    </View>
-  );
+  return <StatTile label={label} value={value} hint={hint} tone={accent ? t.energy : undefined} compact />;
 }
 
 /** Recent games, oldest on the left: filled green for played, amber for waitlist, hollow for out or no answer. */

@@ -1,24 +1,22 @@
 import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
-import { ActivityIndicator, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Platform, RefreshControl, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, StatRow, TurnoutChart } from "@/components/DashboardInsights";
 import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
 import { PricingAsk } from "@/components/PricingAsk";
-import { Icon } from "@/components/Icon";
 import { YourGames } from "@/components/YourGames";
 import { maybeAskForReview } from "@/lib/review";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
-import { Button } from "@/components/ui";
+import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useLive } from "@/lib/live";
-import { greeting, timeAgo } from "@/lib/format";
+import { greeting, sessionWhen, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
-import { useTheme, type Theme } from "@/lib/theme";
-
+import { sportTone, useTheme } from "@/lib/theme";
 
 export default function DashboardScreen() {
   return (
@@ -28,9 +26,9 @@ export default function DashboardScreen() {
   );
 }
 
+/** Home: the next game, then every other group as a row, then the calendar. Insights have their own tab in the app. */
 function DashboardView() {
   const t = useTheme();
-  const s = styles(t);
   const api = useApi();
   const { width } = useWindowDimensions();
   const wide = width >= 900;
@@ -39,14 +37,7 @@ function DashboardView() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  // Which group tiles are open. Every visit starts with all of them collapsed.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const toggle = (slug: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(slug)) next.add(slug);
-      return next;
-    });
+  const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(
     () => api.dashboard().then((d) => {
@@ -81,10 +72,9 @@ function DashboardView() {
     }
   };
 
-
   if (!data) {
     return (
-      <View style={[s.page, { justifyContent: "center", alignItems: "center" }]}>
+      <View style={{ flex: 1, backgroundColor: t.bg, justifyContent: "center", alignItems: "center" }}>
         {error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator />}
       </View>
     );
@@ -94,13 +84,10 @@ function DashboardView() {
   const displayName = organizer.name?.split(" ")[0] ?? organizer.email?.split("@")[0] ?? null;
   const next = groups.find((g) => !g.session.cancelled) ?? groups[0];
   const others = groups.filter((g) => g !== next);
-  const tile = (g: DashboardGroup) => (
-    <GroupTile item={g} isNext={g === next} expanded={expanded.has(g.group.slug)} onToggle={() => toggle(g.group.slug)} onShare={share} onChanged={load} />
-  );
 
   return (
     <RevealScrollView
-      style={s.page}
+      style={{ flex: 1, backgroundColor: t.bg }}
       contentContainerStyle={{ alignItems: "center", paddingBottom: 64 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
       keyboardShouldPersistTaps="handled"
@@ -109,73 +96,67 @@ function DashboardView() {
     >
       {web && <PageGlow />}
       {web && <SiteHeader />}
-      <View style={s.container}>
+      <View style={{ width: "100%", maxWidth: SITE_WIDTH, paddingHorizontal: SITE_GUTTER, paddingTop: web ? 4 : 12, gap: 20 }}>
         {/* Greeting. On the web the site header has the account menu and New group; the app keeps them here. */}
-        <View style={s.header}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text style={s.hello}>
-              {greeting()}
-              {displayName ? `, ${displayName}` : ""}
-            </Text>
-            <Text style={s.date}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
-          </View>
+        <View style={{ gap: 2 }}>
+          <Display level="h1" style={{ fontSize: 26, lineHeight: 30 }}>
+            {greeting()}
+            {displayName ? `, ${displayName}` : ""}
+          </Display>
+          <Text style={{ color: t.muted, fontSize: 14 }}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
         </View>
 
         {groups.length === 0 ? (
           <>
             {/* Signed in as a player who doesn't run a group (yet): their games first. */}
             <YourGames title="Your games" />
-            <EmptyState />
+            <FirstGroup />
           </>
         ) : (
           <>
             {/* The next game first: what an organizer needs when they open Turnout. */}
-            {next && tile(next)}
+            {next && <GroupTile item={next} isNext expanded={expanded} onToggle={() => setExpanded((e) => !e)} onShare={share} onChanged={load} />}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}
 
             {others.length > 0 && (
               <View style={{ gap: 10 }}>
-                <Text style={s.sectionTitle}>Your other groups</Text>
-                {others.map((g, i) => (
-                  <Reveal key={g.group.id} delay={i * 80}>
-                    {tile(g)}
-                  </Reveal>
-                ))}
+                <SectionHeader title="Your groups" />
+                <RowGroup>
+                  {others.map((g, i) => <GroupRow key={g.group.id} item={g} first={i === 0} last={i === others.length - 1} />)}
+                </RowGroup>
               </View>
             )}
 
-            <Reveal style={{ gap: 12 }}>
-              <Text style={s.sectionTitle}>Calendar</Text>
+            <Reveal style={{ gap: 10 }}>
+              <SectionHeader title="Calendar" />
               <CalendarView groups={groups} />
             </Reveal>
 
             {/* Insights below the operational stuff. The app has them in their own tab. */}
-            {web && <>
-            <View style={{ gap: 12 }}>
-              <Text style={s.sectionTitle}>Insights</Text>
-              <StatRow groups={groups} stats={data.stats} />
-            </View>
-            <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
-              <View style={{ flex: wide ? 1.3 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
-                <Reveal>
-                  <TurnoutChart stats={data.stats} />
-                </Reveal>
-                <Reveal delay={80}>
-                  <Regulars stats={data.stats} />
-                </Reveal>
-              </View>
-              <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
-                <Text style={s.sectionTitle}>Recent activity</Text>
-                <View style={s.card}>
-                  {activity.length === 0 ? (
-                    <Text style={s.muted}>No RSVPs yet. Share your group link and responses show up here as they come in.</Text>
-                  ) : (
-                    activity.map((a, i) => <ActivityRow key={`${a.groupSlug}-${a.name}-${a.at}`} item={a} last={i === activity.length - 1} />)
-                  )}
+            {web && (
+              <>
+                <View style={{ gap: 10 }}>
+                  <SectionHeader title="Insights" />
+                  <StatRow groups={groups} stats={data.stats} />
                 </View>
-              </View>
-            </View>
-            </>}
+                <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: "flex-start" }}>
+                  <View style={{ flex: wide ? 1.3 : undefined, width: wide ? undefined : "100%", gap: 12 }}>
+                    <Reveal><TurnoutChart stats={data.stats} /></Reveal>
+                    <Reveal delay={80}><Regulars stats={data.stats} /></Reveal>
+                  </View>
+                  <View style={{ flex: wide ? 1 : undefined, width: wide ? undefined : "100%", gap: 10 }}>
+                    <SectionHeader title="Recent activity" />
+                    {activity.length === 0 ? (
+                      <Text style={{ color: t.muted, fontSize: 14, lineHeight: 20 }}>No RSVPs yet. Share your group link and responses show up here as they come in.</Text>
+                    ) : (
+                      <RowGroup>
+                        {activity.map((a, i) => <ActivityRow key={`${a.groupSlug}-${a.name}-${a.at}`} item={a} first={i === 0} last={i === activity.length - 1} />)}
+                      </RowGroup>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
             <YourGames title="Games you play in" exclude={data.groups.map((g) => g.group.slug)} />
             {/* Asks come last, so the games stay on top. */}
             {organizer.askFeedback && <FeedbackAsk />}
@@ -188,84 +169,70 @@ function DashboardView() {
   );
 }
 
-function ActivityRow({ item, last }: { item: ActivityItem; last: boolean }) {
+/** One of the other groups: name and when on the left, how full on the right. */
+function GroupRow({ item, first, last }: { item: DashboardGroup; first: boolean; last: boolean }) {
   const t = useTheme();
-  const s = styles(t);
-  const isIn = item.status === "in";
+  const { group, session } = item;
+  const goal = group.cap ?? group.targetPlayers ?? null;
+  const tone = session.cancelled ? t.muted : goal && item.confirmed >= goal ? t.accent : t.energy;
   return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: item.groupSlug } })}
-      style={({ hovered }: { hovered?: boolean }) => [{ flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 10, paddingHorizontal: 8, marginHorizontal: -8, borderRadius: 10 }, !last && { borderBottomWidth: 1, borderColor: t.border }, hovered && { backgroundColor: t.bg }]}
-    >
-      <View style={[s.dot, { backgroundColor: isIn ? t.accent : t.border }]} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: t.text, fontSize: 15 }}>
-          <Text style={{ fontWeight: "800" }}>{item.name}</Text> {isIn ? "is in" : "is out"}
-        </Text>
-        <Text style={[s.muted, { fontSize: 13 }]} numberOfLines={1}>
-          {item.groupName}
-        </Text>
-      </View>
-      <Text style={[s.muted, { fontSize: 13 }]}>{timeAgo(item.at)}</Text>
-    </Pressable>
+    <ListRow
+      first={first}
+      last={last}
+      title={group.name}
+      subtitle={session.cancelled ? "Cancelled this week" : `${sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}${item.role === "admin" ? " · co-organizer" : ""}`}
+      tone={sportTone(group.activity, t)}
+      onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: group.slug } })}
+      right={
+        <View style={{ alignItems: "flex-end", gap: 5, width: 72 }}>
+          <Text style={{ color: t.text, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
+            {item.confirmed}
+            <Text style={{ color: t.muted, fontWeight: "600" }}>{goal ? ` / ${goal}` : " in"}</Text>
+          </Text>
+          {goal ? <ProgressBar value={item.confirmed} max={goal} height={5} tone={tone} /> : null}
+        </View>
+      }
+    />
   );
 }
 
-function EmptyState() {
+function ActivityRow({ item, first, last }: { item: ActivityItem; first: boolean; last: boolean }) {
   const t = useTheme();
-  const s = styles(t);
-  const steps: [string, ReactNode][] = [
-    ["1", "Describe your game in one sentence"],
-    ["2", "Share the link in your group chat"],
-    ["3", "Watch the headcount fill up live"],
-  ];
+  const isIn = item.status === "in";
+  return (
+    <ListRow
+      first={first}
+      last={last}
+      icon={isIn ? "check" : "x"}
+      tone={isIn ? t.accent : t.muted}
+      title={`${item.name} is ${isIn ? "in" : "out"}`}
+      subtitle={item.groupName}
+      right={<Text style={{ color: t.muted, fontSize: 13 }}>{timeAgo(item.at)}</Text>}
+      onPress={() => router.push({ pathname: "/g/[slug]", params: { slug: item.groupSlug } })}
+    />
+  );
+}
+
+/** No groups yet: what to do, in three steps. */
+function FirstGroup() {
+  const t = useTheme();
+  const steps = ["Describe your game in one sentence", "Share the link in your group chat", "Watch the headcount fill up live"];
   return (
     <Reveal>
-      <View style={[s.card, { gap: 18, padding: 28, alignItems: "flex-start" }]}>
-        <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" }}>
-          <Icon name="people" size={28} color={t.accent} />
-        </View>
-        <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -0.8 }}>Start your first group</Text>
-        <Text style={[s.muted, { fontSize: 16 }]}>Takes a minute. Players don't need the app.</Text>
+      <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 20, padding: 20, gap: 16 }}>
+        <EmptyState illustration="noGroups" title="Start your first group" body="Takes a minute. Players don't need the app." />
         <View style={{ gap: 10 }}>
-          {steps.map(([n, text]) => (
-            <View key={n} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
-              <View style={[s.avatar, { width: 28, height: 28, borderRadius: 14 }]}>
-                <Text style={{ color: t.accentText, fontWeight: "900", fontSize: 13 }}>{n}</Text>
-              </View>
+          {steps.map((text, i) => (
+            <View key={text} style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+              <StepBadge n={i + 1} />
               <Text style={{ color: t.text, fontSize: 16 }}>{text}</Text>
             </View>
           ))}
         </View>
-        
         <View style={{ flexDirection: "row" }}>
-          <Button label="Create a group" onPress={() => router.push("/new")} big />
+          <Button label="Create a group" onPress={() => router.push("/new")} size="lg" />
         </View>
       </View>
     </Reveal>
   );
 }
-
-const styles = (t: Theme) =>
-  StyleSheet.create({
-    page: { flex: 1, backgroundColor: t.bg },
-    container: { width: "100%", maxWidth: SITE_WIDTH, paddingHorizontal: SITE_GUTTER, paddingTop: Platform.OS === "web" ? 4 : 20, gap: 20 },
-    header: { flexDirection: "row", alignItems: "center", gap: 16, zIndex: 10 },
-    hello: { color: t.text, fontSize: 28, fontWeight: "900", letterSpacing: -0.8 },
-    date: { color: t.muted, fontSize: 15 },
-    avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" },
-    menu: {
-      position: "absolute", top: 48, right: 0, width: 220, backgroundColor: t.card, borderColor: t.border, borderWidth: 1,
-      borderRadius: 14, padding: 12, gap: 8, zIndex: 20, boxShadow: "0 16px 40px rgba(0,0,0,0.25)",
-    },
-    menuItem: { paddingVertical: 8, paddingHorizontal: 8, borderRadius: 8 },
-    sectionTitle: { color: t.text, fontSize: 18, fontWeight: "800" },
-    card: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 18, padding: 18 },
-    label: { color: t.muted, fontSize: 12, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" },
-    muted: { color: t.muted, fontSize: 14, lineHeight: 20 },
-    chip: { borderWidth: 1, borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10 },
-    track: { height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" },
-    fill: { height: "100%", borderRadius: 4 },
-    dot: { width: 10, height: 10, borderRadius: 5 },
-  });

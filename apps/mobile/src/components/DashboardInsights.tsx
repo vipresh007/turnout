@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { formatTime } from "@/lib/format";
 import { useTheme, type Theme } from "@/lib/theme";
+import { Display, StatTile } from "./ui";
 
 const DAY = 86_400_000;
 const localYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -253,13 +254,13 @@ export function TurnoutChart({ stats }: { stats: OrganizerStats }) {
 
   return (
     <View style={[s.card, { gap: 14 }]}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <View style={{ gap: 2 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <View style={{ gap: 2, flex: 1 }}>
           <Text style={s.cardTitle}>Players per week</Text>
           <Text style={s.muted}>Last 8 weeks and the week ahead</Text>
         </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>{w.players}</Text>
+        <View style={{ alignItems: "flex-end", flexShrink: 0 }}>
+          <Display level="statSm" style={{ fontSize: 24, lineHeight: 28 }}>{String(w.players)}</Display>
           <Text style={s.muted}>
             {label(shown)}
             {w.spots ? ` · ${Math.round((w.players / w.spots) * 100)}% full` : ""}
@@ -392,18 +393,11 @@ export function StatRow({ groups, stats }: { groups: DashboardGroup[]; stats: Or
   const fill = stats.fillRate === null ? "–" : `${Math.round(stats.fillRate * 100)}%`;
   if (narrow) {
     // Phones: one compact row, like the player stats, instead of big boxes that wrap.
-    const figure = (label: string, value: string, hint: string) => (
-      <View key={label} style={{ flex: 1, backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, padding: 12, gap: 2 }}>
-        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 11, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" }}>{label}</Text>
-        <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -0.8, fontVariant: ["tabular-nums"] }}>{value}</Text>
-        <Text numberOfLines={1} style={{ color: t.muted, fontSize: 12 }}>{hint}</Text>
-      </View>
-    );
     return (
       <View style={{ flexDirection: "row", gap: 10 }}>
-        {figure("Groups", String(groups.length), "running")}
-        {figure("In now", String(playersIn), spots ? `of ${spots}` : "this week")}
-        {figure("Fill rate", fill, "8 weeks")}
+        <StatTile label="Groups" value={groups.length} hint="running" />
+        <StatTile label="In now" value={playersIn} hint={spots ? `of ${spots}` : "this week"} tone={spots && playersIn < spots ? t.energy : undefined} />
+        <StatTile label="Fill rate" value={fill} hint="8 weeks" />
       </View>
     );
   }

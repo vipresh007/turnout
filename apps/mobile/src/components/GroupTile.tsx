@@ -4,12 +4,12 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { shareUrl, trackEvent, useApi } from "@/lib/api";
 import { hoursUntil, relativeDay, sessionWhen } from "@/lib/format";
-import { useTheme } from "@/lib/theme";
+import { sportTone, tint, useTheme } from "@/lib/theme";
 import { ActionGrid, ActionTile } from "./ActionTile";
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
 import { Pop } from "./motion";
-import { Eyebrow, IconLine, Pill, webTransition } from "./ui";
+import { Chip, Display, Eyebrow, IconLine, Pill, ProgressBar, Texture } from "./ui";
 
 /**
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
@@ -76,49 +76,41 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   const hint = attentionHint(item);
 
   let waitlistPos = 0;
+  const tone = sportTone(group.activity, t);
   return (
-    <View style={{ backgroundColor: t.card, borderColor: isNext || expanded ? t.accent : t.border, borderWidth: 1, borderRadius: 20, overflow: "hidden" }}>
+    <View style={{ backgroundColor: t.card, borderColor: isNext || expanded ? tint(tone, 0.6) : t.border, borderWidth: 1, borderRadius: 20, overflow: "hidden" }}>
+      {isNext && <Texture color={tone} opacity={0.07} />}
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${group.name}, ${status.text}. ${expanded ? "Hide details" : "Show details"}`}
         onPress={onToggle}
-        style={({ hovered }: { hovered?: boolean }) => ({ padding: 18, gap: 10, backgroundColor: hovered ? t.bg : "transparent" })}
+        style={({ hovered }: { hovered?: boolean }) => ({ padding: 16, gap: 10, backgroundColor: hovered ? t.surface2 : "transparent" })}
       >
-        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ flex: 1, gap: 2 }}>
-            {isNext && (
-              <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>
-                Next up · {relativeDay(session.startsAt, group.timezone)}
-              </Text>
-            )}
-            <Text style={{ color: t.text, fontSize: 19, fontWeight: "900", letterSpacing: -0.3 }}>{group.name}</Text>
-            <Text style={{ color: t.muted }}>
+            {isNext && <Eyebrow color={tone}>Next up · {relativeDay(session.startsAt, group.timezone)}</Eyebrow>}
+            <Display level="h1" style={{ fontSize: 22, lineHeight: 26 }} numberOfLines={1}>{group.name}</Display>
+            <Text style={{ color: t.muted, fontSize: 14 }} numberOfLines={expanded ? 2 : 1}>
               {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
               {where ? ` · ${where}` : ""}
               {expanded ? ` · ${describeRecurrence(group)}` : ""}
               {item.role === "admin" ? " · co-organizer" : ""}
             </Text>
           </View>
-          <View style={{ alignItems: "flex-end", gap: 6 }}>
-            <Pill label={status.text} color={status.color} />
-            <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={t.muted} /></View>
-          </View>
+          {!session.cancelled && (
+            <View style={{ alignItems: "flex-end", gap: 2 }}>
+              <Display level="statSm" style={{ fontSize: 30, lineHeight: 34 }}>{String(item.confirmed)}</Display>
+              <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700" }}>{group.cap ? `of ${group.cap}` : goal ? `of ${goal}` : "in"}</Text>
+            </View>
+          )}
+          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={t.muted} /></View>
         </View>
 
-        {!session.cancelled && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1, fontVariant: ["tabular-nums"] }}>
-              {item.confirmed}
-              <Text style={{ color: t.muted, fontSize: 15, fontWeight: "700" }}>{group.cap ? ` / ${group.cap}` : goal ? ` in · target ${goal}` : " in"}</Text>
-            </Text>
-            {goal ? (
-              <View style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden" }}>
-                <View style={{ height: "100%", width: `${fill * 100}%`, borderRadius: 4, backgroundColor: session.cancelled ? t.muted : t.accent }} />
-              </View>
-            ) : <View style={{ flex: 1 }} />}
-          </View>
-        )}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          {goal && !session.cancelled ? <View style={{ flex: 1 }}><ProgressBar value={item.confirmed} max={goal} height={6} tone={fill >= 1 ? t.accent : t.energy} /></View> : <View style={{ flex: 1 }} />}
+          <Pill label={status.text} color={status.color} />
+        </View>
         {!expanded && hint && <IconLine icon="sparkles" color={t.text}>{hint}</IconLine>}
       </Pressable>
 
@@ -266,10 +258,10 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
   const shortBy = forecast?.short || spotsLeft;
 
   return (
-    <View style={{ backgroundColor: t.soft, borderRadius: 14, padding: 14, gap: 10 }}>
+    <View style={{ backgroundColor: forecast && forecast.status !== "short" ? t.soft : t.energySoft, borderRadius: 14, padding: 14, gap: 10 }}>
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Icon name={forecast && forecast.status !== "short" ? "check" : "warning"} size={18} color={forecast && forecast.status !== "short" ? t.accent : t.waitlist} strokeWidth={2.2} />
+          <Icon name={forecast && forecast.status !== "short" ? "check" : "warning"} size={18} color={forecast && forecast.status !== "short" ? t.accent : t.energy} strokeWidth={2.2} />
           <Text style={{ color: t.text, fontWeight: "800", fontSize: 15, flex: 1 }}>{headline}</Text>
         </View>
         {detail && <Text style={{ color: t.text }}>{detail}</Text>}
@@ -280,18 +272,15 @@ function Suggestions({ item, link, onShare }: { item: DashboardGroup; link: stri
           <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
             {p.name} <Text style={{ color: t.muted }}>· played {p.played} of {p.games}</Text>
           </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Ask ${p.name}`}
-            hitSlop={8}
+          <Chip
+            label="Ask"
+            icon="megaphone"
+            tone={forecast && forecast.status !== "short" ? t.accent : t.energy}
             onPress={() => {
               trackEvent("invite_asked", group.slug, { status: forecast?.status ?? "none" });
               onShare(inviteMessage(p.name.split(" ")[0]!, group.name, shortBy, when, link));
             }}
-            style={({ hovered }: { hovered?: boolean }) => ({ borderWidth: 1, borderColor: t.accent, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: hovered ? t.accent : "transparent", ...webTransition })}
-          >
-            {({ hovered }: { hovered?: boolean }) => <Text style={{ color: hovered ? t.accentText : t.accent, fontWeight: "800" }}>Ask</Text>}
-          </Pressable>
+          />
         </View>
       ))}
     </View>

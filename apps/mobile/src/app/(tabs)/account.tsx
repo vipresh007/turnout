@@ -1,16 +1,16 @@
 import Constants from "expo-constants";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState, type ReactNode } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ScrollView, Switch, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { Icon, type IconName } from "@/components/Icon";
 import { SignInGate } from "@/components/SignInGate";
+import { Display, ListRow, RowGroup } from "@/components/ui";
 import { useAccount } from "@/lib/account";
 import { useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { confirm } from "@/lib/confirm";
 import { disablePush, enablePush, hasPushToken, pushAvailable, pushPermission } from "@/lib/pushNative";
-import { tint, useTheme } from "@/lib/theme";
+import { useTheme } from "@/lib/theme";
 
 export default function AccountScreen() {
   return (
@@ -69,73 +69,39 @@ function Account() {
 
   const who = account?.name || account?.email || "";
   return (
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: 16, gap: 22, paddingBottom: 48 }}>
+    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 48 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 4 }}>
         <Avatar name={who || "?"} size={52} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ color: t.text, fontSize: 20, fontWeight: "800" }} numberOfLines={1}>{account?.name || "Your account"}</Text>
+          <Display level="h1" style={{ fontSize: 22, lineHeight: 26 }} numberOfLines={1}>{account?.name || "Your account"}</Display>
           {account?.email && <Text style={{ color: t.muted }} numberOfLines={1}>{account.email}</Text>}
         </View>
       </View>
 
       {pushAvailable && (
-        <Group>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 }}>
-            <RowIcon name="bell" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>Notifications</Text>
-              <Text style={{ color: t.muted, fontSize: 13 }}>Dropouts and short games</Text>
-            </View>
-            <Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />
-          </View>
-          {pushNote && <Text style={{ color: t.waitlist, paddingBottom: 12 }}>{pushNote}</Text>}
-        </Group>
+        <RowGroup>
+          <ListRow first last icon="bell" title="Notifications" subtitle={pushNote ?? "Dropouts and short games"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />
+        </RowGroup>
       )}
 
-      <Group>
-        <Row icon="trending" label="Your stats" onPress={() => router.push("/stats")} />
-        {account?.isAdmin && <Row icon="chart" label="Metrics" onPress={() => router.push("/admin")} />}
-        <Row icon="bulb" label="Suggest an improvement" onPress={() => router.push("/feedback")} />
-        <Row icon="mail" label="Help and support" onPress={() => router.push("/support")} />
-      </Group>
+      <RowGroup>
+        <ListRow first icon="trending" title="Your stats" subtitle="Games played, attendance and streaks" onPress={() => router.push("/stats")} />
+        {account?.isAdmin && <ListRow icon="chart" title="Metrics" onPress={() => router.push("/admin")} />}
+        <ListRow icon="bulb" title="Suggest an improvement" onPress={() => router.push("/feedback")} />
+        <ListRow last icon="mail" title="Help and support" onPress={() => router.push("/support")} />
+      </RowGroup>
 
-      <Group>
-        <Row icon="note" label="Privacy policy" onPress={() => router.push("/privacy")} />
-        <Row icon="note" label="Terms of service" onPress={() => router.push("/terms")} />
-      </Group>
+      <RowGroup>
+        <ListRow first icon="note" title="Privacy policy" onPress={() => router.push("/privacy")} />
+        <ListRow last icon="note" title="Terms of service" onPress={() => router.push("/terms")} />
+      </RowGroup>
 
-      <Group>
-        <Row icon="arrowRight" label="Sign out" onPress={doSignOut} plain />
-        <Row icon="x" label="Delete account" danger onPress={deleteAccount} plain />
-      </Group>
+      <RowGroup>
+        <ListRow first icon="arrowRight" title="Sign out" onPress={doSignOut} right={<View />} />
+        <ListRow last icon="x" title="Delete account" danger onPress={deleteAccount} right={<View />} />
+      </RowGroup>
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
       <Text style={{ color: t.muted, textAlign: "center", fontSize: 12 }}>Turnout {Constants.expoConfig?.version ?? ""}</Text>
     </ScrollView>
-  );
-}
-
-/** A rounded group of rows, iOS Settings style. */
-function Group({ children }: { children: ReactNode }) {
-  const t = useTheme();
-  return <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14 }}>{children}</View>;
-}
-
-function RowIcon({ name, color }: { name: IconName; color?: string }) {
-  const t = useTheme();
-  return (
-    <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: color ? tint(color) : t.soft, alignItems: "center", justifyContent: "center" }}>
-      <Icon name={name} size={17} color={color ?? t.accent} strokeWidth={2} />
-    </View>
-  );
-}
-
-function Row({ icon, label, onPress, danger, plain }: { icon: IconName; label: string; onPress: () => void; danger?: boolean; plain?: boolean }) {
-  const t = useTheme();
-  return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, opacity: pressed ? 0.6 : 1 })}>
-      <RowIcon name={icon} color={danger ? t.danger : undefined} />
-      <Text style={{ color: danger ? t.danger : t.text, fontSize: 16, fontWeight: "600", flex: 1 }}>{label}</Text>
-      {!plain && <Icon name="chevronRight" size={16} color={t.muted} />}
-    </Pressable>
   );
 }

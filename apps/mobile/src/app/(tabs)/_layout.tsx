@@ -1,7 +1,7 @@
 import { Redirect, router, Slot, Tabs } from "expo-router";
 import { Platform, Pressable, Text } from "react-native";
 import { Icon } from "@/components/Icon";
-import { AccountIcon, InsightsIcon, GroupsIcon, HomeIcon } from "@/components/TabIcons";
+import { AccountIcon, InsightsIcon, HomeIcon } from "@/components/TabIcons";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -22,20 +22,22 @@ export default function TabsLayout() {
         tabBarActiveTintColor: t.accent,
         tabBarInactiveTintColor: t.muted,
         tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border },
+        tabBarLabelStyle: { fontWeight: "700" },
         headerStyle: { backgroundColor: t.bg },
         headerTintColor: t.text,
         headerShadowVisible: false,
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: "Home", headerTitle: "Turnout", headerRight: NewGroupButton, tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
-      <Tabs.Screen name="groups" options={{ title: "Groups", headerRight: NewGroupButton, tabBarIcon: ({ color }) => <GroupsIcon color={color} /> }} />
-      <Tabs.Screen name="activity" options={{ title: "Insights", tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
+      <Tabs.Screen name="insights" options={{ title: "Insights", tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ({ color }) => <AccountIcon color={color} /> }} />
+      {/* Old URL, kept as a redirect; not a tab. */}
+      <Tabs.Screen name="activity" options={{ href: null }} />
     </Tabs>
   );
 }
 
-/** "+ New" in the top bar of Home and Groups. */
+/** "+ New" in the top bar of Home. */
 function NewGroupButton() {
   const t = useTheme();
   return (
