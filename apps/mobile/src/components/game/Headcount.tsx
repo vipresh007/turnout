@@ -8,7 +8,7 @@ import { webTransition } from "@/lib/webStyle";
 import { Avatar } from "../Avatar";
 import { Bump } from "../motion";
 import { ShareButtons } from "../ShareCard";
-import { Button, Card, Display, EmptyState, Field, IconLine, Muted, ProgressBar, SectionHeader } from "../ui";
+import { Button, Card, Display, EmptyState, Field, IconLine, Muted, Ring, SectionHeader } from "../ui";
 
 // The one thing a player came to do: see the count and tap In or Out. Everything else on the page is secondary.
 
@@ -66,16 +66,18 @@ export function Headcount({ page, me, place, goal, needed, name, onName, pending
   const short = shortShare && needed > 0 && !viewer.isOrganizer && roster.confirmed.length > 0;
   return (
     <Card>
-      <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-        <Bump value={roster.confirmed.length}>
-          <Display level="stat" style={{ fontSize: 72, lineHeight: 72, color: goal && roster.confirmed.length >= goal ? t.accent : needed > 0 && goal ? t.energy : t.text }}>{String(roster.confirmed.length)}</Display>
-        </Bump>
-        <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : goal ? `in · aiming for ${goal}` : "in"}</Text>
-      </View>
-      {goal && <ProgressBar value={roster.confirmed.length} max={goal} height={10} tone={roster.confirmed.length >= goal ? t.accent : t.energy} />}
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-        {roster.waitlist.length > 0 && <Text style={{ color: t.energy, fontWeight: "700" }}>{roster.waitlist.length} on the waitlist</Text>}
-        {needed > 0 && group.cap && <Muted>{`${needed} ${needed === 1 ? "spot" : "spots"} left`}</Muted>}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+        <Ring value={roster.confirmed.length} max={goal} size={104} tone={goal && roster.confirmed.length >= goal ? t.accent : t.energy}>
+          <Bump value={roster.confirmed.length}>
+            <Display level="stat" style={{ fontSize: 40, lineHeight: 44 }}>{String(roster.confirmed.length)}</Display>
+          </Bump>
+        </Ring>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={{ color: t.text, fontSize: 20, fontWeight: "600", letterSpacing: -0.3 }}>{group.cap ? `of ${group.cap} in` : goal ? `in · aiming for ${goal}` : "in"}</Text>
+          {needed > 0 && group.cap && <Text style={{ color: t.energy, fontWeight: "600" }}>{`${needed} ${needed === 1 ? "spot" : "spots"} left`}</Text>}
+          {goal && needed <= 0 && !roster.waitlist.length && <Text style={{ color: t.accent, fontWeight: "600" }}>Full</Text>}
+          {roster.waitlist.length > 0 && <Text style={{ color: t.energy, fontWeight: "600" }}>{roster.waitlist.length} on the waitlist</Text>}
+        </View>
       </View>
 
       <StatusLine place={place} name={me?.name} />

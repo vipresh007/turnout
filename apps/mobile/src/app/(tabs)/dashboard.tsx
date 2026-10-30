@@ -11,7 +11,7 @@ import { YourGames } from "@/components/YourGames";
 import { maybeAskForReview } from "@/lib/review";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge, Texture } from "@/components/ui";
+import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useLive } from "@/lib/live";
 import { greeting, sessionWhen, timeAgo } from "@/lib/format";
@@ -98,12 +98,11 @@ function DashboardView() {
       {web && <SiteHeader />}
       <View style={{ width: "100%", maxWidth: SITE_WIDTH, paddingHorizontal: SITE_GUTTER, paddingTop: web ? 4 : 12, gap: 20 }}>
         {/* Greeting. On the web the site header has the account menu and New group; the app keeps them here. */}
-        <View style={{ backgroundColor: t.accent, borderRadius: 20, padding: 18, gap: 4, overflow: "hidden" }}>
-          <Texture color={t.ink} opacity={0.14} />
-          <Text style={{ color: t.ink, fontSize: 13, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase", opacity: 0.8 }}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
-          <Display level="display" style={{ fontSize: 30, lineHeight: 34, color: t.ink, textTransform: "uppercase" }}>
+        <View style={{ gap: 4, paddingHorizontal: 2 }}>
+          <Text style={{ color: t.muted, fontSize: 13, fontWeight: "500" }}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
+          <Display level="display" style={{ fontSize: 30, lineHeight: 34 }}>
             {greeting()}
-            {displayName ? `, ${displayName}` : ""}
+            {displayName ? `,\n${displayName}` : ""}
           </Display>
         </View>
 
@@ -220,7 +219,7 @@ function FirstGroup() {
   const steps = ["Describe your game in one sentence", "Share the link in your group chat", "Watch the headcount fill up live"];
   return (
     <Reveal>
-      <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 20, padding: 20, gap: 16 }}>
+      <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 22, padding: 20, gap: 16, boxShadow: t.shadow.card }}>
         <EmptyState illustration="noGroups" title="Start your first group" body="Takes a minute. Players don't need the app." />
         <View style={{ gap: 10 }}>
           {steps.map((text, i) => (

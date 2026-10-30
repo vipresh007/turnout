@@ -1,7 +1,7 @@
 import type { ReactNode, Ref } from "react";
 import { router, type Href } from "expo-router";
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type TextProps, type TextStyle, type ViewStyle } from "react-native";
-import Svg, { Defs, Line, Pattern, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, Line, Pattern, Rect } from "react-native-svg";
 import { tint, useTheme } from "@/lib/theme";
 import { webTransition } from "@/lib/webStyle";
 import { Icon, type IconName } from "./Icon";
@@ -22,7 +22,7 @@ export function Screen({ children, signInLabel, scrollRef, bottomInset = 0 }: { 
       automaticallyAdjustKeyboardInsets
       keyboardDismissMode="interactive"
     >
-      {web && <PageGlow />}
+      <PageGlow />
       {web && <SiteHeader signInLabel={signInLabel} />}
       <View style={styles.column}>{children}</View>
     </ScrollView>
@@ -31,15 +31,13 @@ export function Screen({ children, signInLabel, scrollRef, bottomInset = 0 }: { 
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  return <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border }, style]}>{children}</View>;
+  return <View style={[styles.card, { backgroundColor: t.card, borderColor: t.border, boxShadow: t.shadow.card }, style]}>{children}</View>;
 }
 
-/** Big type in the display face (Archivo): page titles, group names, headcounts. On the web it marks itself so the
- *  global Inter rule in app/_layout leaves it alone. */
+/** Big type: page titles, group names, headcounts. */
 export function Display({ level = "h1", style, ...props }: TextProps & { level?: "display" | "h1" | "stat" | "statSm" }) {
   const t = useTheme();
-  const heavy = level === "display" || level === "stat";
-  return <Text {...props} {...(Platform.OS === "web" ? { dataSet: { display: heavy ? "heavy" : "1" } } : {})} style={[t.type[level], { color: t.text }, style]} />;
+  return <Text {...props} style={[t.type[level], { color: t.text }, style]} />;
 }
 
 export function Title({ children }: { children: ReactNode }) {
@@ -110,15 +108,15 @@ export function Chip({ label, onPress, selected, icon, tone, disabled }: { label
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         styles.chip, webTransition,
         {
-          backgroundColor: selected ? c : hovered ? tint(c, 0.1) : t.surface2,
-          borderColor: selected ? c : hovered ? tint(c, 0.5) : t.border,
+          backgroundColor: selected ? tint(c, 0.22) : hovered ? tint(c, 0.1) : t.surface2,
+          borderColor: selected ? tint(c, 0.6) : hovered ? tint(c, 0.5) : t.border,
           opacity: disabled ? 0.5 : 1,
           transform: [{ scale: pressed ? 0.96 : 1 }],
         },
       ]}
     >
-      {icon && <Icon name={icon} size={14} color={selected ? t.accentText : c} strokeWidth={2.4} />}
-      <Text style={{ color: selected ? t.accentText : t.text, fontSize: 14, fontWeight: "700" }}>{label}</Text>
+      {icon && <Icon name={icon} size={14} color={c} strokeWidth={2.4} />}
+      <Text style={{ color: selected ? c : t.text, fontSize: 14, fontWeight: "600" }}>{label}</Text>
     </Pressable>
   );
 }
@@ -149,6 +147,24 @@ export function ProgressBar({ value, max, tone, height = 8 }: { value: number; m
   );
 }
 
+/** How full the game is, as a ring with the count inside. */
+export function Ring({ value, max, size = 84, tone, children }: { value: number; max: number | null; size?: number; tone?: string; children?: ReactNode }) {
+  const t = useTheme();
+  const stroke = Math.max(6, Math.round(size * 0.09));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = max ? Math.min(1, value / max) : 0;
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Svg width={size} height={size} style={{ position: "absolute", transform: [{ rotate: "-90deg" }] }}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={t.border} strokeWidth={stroke} fill="none" />
+        {max ? <Circle cx={size / 2} cy={size / 2} r={r} stroke={tone ?? t.accent} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} /> : null}
+      </Svg>
+      {children}
+    </View>
+  );
+}
+
 /** A number with a label: "PLAYED 9 of 10 games". `tone` colours the value. */
 export function StatTile({ label, value, hint, tone, compact }: { label: string; value: string | number; hint?: string; tone?: string; compact?: boolean }) {
   const t = useTheme();
@@ -174,7 +190,7 @@ export function ListRow({ icon, title, subtitle, right, onPress, danger, tone, f
       disabled={!onPress}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [
         styles.row,
-        { backgroundColor: pressed || hovered ? t.surface2 : t.card, borderColor: t.border },
+        { backgroundColor: pressed || hovered ? t.surface2 : "transparent", borderColor: t.border },
         !first && { borderTopWidth: 0 },
         first && { borderTopLeftRadius: t.radius.lg, borderTopRightRadius: t.radius.lg },
         last && { borderBottomLeftRadius: t.radius.lg, borderBottomRightRadius: t.radius.lg },
@@ -196,7 +212,8 @@ export function ListRow({ icon, title, subtitle, right, onPress, danger, tone, f
 
 /** A group of ListRows with the card look. Children should be ListRows; first/last radii are applied here. */
 export function RowGroup({ children }: { children: ReactNode }) {
-  return <View style={{ borderRadius: 20, overflow: "hidden" }}>{children}</View>;
+  const t = useTheme();
+  return <View style={{ borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: t.card, boxShadow: t.shadow.card }}>{children}</View>;
 }
 
 /** A one-time nudge: icon, a sentence, one or two actions. Shared by the push, pricing, feedback and sign-in asks. */
@@ -204,7 +221,7 @@ export function AskCard({ icon, title, body, children, onDismiss, tone }: { icon
   const t = useTheme();
   const c = tone ?? t.accent;
   return (
-    <View style={[styles.card, { backgroundColor: t.card, borderColor: tint(c, 0.6), gap: 10 }]}>
+    <View style={[styles.card, { backgroundColor: tint(c, 0.08), borderColor: tint(c, 0.4), gap: 10 }]}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: tint(c), alignItems: "center", justifyContent: "center" }}>
           <Icon name={icon} size={18} color={c} strokeWidth={2} />
@@ -269,7 +286,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
 }) {
   const t = useTheme();
   const sz = size ?? (big ? "lg" : "md");
-  const bg = variant === "primary" ? t.accent : variant === "energy" ? t.energy : variant === "danger" ? t.danger : t.card;
+  const bg = variant === "primary" ? t.accent : variant === "energy" ? t.energy : variant === "danger" ? t.danger : t.surface2;
   const fg = variant === "secondary" ? t.text : variant === "primary" ? t.accentText : variant === "energy" ? t.energyText : "#fff";
   const shadow = variant === "primary" ? t.accentShadow : variant === "energy" ? tint(t.energy, 0.35) : null;
   return (
@@ -282,8 +299,8 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
         return [
           styles.button, sz === "lg" && styles.bigButton, sz === "sm" && styles.smallButton, !fill && { flex: 0, alignSelf: "flex-start" }, webTransition,
           {
-            backgroundColor: hover && variant === "secondary" ? t.soft : bg,
-            borderColor: variant === "secondary" ? (hover ? t.accent : t.border) : bg,
+            backgroundColor: hover && variant === "secondary" ? "rgba(255,255,255,0.1)" : bg,
+            borderColor: variant === "secondary" ? (hover ? t.borderStrong : t.border) : bg,
             opacity: disabled ? 0.5 : hover && variant !== "secondary" ? 0.92 : 1,
             transform: [{ translateY: hover && !pressed ? -1 : 0 }, { scale: pressed ? 0.96 : 1 }],
             boxShadow: shadow && !disabled ? `0 ${hover ? 10 : 6}px ${hover ? 22 : 16}px ${shadow}` : undefined,
@@ -292,7 +309,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
       }}
     >
       {({ hovered }: { hovered?: boolean }) => {
-        const color = hovered && !disabled && variant === "secondary" ? t.accent : fg;
+        const color = fg;
         return loading ? (
           <ActivityIndicator color={fg} />
         ) : (
@@ -330,7 +347,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
       <TextInput
         placeholderTextColor={t.muted}
         {...props}
-        style={[styles.input, { color: t.text, borderColor: t.border, backgroundColor: t.bg }, props.style]}
+        style={[styles.input, { color: t.text, borderColor: t.border, backgroundColor: "rgba(0,0,0,0.25)" }, props.style]}
       />
     </View>
   );
@@ -339,14 +356,14 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
 const styles = StyleSheet.create({
   screen: { paddingBottom: 48, alignItems: "center" },
   column: { width: "100%", maxWidth: 560, gap: 16, paddingHorizontal: 16 },
-  card: { borderWidth: 1, borderRadius: 20, padding: 18, gap: 12 },
+  card: { borderWidth: 1, borderRadius: 22, padding: 18, gap: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 16, borderWidth: 1, minHeight: 56 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, alignSelf: "flex-start" },
-  button: { borderWidth: 1, borderRadius: 14, minHeight: 46, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", flex: 1 },
+  button: { borderWidth: 1, borderRadius: 16, minHeight: 46, paddingVertical: 11, paddingHorizontal: 12, alignItems: "center", justifyContent: "center", flex: 1 },
   bigButton: { paddingVertical: 18, borderRadius: 16 },
   smallButton: { minHeight: 36, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10 },
   buttonText: { fontSize: 16, fontWeight: "700" },
   bigButtonText: { fontSize: 19 },
   smallButtonText: { fontSize: 14 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  input: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
 });

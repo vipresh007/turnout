@@ -30,7 +30,8 @@ export default function TabsLayout() {
       screenOptions={{
         tabBarActiveTintColor: t.accent,
         tabBarInactiveTintColor: t.muted,
-        tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border },
+        tabBarStyle: { backgroundColor: t.cardSolid, borderTopColor: t.border },
+        headerTitleStyle: { fontWeight: "600" },
         tabBarLabelStyle: { fontWeight: "700" },
         headerStyle: { backgroundColor: t.bg },
         headerTintColor: t.text,

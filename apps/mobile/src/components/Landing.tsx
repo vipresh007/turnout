@@ -10,7 +10,7 @@ import { activities, faqs, features, steps, uses } from "@/content/site";
 import { AppStoreBadge } from "./AppStoreBadge";
 import { Icon, type IconName } from "./Icon";
 import { SiteHeader } from "./SiteHeader";
-import { Display, ProgressBar, Texture, webTransition } from "./ui";
+import { Display, ProgressBar, Ring, webTransition } from "./ui";
 
 
 const chat: { who: string; text: string; own?: boolean }[] = [
@@ -52,10 +52,9 @@ export function Landing() {
       </Head>
 
       {/* ── Hero ── */}
-      <View style={[s.heroWrap, { backgroundColor: "#0B1F14" }]}>
-        <Texture color={t.accent} opacity={0.12} />
-        <Glow color={t.glowA} size={wide ? 720 : 460} style={{ top: -220, left: wide ? -120 : -200 }} />
-        <Glow color="rgba(234,88,12,0.22)" size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
+      <View style={s.heroWrap}>
+        <Glow color="rgba(34,197,94,0.22)" size={wide ? 820 : 500} style={{ top: -260, left: wide ? -160 : -220 }} />
+        <Glow color="rgba(251,146,60,0.14)" size={wide ? 620 : 380} style={{ top: 80, right: wide ? -160 : -220 }} duration={11000} drift={60} />
 
         <SiteHeader
           sections={[
@@ -69,18 +68,18 @@ export function Landing() {
         <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
           <View style={{ flex: wide ? 1.15 : undefined, gap: 22, width: wide ? undefined : "100%" }}>
             <Pop>
-              <View style={[s.pill, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)" }]}>
-                <View style={[s.pillDot, { backgroundColor: t.energy }]} />
-                <Text style={{ color: PAPER, fontWeight: "800", fontSize: 13, letterSpacing: 0.6, textTransform: "uppercase" }}>Free for organizers · No app for players</Text>
+              <View style={s.pill}>
+                <View style={s.pillDot} />
+                <Text style={{ color: t.text, fontWeight: "500", fontSize: 13 }}>Free for organizers · No app for players</Text>
               </View>
             </Pop>
             <View>
-              <Display level="display" role="heading" aria-level={1} style={[s.h1, { color: PAPER, fontSize: wide ? 92 : 52, lineHeight: wide ? 88 : 52 }]}>
+              <Display level="display" role="heading" aria-level={1} style={[s.h1, { fontSize: wide ? 72 : 46, lineHeight: wide ? 76 : 50 }]}>
                 Stop asking{"\n"}<Text style={{ color: t.accent }}>who's playing.</Text>
               </Display>
             </View>
-            <Text style={[s.lead, { color: "#B7C4BC" }]}>
-              One link for your weekly game. Players tap <Text style={[s.leadStrong, { color: PAPER }]}>I'm in</Text>. Turnout handles the count, the waitlist,
+            <Text style={s.lead}>
+              One link for your weekly game. Players tap <Text style={s.leadStrong}>I'm in</Text>. Turnout handles the count, the waitlist,
               reminders, dropouts and teams.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
@@ -89,7 +88,7 @@ export function Landing() {
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
               <AppStoreBadge height={44} />
-              <Text style={{ color: "#B7C4BC", fontSize: 14, flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
+              <Text style={{ color: t.muted, fontSize: 14, flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
             </View>
           </View>
           <View style={{ flex: wide ? 0.85 : undefined, width: wide ? undefined : "100%", alignItems: "center" }}>
@@ -107,40 +106,45 @@ export function Landing() {
         <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: wide ? "stretch" : "center" }}>
           <ChatMess />
           <Reveal delay={200} style={wide ? { flex: 1, width: "100%" } : { width: "100%", maxWidth: 520 }}>
-            <View style={[s.panel, { backgroundColor: t.energy, borderColor: t.energy, gap: 14, overflow: "hidden" }, wide && { flex: 1 }]}>
-              <Texture color={INK} opacity={0.12} />
-              <Text style={[s.panelLabel, { color: INK }]}>With Turnout</Text>
-              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-                <Display level="stat" style={{ fontSize: 96, lineHeight: 96, color: INK }}>12</Display>
-                <Text style={{ color: INK, fontSize: 28, fontWeight: "800", opacity: 0.7 }}>/ 14 in</Text>
+            <View style={[s.panel, { backgroundColor: "rgba(34,197,94,0.08)", borderColor: "rgba(34,197,94,0.3)", gap: 14, overflow: "hidden" }, wide && { flex: 1 }]}>
+              <Text style={[s.panelLabel, { color: t.accent }]}>With Turnout</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+                <Ring value={12} max={14} size={112} tone={t.energy}><Display level="stat" style={{ fontSize: 40, lineHeight: 44 }}>12</Display></Ring>
+                <View style={{ gap: 4 }}>
+                  <Text style={{ color: t.text, fontSize: 22, fontWeight: "600", letterSpacing: -0.3 }}>of 14 in</Text>
+                  <Text style={{ color: t.energy, fontWeight: "600", fontSize: 15 }}>2 spots left · updated just now</Text>
+                </View>
               </View>
-              <Text style={{ color: INK, fontWeight: "900", fontSize: 16, textTransform: "uppercase", letterSpacing: 0.6 }}>2 spots left · updated just now</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                 {["Maya", "Priya", "Luis", "Aisha", "Chen", "Sam", "Noor", "Ben", "Kai", "Ivy", "Omar", "Zoe"].map((n) => (
-                  <View key={n} style={{ paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(7,33,15,0.18)" }}>
-                    <Text style={{ color: INK, fontSize: 13, fontWeight: "800" }}>{n}</Text>
+                  <View key={n} style={[s.chip, { paddingVertical: 5, paddingHorizontal: 11 }]}>
+                    <Text style={{ color: t.text, fontSize: 13, fontWeight: "500" }}>{n}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={{ color: INK, opacity: 0.8, fontSize: 15, fontWeight: "600" }}>Always accurate. Nobody has to count.</Text>
+              <Text style={{ color: t.muted, fontSize: 15 }}>Always accurate. Nobody has to count.</Text>
             </View>
           </Reveal>
         </View>
       </View>
 
       {/* ── How it works ── */}
-      <View ref={howRef} style={[s.band, { backgroundColor: PAPER, borderColor: PAPER }]}>
-        <View style={[s.section, { gap: 40, paddingVertical: 88 }]}>
+      <View ref={howRef} style={[s.band, { backgroundColor: "rgba(255,255,255,0.025)", borderColor: t.border }]}>
+        <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
           <Reveal style={{ gap: 12 }}>
-            <Text style={[s.kicker, { color: "#C2410C" }]}>How it works</Text>
-            <Display level="h1" style={[s.h2, { color: INK, fontSize: wide ? 56 : 40, lineHeight: wide ? 58 : 42 }]}>Set up once.{"\n"}Runs every week.</Display>
+            <Text style={s.kicker}>How it works</Text>
+            <Display level="h1" style={s.h2}>Set up once. Runs every week.</Display>
           </Reveal>
-          <View style={{ flexDirection: wide ? "row" : "column", gap: 28 }}>
+          <View style={{ flexDirection: wide ? "row" : "column", gap: 20 }}>
             {steps.map((step, i) => (
-              <Reveal key={step.n} delay={i * 140} style={{ flex: 1, gap: 10, borderTopWidth: 4, borderTopColor: i === 1 ? "#EA580C" : "#16A34A", paddingTop: 18 }}>
-                <Display level="stat" style={[s.stepNumber, { color: i === 1 ? "#EA580C" : "#16A34A", fontSize: 96, lineHeight: 96 }]}>{step.n}</Display>
-                <Text style={[s.h3, { color: INK, fontSize: 22 }]}>{step.title}</Text>
-                <Text style={[s.body, { color: "#3F4A44" }]}>{step.body}</Text>
+              <Reveal key={step.n} delay={i * 140} style={{ flex: 1 }}>
+                <HoverCard>
+                  <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: i === 1 ? t.energySoft : t.soft, alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ color: i === 1 ? t.energy : t.accent, fontWeight: "700", fontSize: 16 }}>{step.n}</Text>
+                  </View>
+                  <Text style={s.h3}>{step.title}</Text>
+                  <Text style={s.body}>{step.body}</Text>
+                </HoverCard>
               </Reveal>
             ))}
           </View>
@@ -157,8 +161,8 @@ export function Landing() {
           {features.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 110} style={{ flexBasis: wide ? "31%" : "100%", flexGrow: 1 }}>
               <HoverCard>
-                <View style={[s.iconBubble, { backgroundColor: i % 2 === 1 ? t.energy : t.accent, width: 56, height: 56, borderRadius: 16 }]}>
-                  <Icon name={f.icon as IconName} size={28} color={INK} strokeWidth={2.2} />
+                <View style={[s.iconBubble, i % 2 === 1 && { backgroundColor: t.energySoft }]}>
+                  <Icon name={f.icon as IconName} size={24} color={i % 2 === 1 ? t.energy : t.accent} />
                 </View>
                 <Text style={s.h3}>{f.title}</Text>
                 <Text style={s.body}>{f.body}</Text>
@@ -225,13 +229,13 @@ export function Landing() {
       {/* ── Final CTA ── */}
       <View style={[s.section, { paddingBottom: 80 }]}>
         <Reveal>
-          <View style={[s.ctaBand, { backgroundColor: t.energy }]}>
-            <Texture color={INK} opacity={0.12} />
-            <Display level="display" style={[s.h2, { color: INK, textAlign: "center", fontSize: wide ? 64 : 38, lineHeight: wide ? 64 : 40, textTransform: "uppercase" }]}>Your next game,{"\n"}sorted in one link.</Display>
-            <Text style={{ color: INK, opacity: 0.8, fontSize: 18, fontWeight: "600", textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
+          <View style={[s.ctaBand, { backgroundColor: "rgba(34,197,94,0.08)", borderWidth: 1, borderColor: "rgba(34,197,94,0.3)" }]}>
+            <Glow color="rgba(34,197,94,0.25)" size={520} style={{ top: -200, right: -120 }} duration={8000} />
+            <Display level="display" style={[s.h2, { textAlign: "center", fontSize: wide ? 48 : 32, lineHeight: wide ? 52 : 36 }]}>Your next game, sorted in one link.</Display>
+            <Text style={{ color: t.muted, fontSize: 18, textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
             <Pulse>
-              <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, { backgroundColor: INK }, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: "0 12px 28px rgba(0,0,0,0.35)" }, pressed && { opacity: 0.9 }]}>
-                <Text style={{ color: PAPER, fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
+              <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, { backgroundColor: t.accent }, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: `0 12px 28px ${t.accentShadow}` }, pressed && { opacity: 0.9 }]}>
+                <Text style={{ color: t.accentText, fontSize: 18, fontWeight: "700" }}>Start a group →</Text>
               </Pressable>
             </Pulse>
             <AppStoreBadge height={44} />
@@ -312,15 +316,15 @@ function HoverCard({ children }: { children: ReactNode }) {
       accessible={false}
       focusable={false}
       style={({ hovered }: { hovered?: boolean }) => ({
-        backgroundColor: t.card,
-        borderColor: hovered ? t.accent : t.border,
+        backgroundColor: hovered ? "rgba(255,255,255,0.07)" : t.card,
+        borderColor: hovered ? t.borderStrong : t.border,
         borderWidth: 1,
-        borderRadius: 20,
+        borderRadius: 22,
         padding: 22,
         gap: 10,
         height: "100%",
-        transform: [{ translateY: hovered ? -4 : 0 }],
-        boxShadow: hovered ? "0 18px 40px rgba(0,0,0,0.18)" : "0 1px 2px rgba(0,0,0,0.04)",
+        transform: [{ translateY: hovered ? -3 : 0 }],
+        boxShadow: t.shadow.card,
       })}
     >
       {children}
@@ -470,17 +474,17 @@ const styles = (t: Theme) =>
       paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: t.border, backgroundColor: t.card,
     },
     pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.accent },
-    kicker: { color: t.energy, fontWeight: "900", fontSize: 14, letterSpacing: 2, textTransform: "uppercase" },
-    h1: { color: t.text, letterSpacing: -2.5 },
-    h2: { color: t.text, fontSize: 40, letterSpacing: -1, lineHeight: 44, textTransform: "uppercase" },
-    h3: { color: t.text, fontSize: 19, fontWeight: "800" },
+    kicker: { color: t.accent, fontWeight: "600", fontSize: 13, letterSpacing: 1.5, textTransform: "uppercase" },
+    h1: { color: t.text, letterSpacing: -2 },
+    h2: { color: t.text, fontSize: 36, letterSpacing: -1.2, lineHeight: 42, fontWeight: "600" },
+    h3: { color: t.text, fontSize: 18, fontWeight: "600", letterSpacing: -0.2 },
     lead: { color: t.muted, fontSize: 20, lineHeight: 30, maxWidth: 560 },
     leadStrong: { color: t.text, fontWeight: "800" },
     body: { color: t.muted, fontSize: 16, lineHeight: 24 },
     stepNumber: { color: t.energy, fontSize: 56, lineHeight: 60 },
     iconBubble: { width: 48, height: 48, borderRadius: 14, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" },
     chip: { borderWidth: 1, borderColor: t.border, backgroundColor: t.card, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
-    panel: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 24, padding: 24 },
+    panel: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 24, padding: 24, boxShadow: t.shadow.card },
     panelLabel: { color: t.muted, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" },
     bubble: { backgroundColor: t.bg, borderRadius: 18, paddingVertical: 9, paddingHorizontal: 14, gap: 2 },
     demo: {

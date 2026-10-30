@@ -1,59 +1,66 @@
-import { Platform, useColorScheme, type TextStyle } from "react-native";
+import { Platform, type TextStyle } from "react-native";
 
-// Colours. Borders are translucent so they sit on any surface (cards, soft panels, tracks) without looking drawn on.
-// `energy` is the warm second colour: the waitlist, "need 2 more", streaks, anything that should feel like game night.
-// `surface2` is a lifted level inside a card, so sections can nest without a border. `ink`/`paper` are the text
-// colours on solid colour panels (a green header, an orange band), the same in both modes.
-const light = {
-  bg: "#F6F7F5", card: "#FFFFFF", surface2: "#F0F2EE", text: "#111418", muted: "#6B7280", border: "rgba(17,20,24,0.09)",
-  accent: "#16A34A", accentText: "#FFFFFF", soft: "#EEF7F1", accentShadow: "rgba(22,163,74,0.35)",
-  energy: "#EA580C", energyText: "#FFFFFF", energySoft: "#FFF1E8",
-  ink: "#07210F", paper: "#F7FDF9",
-  danger: "#DC2626", waitlist: "#EA580C",
-  chart: "#16A34A", // validated for chart marks on both surfaces (dataviz validator)
-  glowA: "rgba(34,197,94,0.28)", glowB: "rgba(249,115,22,0.18)", glowC: "rgba(245,158,11,0.16)",
-};
-const dark: typeof light = {
-  bg: "#0E1113", card: "#171B1F", surface2: "#1F2428", text: "#F3F4F6", muted: "#9CA3AF", border: "rgba(255,255,255,0.09)",
-  accent: "#22C55E", accentText: "#06240F", soft: "#13251A", accentShadow: "rgba(34,197,94,0.30)",
-  energy: "#FB923C", energyText: "#2A1203", energySoft: "#2A1A0F",
-  ink: "#07210F", paper: "#F7FDF9",
-  danger: "#F87171", waitlist: "#FB923C",
-  chart: "#16A34A",
-  glowA: "rgba(34,197,94,0.22)", glowB: "rgba(251,146,60,0.16)", glowC: "rgba(245,158,11,0.10)",
+// "Midnight": one dark skin for both colour schemes. Deep charcoal with a faint green glow, cards as translucent
+// glass with a hairline, green for the one primary action and good news, orange for anything short or waiting.
+const midnight = {
+  bg: "#0F1216",
+  card: "rgba(255,255,255,0.045)",
+  cardSolid: "#171B21",
+  surface2: "rgba(255,255,255,0.06)",
+  text: "#F2F4F6",
+  muted: "#8B93A1",
+  border: "rgba(255,255,255,0.08)",
+  borderStrong: "rgba(255,255,255,0.14)",
+  accent: "#22C55E",
+  accentDeep: "#16A34A",
+  accentText: "#06240F",
+  soft: "rgba(34,197,94,0.12)",
+  accentShadow: "rgba(34,197,94,0.30)",
+  energy: "#FB923C",
+  energyText: "#2A1203",
+  energySoft: "rgba(251,146,60,0.14)",
+  ink: "#07210F",
+  paper: "#F7FDF9",
+  danger: "#F87171",
+  waitlist: "#FB923C",
+  chart: "#22C55E",
+  glowA: "rgba(34,197,94,0.16)",
+  glowB: "rgba(251,146,60,0.10)",
+  glowC: "rgba(56,189,248,0.08)",
 };
 
 /** 4px grid. `space[4]` is the standard gutter. */
 export const space = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32 } as const;
-export const radius = { sm: 10, md: 14, lg: 20, pill: 999 } as const;
+export const radius = { sm: 12, md: 16, lg: 22, pill: 999 } as const;
 
-// Archivo for the big moments (names, headcounts, headlines); body text stays the phone's own font (Inter on the web).
-// The font files ship with the JS bundle (expo-font + @expo-google-fonts), so this works over the air.
-export const fonts = { display: "Archivo_800ExtraBold", displayHeavy: "Archivo_900Black" } as const;
+// One family (the phone's own; Inter on the web). Headlines are semibold with tight tracking, not shouty.
+export const fonts = { display: undefined as string | undefined, displayHeavy: undefined as string | undefined } as const;
 
-const display = (size: number, lineHeight: number, heavy = false): TextStyle => ({
-  fontFamily: heavy ? fonts.displayHeavy : fonts.display,
+const display = (size: number, lineHeight: number, weight: TextStyle["fontWeight"] = "600"): TextStyle => ({
   fontSize: size,
   lineHeight,
+  fontWeight: weight,
   letterSpacing: -size * 0.03,
-  // Archivo's ascenders sit high; nudge so it aligns with body text on the same line.
   ...(Platform.OS === "web" ? {} : { includeFontPadding: false }),
 });
 
 /** The type scale. Spread into a Text style: `style={[t.type.h2, { color: t.text }]}`. */
 export const type = {
-  display: display(40, 44, true),
+  display: display(34, 38),
   h1: display(28, 32),
-  h2: { fontSize: 20, lineHeight: 26, fontWeight: "800", letterSpacing: -0.4 } as TextStyle,
-  h3: { fontSize: 17, lineHeight: 22, fontWeight: "800", letterSpacing: -0.2 } as TextStyle,
+  h2: { fontSize: 20, lineHeight: 26, fontWeight: "600", letterSpacing: -0.4 } as TextStyle,
+  h3: { fontSize: 16, lineHeight: 22, fontWeight: "600", letterSpacing: -0.2 } as TextStyle,
   body: { fontSize: 16, lineHeight: 22 } as TextStyle,
   small: { fontSize: 14, lineHeight: 20 } as TextStyle,
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" } as TextStyle,
-  stat: { ...display(56, 56, true), fontVariant: ["tabular-nums"] } as TextStyle,
-  statSm: { ...display(28, 32), fontVariant: ["tabular-nums"] } as TextStyle,
+  caption: { fontSize: 11, lineHeight: 14, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" } as TextStyle,
+  stat: { ...display(56, 56, "700"), fontVariant: ["tabular-nums"] } as TextStyle,
+  statSm: { ...display(26, 30, "700"), fontVariant: ["tabular-nums"] } as TextStyle,
 };
 
-export type Theme = typeof light & { space: typeof space; radius: typeof radius; type: typeof type; fonts: typeof fonts };
+/** Soft layered shadow for floating glass (cards, the manage bar). */
+export const shadow = { card: "0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 40px rgba(0,0,0,0.35)", float: "0 20px 50px rgba(0,0,0,0.5)" } as const;
+
+export type Theme = typeof midnight & { space: typeof space; radius: typeof radius; type: typeof type; fonts: typeof fonts; shadow: typeof shadow };
 
 /** A see-through wash of a theme color, for status pills and icon bubbles. */
 export const tint = (hex: string, alpha = 0.14) => `${hex}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`;
@@ -69,6 +76,5 @@ export function sportTone(activity: string | null | undefined, t: Theme): string
   return t.accent;
 }
 
-const lightTheme: Theme = { ...light, space, radius, type, fonts };
-const darkTheme: Theme = { ...dark, space, radius, type, fonts };
-export const useTheme = (): Theme => (useColorScheme() === "dark" ? darkTheme : lightTheme);
+const theme: Theme = { ...midnight, space, radius, type, fonts, shadow };
+export const useTheme = (): Theme => theme;

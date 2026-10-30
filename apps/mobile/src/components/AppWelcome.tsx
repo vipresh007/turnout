@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { memberships, onMembershipsChanged } from "@/lib/api";
-import { useTheme } from "@/lib/theme";
+import { tint, useTheme } from "@/lib/theme";
 import { Icon, type IconName } from "./Icon";
-import { Button, Display, Texture } from "./ui";
+import { Button, Display } from "./ui";
 import { PlayHome } from "./PlayHome";
 
 const points: [IconName, string, string][] = [
@@ -38,20 +38,19 @@ function Pitch() {
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 28, justifyContent: "space-between" }}>
         <View style={{ gap: 28 }}>
-          <View style={{ backgroundColor: t.accent, borderRadius: 24, padding: 22, paddingTop: 28, gap: 14, overflow: "hidden" }}>
-            <Texture color={t.ink} opacity={0.14} />
-            <Text style={{ color: t.ink, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
-              turnout<Text style={{ color: t.paper }}>.</Text>
+          <View style={{ gap: 18, paddingTop: 24 }}>
+            <Text style={{ color: t.text, fontSize: 26, fontWeight: "700", letterSpacing: -1 }}>
+              turnout<Text style={{ color: t.accent }}>.</Text>
             </Text>
-            <Display level="display" style={{ fontSize: 44, lineHeight: 44, color: t.ink, textTransform: "uppercase" }}>
-              Stop asking{"\n"}<Text style={{ color: t.paper }}>who's playing.</Text>
+            <Display level="display" style={{ fontSize: 40, lineHeight: 44 }}>
+              Stop asking{"\n"}<Text style={{ color: t.accent }}>who's playing.</Text>
             </Display>
-            <Text style={{ color: t.ink, opacity: 0.85, fontSize: 17, lineHeight: 24, fontWeight: "600" }}>Run your weekly game from your phone. Your players never need the app.</Text>
+            <Text style={{ color: t.muted, fontSize: 17, lineHeight: 24 }}>Run your weekly game from your phone. Your players never need the app.</Text>
           </View>
           <View style={{ gap: 18 }}>
             {points.map(([icon, title, body]) => (
               <View key={title} style={{ flexDirection: "row", gap: 14, alignItems: "flex-start" }}>
-                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: t.soft, borderWidth: 1, borderColor: tint(t.accent, 0.3), alignItems: "center", justifyContent: "center" }}>
                   <Icon name={icon} size={22} color={t.accent} />
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>

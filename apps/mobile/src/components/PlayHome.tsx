@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { BadgeRow } from "./Badges";
 import { StatsStrip } from "./PlayerStats";
-import { Card, Display, Eyebrow, Texture } from "./ui";
+import { Card, Display, Eyebrow } from "./ui";
 import { YourGames } from "./YourGames";
 
 /**
@@ -20,17 +20,16 @@ export function PlayHome({ onEmpty, tab }: { onEmpty?: () => void; tab?: boolean
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const body = (
     <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, gap: 20 }}>
-      <View style={{ backgroundColor: t.accent, borderRadius: 20, padding: 18, paddingTop: tab ? 18 : 22, gap: 6, overflow: "hidden" }}>
-        <Texture color={t.ink} opacity={0.14} />
+      <View style={{ gap: 6, paddingTop: tab ? 0 : 12, paddingHorizontal: 2 }}>
         {!tab && (
-          <Text style={{ color: t.ink, fontSize: 22, fontWeight: "900", letterSpacing: -1 }}>
-            turnout<Text style={{ color: t.paper }}>.</Text>
+          <Text style={{ color: t.text, fontSize: 22, fontWeight: "700", letterSpacing: -1 }}>
+            turnout<Text style={{ color: t.accent }}>.</Text>
           </Text>
         )}
         <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-          <Display level="display" style={{ fontSize: 34, lineHeight: 36, color: t.ink, textTransform: "uppercase" }}>Your games</Display>
+          <Display level="display" style={{ fontSize: 30, lineHeight: 34 }}>Your games</Display>
           <Pressable accessibilityRole="link" onPress={() => router.push("/stats")} hitSlop={8} style={{ paddingBottom: 4 }}>
-            <Text style={{ color: t.ink, fontWeight: "800" }}>Your stats →</Text>
+            <Text style={{ color: t.accent, fontWeight: "600" }}>Your stats →</Text>
           </Pressable>
         </View>
       </View>

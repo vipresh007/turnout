@@ -37,6 +37,18 @@
       ],
       "cwd": "apps/mobile",
       "port": 8082
+    },
+    {
+      "name": "mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8096",
+        "-d",
+        "/private/tmp/claude-502/-Users-vipre-Code-turnout/e5568aab-4cfb-443c-aff8-c04b9b04953d/scratchpad/mock"
+      ],
+      "port": 8096
     }
   ]
 }

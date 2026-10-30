@@ -24,7 +24,7 @@ export function ManageBar({ page, slug, onAsk, onRemind, remindBusy, onShare }: 
   return (
     <View pointerEvents="box-none" style={[{ position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center" }, fixed]}>
       <View style={{ width: "100%", maxWidth: 560, paddingHorizontal: 12, paddingBottom: Math.max(bottom, 10), paddingTop: 8 }}>
-        <View style={{ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 22, padding: 8, gap: 8, boxShadow: "0 10px 30px rgba(0,0,0,0.28)" }}>
+        <View style={{ backgroundColor: "rgba(23,27,33,0.92)", borderColor: t.borderStrong, borderWidth: 1, borderRadius: 24, padding: 8, gap: 8, boxShadow: t.shadow.float }}>
           {f && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 8, paddingTop: 4 }}>
               <Icon name={f.short ? "warning" : "sparkles"} size={16} color={f.short ? t.energy : t.accent} strokeWidth={2.2} />

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
 import { calendarUrl } from "@/lib/api";
 import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
-import { sportTone, useTheme } from "@/lib/theme";
+import { sportTone, tint, useTheme } from "@/lib/theme";
 import { Display, Eyebrow, IconLine, Pill, Texture } from "../ui";
 
 // The top of a group page: what the game is, when, where. The sport sets the colour; a change for this week is one
@@ -20,36 +20,36 @@ export function GameHeader({ page, slug }: { page: GroupPage; slug: string }) {
   const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone });
 
   return (
-    <View style={{ borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: tone, padding: 18, gap: 10 }}>
-      <Texture color={t.ink} opacity={0.14} />
+    <View style={{ borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: tint(tone, 0.1), borderWidth: 1, borderColor: tint(tone, 0.25), padding: 18, gap: 10, boxShadow: t.shadow.card }}>
+      <Texture color={tone} opacity={0.08} />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(7,33,15,0.18)", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: tint(tone, 0.18), alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 22 }}>{activityEmoji(group.activity, group.name)}</Text>
         </View>
-        <Eyebrow color={t.ink}>{describeRecurrence(group)}</Eyebrow>
+        <Eyebrow color={tone}>{describeRecurrence(group)}</Eyebrow>
       </View>
-      <Display level="display" style={{ fontSize: 36, lineHeight: 38, color: t.ink, textTransform: "uppercase" }}>{group.name}</Display>
-      <Text style={[t.type.body, { color: t.ink, fontWeight: "700" }]}>
+      <Display level="display">{group.name}</Display>
+      <Text style={[t.type.body, { color: t.text, fontWeight: "500" }]}>
         {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
-        <Text style={{ color: t.paper, fontWeight: "900" }}> · {relativeDay(session.startsAt, group.timezone)}</Text>
+        <Text style={{ color: tone, fontWeight: "600" }}> · {relativeDay(session.startsAt, group.timezone)}</Text>
       </Text>
       <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 14 }}>
         {where && (
           <Pressable accessibilityRole="link" onPress={() => Linking.openURL(mapsUrl(where))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1, flexShrink: 1 })}>
-            <IconLine icon="pin" color={t.ink}>{where}</IconLine>
+            <IconLine icon="pin">{where}</IconLine>
           </Pressable>
         )}
         <Pressable accessibilityRole="link" onPress={() => Linking.openURL(calendarUrl(slug))} hitSlop={6} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-          <IconLine icon="calendar" color={t.ink}>Add to calendar</IconLine>
+          <IconLine icon="calendar">Add to calendar</IconLine>
         </Pressable>
         {changed && (
           <Pressable accessibilityRole="button" accessibilityState={{ expanded: showChange }} onPress={() => setShowChange((s) => !s)} hitSlop={6}>
-            <Pill label={showChange ? "Changed this week" : "Changed this week ›"} color={t.ink} icon="warning" />
+            <Pill label={showChange ? "Changed this week" : "Changed this week ›"} color={t.energy} icon="warning" />
           </Pressable>
         )}
       </View>
       {changed && showChange && (
-        <View style={{ backgroundColor: t.card, borderRadius: t.radius.md, padding: 12, gap: 4 }}>
+        <View style={{ backgroundColor: t.surface2, borderRadius: t.radius.md, padding: 12, gap: 4 }}>
           {moved && <Text style={{ color: t.text }}>New time: {time(session.startsAt)} (usually {time(session.scheduledAt)})</Text>}
           {session.location && <Text style={{ color: t.text }}>Place: {session.location}</Text>}
           {session.note && <Text style={{ color: t.muted }}>“{session.note}”</Text>}
