@@ -10,7 +10,7 @@ import { activities, faqs, features, steps, uses } from "@/content/site";
 import { AppStoreBadge } from "./AppStoreBadge";
 import { Icon, type IconName } from "./Icon";
 import { SiteHeader } from "./SiteHeader";
-import { webTransition } from "./ui";
+import { Display, ProgressBar, Texture, webTransition } from "./ui";
 
 
 const chat: { who: string; text: string; own?: boolean }[] = [
@@ -53,6 +53,7 @@ export function Landing() {
         <Glow color={t.glowA} size={wide ? 720 : 460} style={{ top: -220, left: wide ? -120 : -200 }} />
         <Glow color={t.glowB} size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
         <Glow color={t.glowC} size={wide ? 480 : 300} style={{ bottom: 0, left: "35%" }} duration={13000} drift={30} />
+        <Texture color={t.accent} opacity={0.05} />
 
         <SiteHeader
           sections={[
@@ -72,9 +73,9 @@ export function Landing() {
               </View>
             </Pop>
             <View>
-              <Text role="heading" aria-level={1} style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>
+              <Display level="display" role="heading" aria-level={1} style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>
                 Stop asking <Text style={{ color: t.accent }}>who's playing.</Text>
-              </Text>
+              </Display>
             </View>
             <Text style={s.lead}>
               One link for your weekly game. Players tap <Text style={s.leadStrong}>I'm in</Text>. Turnout handles the count, the waitlist,
@@ -107,7 +108,7 @@ export function Landing() {
       <View style={[s.section, { gap: 36, paddingVertical: 80 }]}>
         <Reveal style={{ gap: 12, alignItems: "center" }}>
           <Text style={s.kicker}>The problem</Text>
-          <Text style={[s.h2, { textAlign: "center" }]}>Your group chat wasn't built for headcounts</Text>
+          <Display level="h1" style={[s.h2, { textAlign: "center" }]}>Your group chat wasn't built for headcounts</Display>
         </Reveal>
         <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: wide ? "stretch" : "center" }}>
           <ChatMess />
@@ -115,10 +116,10 @@ export function Landing() {
             <View style={[s.panel, { borderColor: t.accent, gap: 14 }, wide && { flex: 1 }]}>
               <Text style={s.panelLabel}>With Turnout</Text>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-                <Text style={{ color: t.text, fontSize: 64, fontWeight: "900", letterSpacing: -3 }}>12</Text>
+                <Display level="stat" style={{ fontSize: 64, lineHeight: 68 }}>12</Display>
                 <Text style={{ color: t.muted, fontSize: 24, fontWeight: "700" }}>/ 14 in</Text>
               </View>
-              <Text style={{ color: t.accent, fontWeight: "700", fontSize: 16 }}>2 spots left · updated just now</Text>
+              <Text style={{ color: t.energy, fontWeight: "800", fontSize: 16 }}>2 spots left · updated just now</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                 {["Maya", "Priya", "Luis", "Aisha", "Chen", "Sam", "Noor", "Ben", "Kai", "Ivy", "Omar", "Zoe"].map((n) => (
                   <View key={n} style={[s.chip, { paddingVertical: 5, paddingHorizontal: 11 }]}>
@@ -137,12 +138,12 @@ export function Landing() {
         <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
           <Reveal style={{ gap: 12 }}>
             <Text style={s.kicker}>How it works</Text>
-            <Text style={s.h2}>Set up once. Runs every week.</Text>
+            <Display level="h1" style={s.h2}>Set up once. Runs every week.</Display>
           </Reveal>
           <View style={{ flexDirection: wide ? "row" : "column", gap: 28 }}>
             {steps.map((step, i) => (
               <Reveal key={step.n} delay={i * 140} style={{ flex: 1, gap: 12 }}>
-                <Text style={s.stepNumber}>{step.n}</Text>
+                <Display level="stat" style={s.stepNumber}>{step.n}</Display>
                 <Text style={s.h3}>{step.title}</Text>
                 <Text style={s.body}>{step.body}</Text>
               </Reveal>
@@ -155,14 +156,14 @@ export function Landing() {
       <View ref={featuresRef} style={[s.section, { gap: 40, paddingVertical: 80 }]}>
         <Reveal style={{ gap: 12 }}>
           <Text style={s.kicker}>Features</Text>
-          <Text style={s.h2}>Everything the group chat can't do</Text>
+          <Display level="h1" style={s.h2}>Everything the group chat can't do</Display>
         </Reveal>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
           {features.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 110} style={{ flexBasis: wide ? "31%" : "100%", flexGrow: 1 }}>
               <HoverCard>
-                <View style={s.iconBubble}>
-                  <Icon name={f.icon as IconName} size={24} color={t.accent} />
+                <View style={[s.iconBubble, i % 2 === 1 && { backgroundColor: t.energySoft }]}>
+                  <Icon name={f.icon as IconName} size={24} color={i % 2 === 1 ? t.energy : t.accent} />
                 </View>
                 <Text style={s.h3}>{f.title}</Text>
                 <Text style={s.body}>{f.body}</Text>
@@ -176,7 +177,7 @@ export function Landing() {
       <View style={{ width: "100%", gap: 24, paddingBottom: 80, alignItems: "center" }}>
         <Reveal style={[s.section, { gap: 12 }]}>
           <Text style={s.kicker}>Not just sports</Text>
-          <Text style={s.h2}>If it's weekly and has limited spots</Text>
+          <Display level="h1" style={s.h2}>If it's weekly and has limited spots</Display>
         </Reveal>
         <Marquee speed={36}>
           {uses.map((u) => (
@@ -191,7 +192,7 @@ export function Landing() {
       <View ref={pricingRef} style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 960 }]}>
         <Reveal style={{ gap: 12, alignItems: "center" }}>
           <Text style={s.kicker}>Pricing</Text>
-          <Text style={[s.h2, { textAlign: "center" }]}>Free while we're getting started</Text>
+          <Display level="h1" style={[s.h2, { textAlign: "center" }]}>Free while we're getting started</Display>
           <Text style={[s.body, { textAlign: "center", maxWidth: 620 }]}>
             Everything is free right now. We're planning an Organizer plan and would love to know if it's worth it to you. Nothing is charged, and you'll hear from us before anything changes.
           </Text>
@@ -219,7 +220,7 @@ export function Landing() {
       <View style={[s.section, { gap: 28, paddingVertical: 64, maxWidth: 820 }]}>
         <Reveal style={{ gap: 12, alignItems: "center" }}>
           <Text style={s.kicker}>FAQ</Text>
-          <Text style={[s.h2, { textAlign: "center" }]}>Questions organizers ask</Text>
+          <Display level="h1" style={[s.h2, { textAlign: "center" }]}>Questions organizers ask</Display>
         </Reveal>
         <View style={{ gap: 10 }}>
           {faqs.map((f) => <Faq key={f.q} q={f.q} a={f.a} />)}
@@ -231,7 +232,7 @@ export function Landing() {
         <Reveal>
           <View style={s.ctaBand}>
             <Glow color="rgba(255,255,255,0.18)" size={420} style={{ top: -160, right: -80 }} duration={8000} />
-            <Text style={[s.h2, { color: "#fff", textAlign: "center", fontSize: wide ? 44 : 32 }]}>Your next game, sorted in one link.</Text>
+            <Display level="h1" style={[s.h2, { color: "#fff", textAlign: "center", fontSize: wide ? 44 : 32 }]}>Your next game, sorted in one link.</Display>
             <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 18, textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
             <Pulse>
               <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: "0 12px 28px rgba(0,0,0,0.25)" }, pressed && { opacity: 0.9 }]}>
@@ -396,21 +397,21 @@ function DemoCard() {
           <Text style={s.panelLabel}>Try it</Text>
           <View style={s.liveBadge}>
             <View style={s.liveDot} />
-            <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800" }}>LIVE</Text>
+            <Text style={{ color: t.energy, fontSize: 12, fontWeight: "800" }}>LIVE</Text>
           </View>
         </View>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "800", marginTop: 4 }}>Tuesday Soccer</Text>
         <Text style={{ color: t.muted }}>Tue 7:30 PM · Riverside Park</Text>
         <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 10 }}>
           <Bump value={roster.confirmed.length}>
-            <Text style={{ color: t.text, fontSize: 56, fontWeight: "900", letterSpacing: -3 }}>{roster.confirmed.length}</Text>
+            <Display level="stat">{String(roster.confirmed.length)}</Display>
           </Bump>
           <Text style={{ color: t.muted, fontSize: 22, fontWeight: "700" }}>/ {cap} in</Text>
         </View>
-        <View style={s.progressTrack}>
-          <View style={[s.progressFill, { width: `${(roster.confirmed.length / cap) * 100}%` }]} />
+        <View style={{ marginTop: 4 }}>
+          <ProgressBar value={roster.confirmed.length} max={cap} tone={roster.confirmed.length >= cap ? t.accent : t.energy} />
         </View>
-        <Text style={{ color: youIn ? t.accent : t.muted, fontWeight: "700", marginTop: 4 }}>{status}</Text>
+        <Text style={{ color: youIn ? t.accent : ready ? t.energy : t.muted, fontWeight: "700", marginTop: 4 }}>{status}</Text>
         <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
           <Pulse active={ready && youIn === null} style={{ flex: 1 }}>
             <DemoButton label="I'm in" primary active={youIn === true} onPress={() => setYouIn(true)} />
@@ -472,13 +473,13 @@ const styles = (t: Theme) =>
     },
     pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.accent },
     kicker: { color: t.accent, fontWeight: "800", fontSize: 14, letterSpacing: 1, textTransform: "uppercase" },
-    h1: { color: t.text, fontWeight: "900", letterSpacing: -2.5 },
-    h2: { color: t.text, fontSize: 36, fontWeight: "900", letterSpacing: -1.4, lineHeight: 42 },
+    h1: { color: t.text, letterSpacing: -2.5 },
+    h2: { color: t.text, fontSize: 36, letterSpacing: -1.2, lineHeight: 42 },
     h3: { color: t.text, fontSize: 19, fontWeight: "800" },
     lead: { color: t.muted, fontSize: 20, lineHeight: 30, maxWidth: 560 },
     leadStrong: { color: t.text, fontWeight: "800" },
     body: { color: t.muted, fontSize: 16, lineHeight: 24 },
-    stepNumber: { color: t.accent, fontSize: 56, fontWeight: "900", letterSpacing: -3, lineHeight: 60 },
+    stepNumber: { color: t.energy, fontSize: 56, lineHeight: 60 },
     iconBubble: { width: 48, height: 48, borderRadius: 14, backgroundColor: t.soft, alignItems: "center", justifyContent: "center" },
     chip: { borderWidth: 1, borderColor: t.border, backgroundColor: t.card, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
     panel: { backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 24, padding: 24 },
@@ -488,13 +489,11 @@ const styles = (t: Theme) =>
       width: "100%", backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 28, padding: 24,
       boxShadow: "0 30px 80px rgba(0,0,0,0.25)",
     },
-    liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.soft },
-    liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: t.accent },
-    progressTrack: { height: 8, borderRadius: 4, backgroundColor: t.border, overflow: "hidden", marginTop: 4 },
-    progressFill: { height: "100%", borderRadius: 4, backgroundColor: t.accent },
+    liveBadge: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999, backgroundColor: t.energySoft },
+    liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: t.energy },
     ctaBand: {
       borderRadius: 32, paddingVertical: 64, paddingHorizontal: 24, alignItems: "center", gap: 18, overflow: "hidden",
-      backgroundImage: "linear-gradient(135deg, #16A34A 0%, #0E7A5F 55%, #0B5E7A 100%)",
+      backgroundImage: "linear-gradient(135deg, #16A34A 0%, #0E7A5F 60%, #C2410C 130%)",
     },
     ctaInverse: { backgroundColor: "#fff", paddingVertical: 17, paddingHorizontal: 30, borderRadius: 16, marginTop: 8 },
   });
@@ -525,7 +524,7 @@ function PriceCard({ name, price, per, items, featured, cta, onPress }: { name: 
     <View style={{ flex: 1, backgroundColor: t.card, borderColor: featured ? t.accent : t.border, borderWidth: featured ? 2 : 1, borderRadius: 20, padding: 24, gap: 14 }}>
       <View style={{ gap: 4 }}>
         <Text style={{ color: featured ? t.accent : t.muted, fontWeight: "800", fontSize: 14, letterSpacing: 1, textTransform: "uppercase" }}>{name}</Text>
-        <Text style={{ color: t.text, fontSize: 44, fontWeight: "900", letterSpacing: -1.5 }}>{price}</Text>
+        <Display level="stat" style={{ fontSize: 44, lineHeight: 48 }}>{price}</Display>
         <Text style={{ color: t.muted }}>{per}</Text>
       </View>
       <View style={{ gap: 8 }}>

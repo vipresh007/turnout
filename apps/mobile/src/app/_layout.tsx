@@ -41,9 +41,9 @@ export default function RootLayout() {
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=swap" />
-          <style>{`body, body *:not([data-display]) { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }
-            [data-display] { font-family: "Archivo_800ExtraBold", "Inter", sans-serif !important; }
-            [data-display="heavy"] { font-family: "Archivo_900Black", "Inter", sans-serif !important; }
+          <style>{`body, body *:not([data-display]):not([data-display] *) { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important; }
+            [data-display], [data-display] * { font-family: "Archivo_800ExtraBold", "Inter", sans-serif !important; }
+            [data-display="heavy"], [data-display="heavy"] * { font-family: "Archivo_900Black", "Inter", sans-serif !important; }
             body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
             input::placeholder { opacity: 1; }`}</style>
         </Head>

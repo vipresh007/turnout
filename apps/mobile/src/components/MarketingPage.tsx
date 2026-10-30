@@ -6,7 +6,7 @@ import { activities } from "@/content/site";
 import { AppStoreBadge } from "./AppStoreBadge";
 import { useTheme } from "@/lib/theme";
 import { Icon } from "./Icon";
-import { Button, Card, Screen } from "./ui";
+import { Button, Card, Display, Screen } from "./ui";
 
 /** Shared layout for the public use-case and comparison pages: headline, intro, calls to action, then sections. */
 export function MarketingPage({ title, description, eyebrow, heading, intro, children }: {
@@ -21,7 +21,7 @@ export function MarketingPage({ title, description, eyebrow, heading, intro, chi
       </Head>
       <View style={{ gap: 12, paddingTop: 8 }}>
         <Text style={{ color: t.accent, fontSize: 13, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>{eyebrow}</Text>
-        <Text role="heading" aria-level={1} style={{ color: t.text, fontSize: 34, fontWeight: "900", letterSpacing: -1.2, lineHeight: 40 }}>{heading}</Text>
+        <Display level="display" role="heading" aria-level={1} style={{ fontSize: 34, lineHeight: 40 }}>{heading}</Display>
         <Text style={{ color: t.muted, fontSize: 17, lineHeight: 25 }}>{intro}</Text>
         <View style={{ gap: 10, marginTop: 6 }}>
           <Button big label="Start a group, it's free" onPress={() => router.push("/new")} />
