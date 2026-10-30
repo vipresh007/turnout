@@ -1,4 +1,4 @@
-import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, LinkedMembership, MemberSelf, MyPlayerStats, MemberSummary, RsvpStatus, SessionUpdateInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, LinkedMembership, MemberSelf, MyPlayerStats, MemberSummary, Recap, RsvpStatus, SessionUpdateInput, ShoutoutInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -49,7 +49,7 @@ const membershipKey = (slug: string) => `membership:${slug}`;
 const JOINED_KEY = "joinedGroups";
 
 /** Events only the browser sees. Fire-and-forget: never blocks or breaks what the person is doing. */
-export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest" | "friend_invited" | "sub_requested" | "signin_prompt_shown" | "signin_prompt_accepted";
+export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest" | "friend_invited" | "sub_requested" | "signin_prompt_shown" | "signin_prompt_accepted" | "recap_shared";
 export function trackEvent(kind: ClientEvent, slug?: string, props?: Record<string, string | number | boolean>): void {
   (async () => {
     const membership = slug ? await memberships.get(slug) : null;
@@ -189,6 +189,10 @@ function createApi(authHeaders: () => Promise<Headers>) {
     report: async (slug: string, input: { reason: string; memberId?: string }) =>
       request<{ ok: true }>(`/groups/${slug}/report`, { method: "POST", body: input, headers: await authHeaders().catch(() => ({})) }),
     memberStats: (slug: string, token: string) => request<MyPlayerStats>(`/groups/${slug}/me/stats`, { headers: { "x-member-token": token } }),
+    /** The last played game's recap; with your member token it also says what you gave. */
+    recap: (slug: string, token?: string | null) => request<{ recap: Recap | null }>(`/groups/${slug}/recap`, { headers: token ? { "x-member-token": token } : {} }),
+    shoutout: (slug: string, token: string, input: ShoutoutInput) =>
+      request<{ recap: Recap }>(`/groups/${slug}/recap/shoutout`, { method: "POST", body: input, headers: { "x-member-token": token } }),
     memberSelf: (slug: string, token: string) => request<MemberSelf>(`/groups/${slug}/me`, { headers: { "x-member-token": token } }),
     subscribePush: (slug: string, token: string, subscription: PushSubscriptionJSON) =>
       request<MemberSelf>(`/groups/${slug}/me/push`, { method: "PUT", body: subscription, headers: { "x-member-token": token } }),

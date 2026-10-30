@@ -7,6 +7,7 @@ import { Headcount, type IdentityStep } from "@/components/game/Headcount";
 import { ManageBar, MANAGE_BAR_HEIGHT } from "@/components/game/ManageBar";
 import { Rosters } from "@/components/game/Rosters";
 import { FindSub, InviteFriend, SignInAsk } from "@/components/game/PlayerExtras";
+import { RecapCard } from "@/components/game/RecapCard";
 import { Teams } from "@/components/game/Teams";
 import { BadgeEarned, BadgeRow } from "@/components/Badges";
 import { statsLine } from "@/components/PlayerStats";
@@ -214,6 +215,8 @@ export default function GroupScreen() {
         {earned.map((b) => <BadgeEarned key={b.id} badge={b} />)}
         {canFindSub && <View style={{ flexDirection: "row" }}><FindSub input={shareInput} needed={needed} /></View>}
         {player && <SignInAsk stats={mine?.stats ?? null} slug={slug} />}
+
+        <RecapCard page={page} me={me} slug={slug} />
 
         {session.teams && <Teams teams={session.teams.teams} roster={everyone} onShare={share} groupName={group.name} />}
 

@@ -22,6 +22,8 @@ import {
   membershipLinksSchema,
   contactSchema,
   reportSchema,
+  recapSummary,
+  shoutoutSchema,
   type LinkedMembership,
   rsvpSchema,
   saveTeamsSchema,
@@ -43,11 +45,11 @@ import { CLIENT_EVENTS, track } from "./analytics.ts";
 import { isAdminEmail, productMetrics } from "./metrics.ts";
 import { registerAuthEvents } from "./authEvents.ts";
 import { groupCalendar } from "./calendar.ts";
-import { groupCardSvg, renderPng } from "./ogImage.ts";
+import { groupCardSvg, recapCardSvg, renderPng } from "./ogImage.ts";
 import { currentOrganizer, HttpError, requireMember, requireOrganizer } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { events, liveUrl, liveUrlForGroups } from "./events.ts";
-import { currentSession, findGroupBySlug, gameHistory, memberStats, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
+import { currentSession, findGroupBySlug, gameHistory, lastPlayedGame, memberStats, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { APP_PUSH_PREFIX, emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
@@ -762,6 +764,51 @@ export async function buildApp(db: Db) {
   app.get<SlugParams>("/groups/:slug/history", async (req) => {
     const { group } = await ownedGroup(req, req.params.slug);
     return { games: await gameHistory(db, group) };
+  });
+
+  // ── Post-game recap and shout-outs ──────────────────────────
+  const recapFor = async (group: GroupRow, viewerMemberId: string | null) => {
+    const game = await lastPlayedGame(db, group);
+    if (!game) return null;
+    const shoutouts = await db.query<{ fromMemberId: string; toMemberId: string; kind: "mvp" | "thanks" }>(
+      `SELECT from_member_id AS "fromMemberId", to_member_id AS "toMemberId", kind FROM shoutouts WHERE session_id = $1 ORDER BY created_at`,
+      [game.id],
+    );
+    return recapSummary({ id: game.id, startsAt: game.startsAt, cap: group.cap }, game.played, shoutouts, viewerMemberId);
+  };
+
+  // Public like the group page; with a member token it also says what you gave.
+  app.get<SlugParams>("/groups/:slug/recap", async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = typeof req.headers["x-member-token"] === "string" ? await requireMember(db, req, group.id).catch(() => null) : null;
+    return { recap: await recapFor(group, member?.id ?? null) };
+  });
+
+  // One MVP vote and one thanks per player per game; a new pick replaces the old one. Only players who played.
+  app.post<SlugParams>("/groups/:slug/recap/shoutout", strict(30), async (req) => {
+    const group = await groupOr404(req.params.slug);
+    const member = await requireMember(db, req, group.id);
+    const { toMemberId, kind } = shoutoutSchema.parse(req.body);
+    const game = await lastPlayedGame(db, group);
+    if (!game) throw new HttpError(409, "No recent game to shout out");
+    if (!game.played.some((p) => p.memberId === member.id)) throw new HttpError(403, "Only players who were in can give shout-outs");
+    if (!game.played.some((p) => p.memberId === toMemberId)) throw new HttpError(400, "They didn't play this game");
+    if (toMemberId === member.id) throw new HttpError(400, "Pick someone else");
+    await db.query(
+      `INSERT INTO shoutouts (session_id, from_member_id, to_member_id, kind) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (session_id, from_member_id, kind) DO UPDATE SET to_member_id = EXCLUDED.to_member_id, created_at = now()`,
+      [game.id, member.id, toMemberId, kind],
+    );
+    await track(db, "shoutout_given", { groupId: group.id, sessionId: game.id, memberId: member.id, props: { kind } });
+    return { recap: await recapFor(group, member.id) };
+  });
+
+  app.get<{ Params: { slug: string } }>("/og/:slug/recap.png", async (req, reply) => {
+    const group = await groupOr404(req.params.slug);
+    const recap = await recapFor(group, null);
+    if (!recap) throw new HttpError(404, "No recent game");
+    reply.header("content-type", "image/png").header("cache-control", "public, max-age=300");
+    return renderPng(recapCardSvg(group, recap));
   });
 
   app.get<SlugParams>("/groups/:slug/insights", async (req) => {

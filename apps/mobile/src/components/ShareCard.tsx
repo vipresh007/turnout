@@ -37,7 +37,7 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
 
 /** WhatsApp, Messages and Copy (or the share sheet), for the group's ready-made message (or another one, with
  *  its own event kind so invites and sub requests count separately). */
-export function ShareButtons({ input, message: custom, event = "link_shared", from = "group" }: { input: ShareInput; message?: string; event?: "link_shared" | "friend_invited" | "sub_requested"; from?: string }) {
+export function ShareButtons({ input, message: custom, event = "link_shared", from = "group" }: { input: ShareInput; message?: string; event?: "link_shared" | "friend_invited" | "sub_requested" | "recap_shared"; from?: string }) {
   const t = useTheme();
   const [copied, setCopied] = useState(false);
   const message = custom ?? groupShareMessage(input);

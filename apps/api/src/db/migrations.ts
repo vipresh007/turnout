@@ -207,4 +207,17 @@ export const migrations: string[] = [
   ALTER TABLE feedback ADD COLUMN email text;
   ALTER TABLE feedback ADD COLUMN name text;
   `,
+  // Post-game shout-outs: each player who played can name one MVP and thank one person per game.
+  `
+  CREATE TABLE shoutouts (
+    session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    from_member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    to_member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+    kind text NOT NULL CHECK (kind IN ('mvp', 'thanks')),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (session_id, from_member_id, kind),
+    CHECK (from_member_id <> to_member_id)
+  );
+  CREATE INDEX shoutouts_session_idx ON shoutouts (session_id);
+  `,
 ];

@@ -143,3 +143,7 @@ export const feedbackSchema = z
 
 /** The organizer app's push token (Expo), registered after sign-in. */
 export const pushTokenSchema = z.object({ token: z.string().min(10).max(300), platform: z.enum(["ios", "android"]).optional() });
+
+/** A post-game shout-out: one MVP vote and one thanks per player per game. */
+export const shoutoutSchema = z.object({ toMemberId: z.string().uuid(), kind: z.enum(["mvp", "thanks"]) });
+export type ShoutoutInput = z.infer<typeof shoutoutSchema>;

@@ -375,3 +375,18 @@ export async function organizerActivity(db: Db, organizerId: string, limit: numb
   );
   return rows.map((a) => ({ ...a, at: new Date(a.at).toISOString() }));
 }
+
+/** The most recent game that was actually played (not cancelled, at least 2 in) within the last week, with who played. */
+export async function lastPlayedGame(db: Db, group: GroupRow, now = new Date()): Promise<{ id: string; startsAt: string; played: Rsvp[] } | null> {
+  const sessions = await db.query<{ id: string; startsAt: Date | string }>(
+    `SELECT id, COALESCE(starts_at_override, starts_at) AS "startsAt" FROM sessions
+     WHERE group_id = $1 AND NOT cancelled AND COALESCE(starts_at_override, starts_at) < $2 AND COALESCE(starts_at_override, starts_at) > $3
+     ORDER BY starts_at DESC LIMIT 1`,
+    [group.id, now.toISOString(), new Date(now.getTime() - 7 * 86_400_000).toISOString()],
+  );
+  const s = sessions[0];
+  if (!s) return null;
+  const roster = buildRoster(await sessionRsvps(db, s.id), group.cap);
+  if (roster.confirmed.length < 2) return null;
+  return { id: s.id, startsAt: new Date(s.startsAt).toISOString(), played: roster.confirmed };
+}

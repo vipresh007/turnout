@@ -763,3 +763,42 @@ test("reports and the offensive-words filter", async () => {
   assert.match(row!.message, /Report Hoops.*"Pat".*Rude nickname/);
   assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/report`, payload: { reason: "" } })).statusCode, 400);
 });
+
+test("recap after a game: who played, shout-outs from players only, a card image", async () => {
+  const org = { "x-dev-user": "recap-org" };
+  const { slug, id } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Recap Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 6 } })).json().group;
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json() as { member: { id: string }; token: string };
+  const [maya, jordan, priya] = await Promise.all(["Maya", "Jordan", "Priya"].map(join));
+  // Nothing played yet: no recap, and nothing to shout out.
+  assert.equal((await app.inject({ url: `/groups/${slug}/recap` })).json().recap, null);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/recap/shoutout`, headers: { "x-member-token": maya!.token }, payload: { toMemberId: jordan!.member.id, kind: "mvp" } })).statusCode, 409);
+
+  // A game two days ago: Maya and Jordan played, Priya was out.
+  const [s] = await db.query<{ id: string }>(`INSERT INTO sessions (group_id, starts_at) VALUES ($1, now() - interval '2 days') RETURNING id`, [id]);
+  for (const [p, status] of [[maya, "in"], [jordan, "in"], [priya, "out"]] as const) {
+    await db.query(`INSERT INTO rsvps (session_id, member_id, status, responded_at) VALUES ($1, $2, $3, now() - interval '3 days')`, [s!.id, p!.member.id, status]);
+  }
+  const recap = (await app.inject({ url: `/groups/${slug}/recap`, headers: { "x-member-token": maya!.token } })).json().recap;
+  assert.deepEqual(recap.players.map((p: { name: string }) => p.name).sort(), ["Jordan", "Maya"]);
+  assert.deepEqual(recap.yours, { mvp: null, thanks: null });
+  assert.equal((await app.inject({ url: `/groups/${slug}/recap` })).json().recap.yours, null);
+
+  // Priya didn't play, so she can't vote; Maya can, but not for herself; a second vote replaces the first.
+  const vote = (token: string, toMemberId: string, kind = "mvp") => app.inject({ method: "POST", url: `/groups/${slug}/recap/shoutout`, headers: { "x-member-token": token }, payload: { toMemberId, kind } });
+  assert.equal((await vote(priya!.token, maya!.member.id)).statusCode, 403);
+  assert.equal((await vote(maya!.token, maya!.member.id)).statusCode, 400);
+  assert.equal((await vote(maya!.token, priya!.member.id)).statusCode, 400);
+  const after = (await vote(maya!.token, jordan!.member.id)).json().recap;
+  assert.equal(after.mvp.name, "Jordan");
+  assert.equal(after.yours.mvp, jordan!.member.id);
+  await vote(jordan!.token, maya!.member.id);
+  await vote(jordan!.token, maya!.member.id, "thanks");
+  const final = (await app.inject({ url: `/groups/${slug}/recap` })).json().recap;
+  assert.equal(final.voters, 2);
+  assert.equal(final.players.find((p: { name: string }) => p.name === "Maya").thanks, 1);
+
+  const png = await app.inject({ url: `/og/${slug}/recap.png` });
+  assert.equal(png.statusCode, 200);
+  assert.equal(png.headers["content-type"], "image/png");
+  assert.ok((await db.query(`SELECT 1 FROM events WHERE kind = 'shoutout_given' AND group_id = $1`, [id])).length >= 3);
+});
