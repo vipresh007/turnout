@@ -52,9 +52,10 @@ export function Landing() {
       </Head>
 
       {/* ── Hero ── */}
-      <View style={[s.heroWrap, { backgroundColor: t.accent }]}>
-        <Texture color={INK} opacity={0.14} />
-        <Glow color="rgba(234,88,12,0.45)" size={wide ? 720 : 420} style={{ top: -260, right: wide ? -160 : -200 }} duration={12000} drift={50} />
+      <View style={[s.heroWrap, { backgroundColor: "#0B1F14" }]}>
+        <Texture color={t.accent} opacity={0.12} />
+        <Glow color={t.glowA} size={wide ? 720 : 460} style={{ top: -220, left: wide ? -120 : -200 }} />
+        <Glow color="rgba(234,88,12,0.22)" size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
 
         <SiteHeader
           sections={[
@@ -68,26 +69,27 @@ export function Landing() {
         <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
           <View style={{ flex: wide ? 1.15 : undefined, gap: 22, width: wide ? undefined : "100%" }}>
             <Pop>
-              <View style={[s.pill, { backgroundColor: t.energy, borderColor: t.energy }]}>
-                <Text style={{ color: INK, fontWeight: "900", fontSize: 13, letterSpacing: 0.6, textTransform: "uppercase" }}>Free for organizers · No app for players</Text>
+              <View style={[s.pill, { backgroundColor: "rgba(34,197,94,0.12)", borderColor: "rgba(34,197,94,0.35)" }]}>
+                <View style={[s.pillDot, { backgroundColor: t.energy }]} />
+                <Text style={{ color: PAPER, fontWeight: "800", fontSize: 13, letterSpacing: 0.6, textTransform: "uppercase" }}>Free for organizers · No app for players</Text>
               </View>
             </Pop>
             <View>
-              <Display level="display" role="heading" aria-level={1} style={[s.h1, { color: INK, fontSize: wide ? 92 : 52, lineHeight: wide ? 88 : 52 }]}>
-                Stop asking{"\n"}<Text style={{ color: PAPER }}>who's playing.</Text>
+              <Display level="display" role="heading" aria-level={1} style={[s.h1, { color: PAPER, fontSize: wide ? 92 : 52, lineHeight: wide ? 88 : 52 }]}>
+                Stop asking{"\n"}<Text style={{ color: t.accent }}>who's playing.</Text>
               </Display>
             </View>
-            <Text style={[s.lead, { color: INK, opacity: 0.85 }]}>
-              One link for your weekly game. Players tap <Text style={[s.leadStrong, { color: INK }]}>I'm in</Text>. Turnout handles the count, the waitlist,
+            <Text style={[s.lead, { color: "#B7C4BC" }]}>
+              One link for your weekly game. Players tap <Text style={[s.leadStrong, { color: PAPER }]}>I'm in</Text>. Turnout handles the count, the waitlist,
               reminders, dropouts and teams.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-              <CTA label="Start a group, it's free" inverse onPress={start} />
-              <CTA label="Try the demo, no sign-up" secondary inverse onPress={() => router.push("/demo")} />
+              <CTA label="Start a group, it's free" onPress={start} />
+              <CTA label="Try the demo, no sign-up" secondary onPress={() => router.push("/demo")} />
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
               <AppStoreBadge height={44} />
-              <Text style={{ color: INK, opacity: 0.8, fontSize: 14, fontWeight: "600", flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
+              <Text style={{ color: "#B7C4BC", fontSize: 14, flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
             </View>
           </View>
           <View style={{ flex: wide ? 0.85 : undefined, width: wide ? undefined : "100%", alignItems: "center" }}>
