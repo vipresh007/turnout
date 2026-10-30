@@ -1,12 +1,12 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { memberships, onMembershipsChanged } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Icon, type IconName } from "./Icon";
-import { Button } from "./ui";
-import { StatsLink, YourGames } from "./YourGames";
+import { Button, Display } from "./ui";
+import { PlayHome } from "./PlayHome";
 
 const points: [IconName, string, string][] = [
   ["link", "One link for your group chat", "Share it once. Everyone taps it each week."],
@@ -29,40 +29,7 @@ export function AppWelcome() {
   const showWelcome = useCallback(() => setPlayer(false), []);
   if (player === null) return null;
   // Nothing to show (all gone, or they can't load right now): the welcome screen, which still has sign-in.
-  return player ? <PlayerHome onEmpty={showWelcome} /> : <Pitch />;
-}
-
-function PlayerHome({ onEmpty }: { onEmpty: () => void }) {
-  const t = useTheme();
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, gap: 20 }}>
-        <View style={{ paddingTop: 12, gap: 4 }}>
-          <Text style={{ color: t.text, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
-          </Text>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 12 }}>
-            <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1 }}>Your games</Text>
-            <View style={{ paddingBottom: 6 }}><StatsLink /></View>
-          </View>
-        </View>
-        <YourGames onEmpty={onEmpty} />
-        <View style={{ flex: 1 }} />
-        <View style={{ gap: 4, alignItems: "center" }}>
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/sign-in", params: { next: "/stats" } })} style={{ padding: 6 }}>
-            <Text style={{ color: t.muted, fontSize: 14, textAlign: "center" }}>
-              New phone coming? <Text style={{ color: t.accent, fontWeight: "700" }}>Sign in to keep your games</Text>
-            </Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push("/sign-in")} style={{ padding: 6 }}>
-            <Text style={{ color: t.muted, fontSize: 14 }}>
-              Run your own game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start a group</Text>
-            </Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return player ? <PlayHome onEmpty={showWelcome} /> : <Pitch />;
 }
 
 function Pitch() {
@@ -75,9 +42,9 @@ function Pitch() {
             turnout<Text style={{ color: t.accent }}>.</Text>
           </Text>
           <View style={{ gap: 10 }}>
-            <Text style={{ color: t.text, fontSize: 40, fontWeight: "900", letterSpacing: -1.5, lineHeight: 44 }}>
+            <Display level="display">
               Stop asking <Text style={{ color: t.accent }}>who's playing.</Text>
-            </Text>
+            </Display>
             <Text style={{ color: t.muted, fontSize: 17, lineHeight: 24 }}>Run your weekly game from your phone. Your players never need the app.</Text>
           </View>
           <View style={{ gap: 18 }}>

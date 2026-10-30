@@ -35,13 +35,14 @@ export function ShareCard({ input, title }: { input: ShareInput; title?: string 
   );
 }
 
-/** WhatsApp, Messages and Copy (or the share sheet), for the group's ready-made message. */
-export function ShareButtons({ input }: { input: ShareInput }) {
+/** WhatsApp, Messages and Copy (or the share sheet), for the group's ready-made message (or another one, with
+ *  its own event kind so invites and sub requests count separately). */
+export function ShareButtons({ input, message: custom, event = "link_shared", from = "group" }: { input: ShareInput; message?: string; event?: "link_shared" | "friend_invited" | "sub_requested"; from?: string }) {
   const t = useTheme();
   const [copied, setCopied] = useState(false);
-  const message = groupShareMessage(input);
+  const message = custom ?? groupShareMessage(input);
   const slug = input.link.split("/g/")[1]?.split(/[?#]/)[0];
-  const shared = (via: string) => trackEvent("link_shared", slug, { via, from: "group" });
+  const shared = (via: string) => trackEvent(event, slug, { via, from });
 
   const copyOrShare = async () => {
     shared(Platform.OS === "web" && typeof navigator.share !== "function" ? "copy" : "share");

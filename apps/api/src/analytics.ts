@@ -10,7 +10,7 @@ export type EventKind =
   | "teams_created" | "payment_marked" | "forecast_alert_sent" | "pricing_answer" | "season_started" | "feedback_given" | ClientEventKind;
 
 /** Events the app reports itself, because only the browser sees them. */
-export const CLIENT_EVENTS = ["link_shared", "invite_asked", "reminder_opened", "pricing_interest"] as const;
+export const CLIENT_EVENTS = ["link_shared", "invite_asked", "reminder_opened", "pricing_interest", "friend_invited", "sub_requested", "signin_prompt_shown", "signin_prompt_accepted"] as const;
 export type ClientEventKind = (typeof CLIENT_EVENTS)[number];
 
 export interface EventRefs {

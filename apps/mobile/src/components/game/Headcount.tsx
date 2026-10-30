@@ -14,7 +14,7 @@ import { Button, Card, Display, EmptyState, Field, IconLine, Muted, ProgressBar,
 
 export type IdentityStep = "ask" | "someoneElse" | "emailSent" | "noEmail";
 
-export function Headcount({ page, me, place, goal, needed, name, onName, pending, nameTaken, identityStep, onThatsMe, onSomeoneElse, onJoinAs, onClaim, onRespond, shareInput }: {
+export function Headcount({ page, me, place, goal, needed, name, onName, pending, nameTaken, identityStep, onThatsMe, onSomeoneElse, onJoinAs, onClaim, onRespond, shareInput, shortShare = true }: {
   page: GroupPage;
   me: Membership | null;
   place: ReturnType<typeof placeOf>;
@@ -31,6 +31,8 @@ export function Headcount({ page, me, place, goal, needed, name, onName, pending
   onClaim: (id: string) => void;
   onRespond: (status: RsvpStatus) => void;
   shareInput: ShareInput;
+  /** Off when the page shows the stronger "find a sub" ask instead. */
+  shortShare?: boolean;
 }) {
   const t = useTheme();
   const { group, session, roster, viewer } = page;
@@ -61,7 +63,7 @@ export function Headcount({ page, me, place, goal, needed, name, onName, pending
     );
   }
 
-  const short = needed > 0 && !viewer.isOrganizer && roster.confirmed.length > 0;
+  const short = shortShare && needed > 0 && !viewer.isOrganizer && roster.confirmed.length > 0;
   return (
     <Card>
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>

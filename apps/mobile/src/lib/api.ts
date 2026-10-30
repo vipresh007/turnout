@@ -49,7 +49,7 @@ const membershipKey = (slug: string) => `membership:${slug}`;
 const JOINED_KEY = "joinedGroups";
 
 /** Events only the browser sees. Fire-and-forget: never blocks or breaks what the person is doing. */
-export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest";
+export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest" | "friend_invited" | "sub_requested" | "signin_prompt_shown" | "signin_prompt_accepted";
 export function trackEvent(kind: ClientEvent, slug?: string, props?: Record<string, string | number | boolean>): void {
   (async () => {
     const membership = slug ? await memberships.get(slug) : null;

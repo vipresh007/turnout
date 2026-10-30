@@ -1,7 +1,9 @@
 import { Redirect, router, Slot, Tabs } from "expo-router";
+import { useEffect, useState } from "react";
 import { Platform, Pressable, Text } from "react-native";
 import { Icon } from "@/components/Icon";
-import { AccountIcon, InsightsIcon, HomeIcon } from "@/components/TabIcons";
+import { AccountIcon, GroupsIcon, InsightsIcon, HomeIcon } from "@/components/TabIcons";
+import { memberships, onMembershipsChanged } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -13,6 +15,13 @@ import { useTheme } from "@/lib/theme";
 export default function TabsLayout() {
   const t = useTheme();
   const { status } = useAuth();
+  // The Play tab only exists when this phone plays in a group somewhere.
+  const [plays, setPlays] = useState(false);
+  useEffect(() => {
+    const check = () => memberships.slugs().then((s) => setPlays(s.length > 0));
+    check();
+    return onMembershipsChanged(() => void check());
+  }, []);
   if (Platform.OS === "web") return <Slot />;
   if (status === "loading") return null;
   if (status !== "signedIn") return <Redirect href="/" />;
@@ -29,6 +38,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="dashboard" options={{ title: "Home", headerTitle: "Turnout", headerRight: NewGroupButton, tabBarIcon: ({ color }) => <HomeIcon color={color} /> }} />
+      <Tabs.Screen name="play" options={{ title: "Play", href: plays ? undefined : null, tabBarIcon: ({ color }) => <GroupsIcon color={color} /> }} />
       <Tabs.Screen name="insights" options={{ title: "Insights", tabBarIcon: ({ color }) => <InsightsIcon color={color} /> }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: ({ color }) => <AccountIcon color={color} /> }} />
       {/* Old URL, kept as a redirect; not a tab. */}

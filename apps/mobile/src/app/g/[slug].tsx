@@ -1,4 +1,4 @@
-import { groupShareMessage, inviteMessage, placeOf, playerGoal, playersNeeded, shortWhen, type GroupPage, type MyPlayerStats, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, badges, groupShareMessage, inviteMessage, newlyEarned, placeOf, playerGoal, playersNeeded, shortWhen, type Badge, type GroupPage, type MyPlayerStats, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Text, View } from "react-native";
@@ -6,13 +6,16 @@ import { GameHeader } from "@/components/game/GameHeader";
 import { Headcount, type IdentityStep } from "@/components/game/Headcount";
 import { ManageBar, MANAGE_BAR_HEIGHT } from "@/components/game/ManageBar";
 import { Rosters } from "@/components/game/Rosters";
+import { FindSub, InviteFriend, SignInAsk } from "@/components/game/PlayerExtras";
 import { Teams } from "@/components/game/Teams";
+import { BadgeEarned, BadgeRow } from "@/components/Badges";
 import { statsLine } from "@/components/PlayerStats";
 import { ReadyCard } from "@/components/ReadyCard";
 import { ReportAndLeave } from "@/components/ReportAndLeave";
-import { ListRow, Muted, RowGroup, Screen } from "@/components/ui";
+import { Card, ListRow, Muted, RowGroup, Screen, SectionHeader } from "@/components/ui";
 import { ApiError, memberships, NameTakenError, shareUrl, trackEvent, type Membership, useApi } from "@/lib/api";
 import { confirm } from "@/lib/confirm";
+import { hoursUntil } from "@/lib/format";
 import { useLiveGroup } from "@/lib/live";
 import { shareText } from "@/lib/share";
 import { useTheme } from "@/lib/theme";
@@ -57,8 +60,16 @@ export default function GroupScreen() {
     }, [load, slug]),
   );
   useLiveGroup(api, slug, focused, load);
+  // Your record here, refreshed when the roster changes; a badge earned by this tap pops up once.
+  const [earned, setEarned] = useState<Badge[]>([]);
   useEffect(() => {
-    if (me) api.memberStats(slug, me.token).then(setMine, () => {});
+    if (!me) return;
+    api.memberStats(slug, me.token).then((next) => {
+      setMine((prev) => {
+        if (prev) setEarned(newlyEarned(prev.stats, next.stats));
+        return next;
+      });
+    }, () => {});
   }, [api, slug, me, page?.roster.confirmed.length]);
 
   const run = async (key: string, action: () => Promise<GroupPage>) => {
@@ -157,6 +168,10 @@ export default function GroupScreen() {
     : undefined;
   const everyone = [...roster.confirmed, ...roster.waitlist, ...roster.out];
   const myStats = mine && mine.stats.games > 0 ? statsLine(mine.stats) : null;
+  const hasBadges = !!mine && badges(mine.stats).some((b) => b.earned);
+  const player = !!me && !viewer.isOrganizer;
+  // A player who's in can look for a sub when the game is short and close.
+  const canFindSub = player && place.kind === "confirmed" && needed > 0 && !session.cancelled && hoursUntil(session.startsAt) > 0 && hoursUntil(session.startsAt) <= ASK_WINDOW_HOURS;
 
   return (
     <View style={{ flex: 1 }}>
@@ -192,9 +207,13 @@ export default function GroupScreen() {
           onClaim={(id) => claimAs(id)}
           onRespond={(status) => respond(status)}
           shareInput={shareInput}
+          shortShare={!canFindSub}
         />
         {error && <Text style={{ color: t.danger }}>{error}</Text>}
         {notice && <Muted>{notice}</Muted>}
+        {earned.map((b) => <BadgeEarned key={b.id} badge={b} />)}
+        {canFindSub && <View style={{ flexDirection: "row" }}><FindSub input={shareInput} needed={needed} /></View>}
+        {player && <SignInAsk stats={mine?.stats ?? null} slug={slug} />}
 
         {session.teams && <Teams teams={session.teams.teams} roster={everyone} onShare={share} groupName={group.name} />}
 
@@ -208,6 +227,12 @@ export default function GroupScreen() {
           seasonMembers={seasonMembers}
         />
 
+        {me && hasBadges && mine && (
+          <Card>
+            <SectionHeader icon="trophy" tone={t.energy} title="Your badges" />
+            <BadgeRow stats={mine.stats} />
+          </Card>
+        )}
         {me && (
           <RowGroup>
             {!session.cancelled && place.kind !== "out" && (
@@ -215,12 +240,13 @@ export default function GroupScreen() {
             )}
             <ListRow
               first={session.cancelled || place.kind === "out"}
-              last
+              last={!(player && !session.cancelled)}
               icon="trending"
               title="Your stats"
               subtitle={myStats ?? "Games played, attendance and streaks, once you've played"}
               onPress={() => router.push("/stats")}
             />
+            {player && !session.cancelled && <InviteFriend input={shareInput} last />}
           </RowGroup>
         )}
 

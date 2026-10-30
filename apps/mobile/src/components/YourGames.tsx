@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { ApiError, memberships, onMembershipsChanged, useApi } from "@/lib/api";
 import { relativeDay, sessionWhen } from "@/lib/format";
-import { useTheme } from "@/lib/theme";
+import { sportTone, tint, useTheme } from "@/lib/theme";
 import { Icon } from "./Icon";
 import { statsLine } from "./PlayerStats";
-import { Pill } from "./ui";
+import { Display, Pill, ProgressBar } from "./ui";
 
 type Game = { slug: string; page: GroupPage; memberId: string; stats: PlayerStats | null };
 
@@ -15,7 +15,7 @@ type Game = { slug: string; page: GroupPage; memberId: string; stats: PlayerStat
  * Groups this phone has joined (players have no account), each with this week's game and your answer.
  * With a `title` (organizer Home), groups in `exclude` are left out and nothing renders when none are left.
  */
-export function YourGames({ title, exclude = [], onEmpty }: { title?: string; exclude?: string[]; onEmpty?: () => void } = {}) {
+export function YourGames({ title, exclude = [], onEmpty, onLoaded }: { title?: string; exclude?: string[]; onEmpty?: () => void; onLoaded?: (stats: PlayerStats[]) => void } = {}) {
   const t = useTheme();
   const api = useApi();
   const [games, setGames] = useState<Game[] | null>(null);
@@ -39,7 +39,8 @@ export function YourGames({ title, exclude = [], onEmpty }: { title?: string; ex
     const games = found.filter((g): g is Game => g !== null);
     setGames(games);
     if (games.length === 0) onEmpty?.();
-  }, [api, onEmpty]);
+    onLoaded?.(games.map((g) => g.stats).filter((s): s is PlayerStats => !!s));
+  }, [api, onEmpty, onLoaded]);
   useFocusEffect(useCallback(() => void load(), [load]));
   useEffect(() => onMembershipsChanged(() => void load()), [load]); // games arriving from your account
 
@@ -63,22 +64,22 @@ export function YourGames({ title, exclude = [], onEmpty }: { title?: string; ex
           : place.kind === "confirmed"
             ? { label: "You're in", color: t.accent, icon: "check" as const }
             : place.kind === "waitlist"
-              ? { label: `Waitlist #${place.position}`, color: t.waitlist, icon: "hourglass" as const }
+              ? { label: `Waitlist #${place.position}`, color: t.energy, icon: "hourglass" as const }
               : place.kind === "out"
                 ? { label: "You're out", color: t.muted, icon: "x" as const }
-                : { label: "Tap to answer", color: t.waitlist, icon: "arrowRight" as const };
+                : { label: "Tap to answer", color: t.energy, icon: "arrowRight" as const };
         const goal = group.cap ?? group.targetPlayers;
         return (
           <Pressable
             key={slug}
             accessibilityRole="button"
             onPress={() => router.push({ pathname: "/g/[slug]", params: { slug } })}
-            style={({ pressed }) => ({ backgroundColor: t.card, borderColor: t.border, borderWidth: 1, borderRadius: 18, padding: 16, gap: 6, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+            style={({ pressed }) => ({ backgroundColor: t.card, borderColor: place.kind === "none" && !session.cancelled ? tint(t.energy, 0.5) : t.border, borderWidth: 1, borderRadius: 18, padding: 16, gap: 6, transform: [{ scale: pressed ? 0.98 : 1 }] })}
           >
-            <Text style={{ color: t.accent, fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>
+            <Text style={{ color: sportTone(group.activity, t), fontSize: 12, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }}>
               {relativeDay(session.startsAt, group.timezone)}
             </Text>
-            <Text style={{ color: t.text, fontSize: 18, fontWeight: "900", letterSpacing: -0.3 }}>{group.name}</Text>
+            <Display level="h1" style={{ fontSize: 20, lineHeight: 24 }}>{group.name}</Display>
             <Text style={{ color: t.muted }}>
               {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
               {(session.location ?? group.location) ? ` · ${session.location ?? group.location}` : ""}
@@ -86,9 +87,12 @@ export function YourGames({ title, exclude = [], onEmpty }: { title?: string; ex
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
               <Pill {...answer} />
               {!session.cancelled && (
-                <Text style={{ color: t.muted, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
-                  {roster.confirmed.length}{goal ? ` / ${goal}` : ""} in
-                </Text>
+                <View style={{ alignItems: "flex-end", gap: 4, width: 80 }}>
+                  <Text style={{ color: t.muted, fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                    {roster.confirmed.length}{goal ? ` / ${goal}` : ""} in
+                  </Text>
+                  {goal ? <ProgressBar value={roster.confirmed.length} max={goal} height={4} tone={roster.confirmed.length >= goal ? t.accent : t.energy} /> : null}
+                </View>
               )}
             </View>
             {stats && statsLine(stats) && (
