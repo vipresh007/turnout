@@ -2,6 +2,7 @@
 // App Store Connect without the website: create a version, attach a processed build, set What's New, submit for review.
 //   node scripts/asc.mjs status                      builds and versions for the app
 //   node scripts/asc.mjs release <version> <build> "<what's new>"   create/update the version, attach the build, submit
+//   node scripts/asc.mjs promo <version> "<promotional text>"      set the promotional text on every locale (no review needed)
 // Needs ASC_KEY_ID / ASC_ISSUER_ID in infra/.env.infra and infra/AuthKey_<ID>.p8 (role App Manager). App id from eas.json.
 import { api, appId, rel, versions } from "./asc-lib.mjs";
 
@@ -46,6 +47,17 @@ if (cmd === "status") {
     await api("PATCH", `/reviewSubmissions/${sub.id}`, { data: { type: "reviewSubmissions", id: sub.id, attributes: { submitted: true } } });
     console.log(`Submitted ${versionString} (build ${buildNumber}) for review`);
   } else console.log("Submission already", sub.attributes.state);
+} else if (cmd === "promo") {
+  const [, v, text] = process.argv.slice(2);
+  if (!v || !text) throw new Error("usage: promo <version> \"<text>\"");
+  if (text.length > 170) throw new Error(`Promotional text is ${text.length} characters; the limit is 170`);
+  const version = (await versions()).find((x) => x.version === v);
+  if (!version) throw new Error(`No version ${v}`);
+  const locs = await api("GET", `/appStoreVersions/${version.id}/appStoreVersionLocalizations?fields[appStoreVersionLocalizations]=locale,promotionalText`);
+  for (const l of locs.data) {
+    await api("PATCH", `/appStoreVersionLocalizations/${l.id}`, { data: { type: "appStoreVersionLocalizations", id: l.id, attributes: { promotionalText: text } } });
+    console.log("Promotional text set for", l.attributes.locale);
+  }
 } else {
-  console.log("usage: asc.mjs status | release <version> <build> \"<what's new>\"");
+  console.log("usage: asc.mjs status | release <version> <build> \"<what's new>\" | promo <version> \"<text>\"");
 }
