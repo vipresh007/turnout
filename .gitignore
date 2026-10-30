@@ -11,3 +11,5 @@ ios/
 android/
 web-build/
 infra/.env.infra
+*.ipa
+*.p8
