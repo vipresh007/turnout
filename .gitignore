@@ -13,3 +13,5 @@ web-build/
 infra/.env.infra
 *.ipa
 *.p8
+docs/app-store-screenshots/raw/
+docs/app-store-screenshots/.memberships.json
