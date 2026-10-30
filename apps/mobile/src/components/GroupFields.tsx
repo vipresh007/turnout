@@ -238,10 +238,10 @@ function DayDot({ label, selected, onPress }: { label: string; selected: boolean
       onPress={onPress}
       style={({ hovered }: { hovered?: boolean }) => ({
         flex: 1, aspectRatio: 1, maxWidth: 52, borderRadius: 999, alignItems: "center", justifyContent: "center", borderWidth: 1,
-        borderColor: selected || hovered ? t.accent : t.border, backgroundColor: selected ? t.accent : t.bg, ...webTransition,
+        borderColor: selected || hovered ? t.accent : t.border, backgroundColor: selected ? t.soft : t.surface2, ...webTransition,
       })}
     >
-      <Text style={{ color: selected ? t.accentText : t.text, fontWeight: "700", fontSize: 13 }}>{label.slice(0, 2)}</Text>
+      <Text style={{ color: selected ? t.accent : t.text, fontWeight: "700", fontSize: 13 }}>{label.slice(0, 2)}</Text>
     </Pressable>
   );
 }
