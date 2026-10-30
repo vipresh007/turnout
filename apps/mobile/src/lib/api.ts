@@ -33,12 +33,18 @@ export class NameTakenError extends Error {
 
 type Headers = Record<string, string>;
 
-async function request<T>(path: string, init: { method?: string; body?: unknown; headers?: Headers } = {}): Promise<T> {
+async function request<T>(path: string, init: { method?: string; body?: unknown; headers?: Headers } = {}, attempt = 0): Promise<T> {
   const res = await fetch(`${config.apiUrl}${path}`, {
     method: init.method ?? "GET",
     headers: { ...(init.body !== undefined ? { "content-type": "application/json" } : {}), ...init.headers },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
+  // Throttled: wait the few seconds the API asks for and try once more, instead of showing an error for a read.
+  if (res.status === 429 && attempt === 0 && (init.method ?? "GET") === "GET") {
+    const wait = Math.min(10, Number(res.headers.get("retry-after")) || 3);
+    await new Promise((r) => setTimeout(r, wait * 1000));
+    return request<T>(path, init, 1);
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, (data as { error?: string }).error ?? `Request failed (${res.status})`, data);
   return data as T;
