@@ -7,8 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { BadgeRow } from "./Badges";
 import { StatsStrip } from "./PlayerStats";
-import { Card, Display, Eyebrow } from "./ui";
-import { StatsLink, YourGames } from "./YourGames";
+import { Card, Display, Eyebrow, Texture } from "./ui";
+import { YourGames } from "./YourGames";
 
 /**
  * A player's home: this week's games with your answer, then your record across all of them. Shown signed out
@@ -20,16 +20,19 @@ export function PlayHome({ onEmpty, tab }: { onEmpty?: () => void; tab?: boolean
   const [stats, setStats] = useState<PlayerStats | null>(null);
   const body = (
     <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, gap: 20 }}>
-      {!tab && (
-        <View style={{ paddingTop: 12, gap: 4 }}>
-          <Text style={{ color: t.text, fontSize: 24, fontWeight: "900", letterSpacing: -1 }}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
+      <View style={{ backgroundColor: t.accent, borderRadius: 20, padding: 18, paddingTop: tab ? 18 : 22, gap: 6, overflow: "hidden" }}>
+        <Texture color={t.ink} opacity={0.14} />
+        {!tab && (
+          <Text style={{ color: t.ink, fontSize: 22, fontWeight: "900", letterSpacing: -1 }}>
+            turnout<Text style={{ color: t.paper }}>.</Text>
           </Text>
+        )}
+        <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
+          <Display level="display" style={{ fontSize: 34, lineHeight: 36, color: t.ink, textTransform: "uppercase" }}>Your games</Display>
+          <Pressable accessibilityRole="link" onPress={() => router.push("/stats")} hitSlop={8} style={{ paddingBottom: 4 }}>
+            <Text style={{ color: t.ink, fontWeight: "800" }}>Your stats →</Text>
+          </Pressable>
         </View>
-      )}
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" }}>
-        <Display level="display" style={{ fontSize: 32, lineHeight: 36 }}>Your games</Display>
-        <View style={{ paddingBottom: 4 }}><StatsLink /></View>
       </View>
       <YourGames onEmpty={onEmpty} onLoaded={(all) => setStats(all.length ? combinePlayerStats(all) : null)} />
       {stats && stats.games > 0 && (
