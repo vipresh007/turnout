@@ -1,6 +1,6 @@
 import { placeOf, type GroupPage, type PlayerStats } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { ApiError, memberships, onMembershipsChanged, useApi } from "@/lib/api";
 import { relativeDay, sessionWhen } from "@/lib/format";
@@ -19,6 +19,13 @@ export function YourGames({ title, exclude = [], onEmpty, onLoaded }: { title?: 
   const t = useTheme();
   const api = useApi();
   const [games, setGames] = useState<Game[] | null>(null);
+  // Callers pass inline callbacks; keep them in refs so `load` stays stable and a load never triggers another load.
+  const onEmptyRef = useRef(onEmpty);
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => {
+    onEmptyRef.current = onEmpty;
+    onLoadedRef.current = onLoaded;
+  });
   const load = useCallback(async () => {
     const found = await Promise.all(
       (await memberships.slugs()).map(async (slug): Promise<Game | null> => {
@@ -38,9 +45,9 @@ export function YourGames({ title, exclude = [], onEmpty, onLoaded }: { title?: 
     );
     const games = found.filter((g): g is Game => g !== null);
     setGames(games);
-    if (games.length === 0) onEmpty?.();
-    onLoaded?.(games.map((g) => g.stats).filter((s): s is PlayerStats => !!s));
-  }, [api, onEmpty, onLoaded]);
+    if (games.length === 0) onEmptyRef.current?.();
+    onLoadedRef.current?.(games.map((g) => g.stats).filter((s): s is PlayerStats => !!s));
+  }, [api]);
   useFocusEffect(useCallback(() => void load(), [load]));
   useEffect(() => onMembershipsChanged(() => void load()), [load]); // games arriving from your account
 
