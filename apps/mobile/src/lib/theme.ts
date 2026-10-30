@@ -2,11 +2,13 @@ import { Platform, useColorScheme, type TextStyle } from "react-native";
 
 // Colours. Borders are translucent so they sit on any surface (cards, soft panels, tracks) without looking drawn on.
 // `energy` is the warm second colour: the waitlist, "need 2 more", streaks, anything that should feel like game night.
-// `surface2` is a lifted level inside a card, so sections can nest without a border.
+// `surface2` is a lifted level inside a card, so sections can nest without a border. `ink`/`paper` are the text
+// colours on solid colour panels (a green header, an orange band), the same in both modes.
 const light = {
   bg: "#F6F7F5", card: "#FFFFFF", surface2: "#F0F2EE", text: "#111418", muted: "#6B7280", border: "rgba(17,20,24,0.09)",
   accent: "#16A34A", accentText: "#FFFFFF", soft: "#EEF7F1", accentShadow: "rgba(22,163,74,0.35)",
   energy: "#EA580C", energyText: "#FFFFFF", energySoft: "#FFF1E8",
+  ink: "#07210F", paper: "#F7FDF9",
   danger: "#DC2626", waitlist: "#EA580C",
   chart: "#16A34A", // validated for chart marks on both surfaces (dataviz validator)
   glowA: "rgba(34,197,94,0.28)", glowB: "rgba(249,115,22,0.18)", glowC: "rgba(245,158,11,0.16)",
@@ -15,6 +17,7 @@ const dark: typeof light = {
   bg: "#0E1113", card: "#171B1F", surface2: "#1F2428", text: "#F3F4F6", muted: "#9CA3AF", border: "rgba(255,255,255,0.09)",
   accent: "#22C55E", accentText: "#06240F", soft: "#13251A", accentShadow: "rgba(34,197,94,0.30)",
   energy: "#FB923C", energyText: "#2A1203", energySoft: "#2A1A0F",
+  ink: "#07210F", paper: "#F7FDF9",
   danger: "#F87171", waitlist: "#FB923C",
   chart: "#16A34A",
   glowA: "rgba(34,197,94,0.22)", glowB: "rgba(251,146,60,0.16)", glowC: "rgba(245,158,11,0.10)",

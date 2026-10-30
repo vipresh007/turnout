@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { memberships, onMembershipsChanged } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
 import { Icon, type IconName } from "./Icon";
-import { Button, Display } from "./ui";
+import { Button, Display, Texture } from "./ui";
 import { PlayHome } from "./PlayHome";
 
 const points: [IconName, string, string][] = [
@@ -37,15 +37,16 @@ function Pitch() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 28, justifyContent: "space-between" }}>
-        <View style={{ gap: 28, paddingTop: 24 }}>
-          <Text style={{ color: t.text, fontSize: 30, fontWeight: "900", letterSpacing: -1.2 }}>
-            turnout<Text style={{ color: t.accent }}>.</Text>
-          </Text>
-          <View style={{ gap: 10 }}>
-            <Display level="display">
-              Stop asking <Text style={{ color: t.accent }}>who's playing.</Text>
+        <View style={{ gap: 28 }}>
+          <View style={{ backgroundColor: t.accent, borderRadius: 24, padding: 22, paddingTop: 28, gap: 14, overflow: "hidden" }}>
+            <Texture color={t.ink} opacity={0.14} />
+            <Text style={{ color: t.ink, fontSize: 26, fontWeight: "900", letterSpacing: -1 }}>
+              turnout<Text style={{ color: t.paper }}>.</Text>
+            </Text>
+            <Display level="display" style={{ fontSize: 44, lineHeight: 44, color: t.ink, textTransform: "uppercase" }}>
+              Stop asking{"\n"}<Text style={{ color: t.paper }}>who's playing.</Text>
             </Display>
-            <Text style={{ color: t.muted, fontSize: 17, lineHeight: 24 }}>Run your weekly game from your phone. Your players never need the app.</Text>
+            <Text style={{ color: t.ink, opacity: 0.85, fontSize: 17, lineHeight: 24, fontWeight: "600" }}>Run your weekly game from your phone. Your players never need the app.</Text>
           </View>
           <View style={{ gap: 18 }}>
             {points.map(([icon, title, body]) => (

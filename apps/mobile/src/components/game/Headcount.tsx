@@ -68,7 +68,7 @@ export function Headcount({ page, me, place, goal, needed, name, onName, pending
     <Card>
       <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
         <Bump value={roster.confirmed.length}>
-          <Display level="stat">{String(roster.confirmed.length)}</Display>
+          <Display level="stat" style={{ fontSize: 72, lineHeight: 72, color: goal && roster.confirmed.length >= goal ? t.accent : needed > 0 && goal ? t.energy : t.text }}>{String(roster.confirmed.length)}</Display>
         </Bump>
         <Text style={{ color: t.muted, fontSize: 22, fontWeight: "600" }}>{group.cap ? `/ ${group.cap} in` : goal ? `in · aiming for ${goal}` : "in"}</Text>
       </View>

@@ -11,7 +11,7 @@ import { YourGames } from "@/components/YourGames";
 import { maybeAskForReview } from "@/lib/review";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
-import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge } from "@/components/ui";
+import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge, Texture } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useLive } from "@/lib/live";
 import { greeting, sessionWhen, timeAgo } from "@/lib/format";
@@ -98,12 +98,13 @@ function DashboardView() {
       {web && <SiteHeader />}
       <View style={{ width: "100%", maxWidth: SITE_WIDTH, paddingHorizontal: SITE_GUTTER, paddingTop: web ? 4 : 12, gap: 20 }}>
         {/* Greeting. On the web the site header has the account menu and New group; the app keeps them here. */}
-        <View style={{ gap: 2 }}>
-          <Display level="h1" style={{ fontSize: 26, lineHeight: 30 }}>
+        <View style={{ backgroundColor: t.accent, borderRadius: 20, padding: 18, gap: 4, overflow: "hidden" }}>
+          <Texture color={t.ink} opacity={0.14} />
+          <Text style={{ color: t.ink, fontSize: 13, fontWeight: "900", letterSpacing: 1, textTransform: "uppercase", opacity: 0.8 }}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
+          <Display level="display" style={{ fontSize: 30, lineHeight: 34, color: t.ink, textTransform: "uppercase" }}>
             {greeting()}
             {displayName ? `, ${displayName}` : ""}
           </Display>
-          <Text style={{ color: t.muted, fontSize: 14 }}>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
         </View>
 
         {groups.length === 0 ? (

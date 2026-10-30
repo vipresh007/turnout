@@ -24,6 +24,9 @@ const chat: { who: string; text: string; own?: boolean }[] = [
 ];
 
 const demoNames = ["Maya", "Jordan", "Priya", "Sam", "Luis", "Aisha", "Chen"];
+// Ink and paper for the solid colour panels (the same in light and dark mode).
+const INK = "#07210F";
+const PAPER = "#F7FDF9";
 
 export function Landing() {
   const t = useTheme();
@@ -49,11 +52,9 @@ export function Landing() {
       </Head>
 
       {/* ── Hero ── */}
-      <View style={s.heroWrap}>
-        <Glow color={t.glowA} size={wide ? 720 : 460} style={{ top: -220, left: wide ? -120 : -200 }} />
-        <Glow color={t.glowB} size={wide ? 620 : 380} style={{ top: 60, right: wide ? -140 : -220 }} duration={11000} drift={60} />
-        <Glow color={t.glowC} size={wide ? 480 : 300} style={{ bottom: 0, left: "35%" }} duration={13000} drift={30} />
-        <Texture color={t.accent} opacity={0.05} />
+      <View style={[s.heroWrap, { backgroundColor: t.accent }]}>
+        <Texture color={INK} opacity={0.14} />
+        <Glow color="rgba(234,88,12,0.45)" size={wide ? 720 : 420} style={{ top: -260, right: wide ? -160 : -200 }} duration={12000} drift={50} />
 
         <SiteHeader
           sections={[
@@ -67,35 +68,26 @@ export function Landing() {
         <View style={[s.section, { flexDirection: wide ? "row" : "column", gap: wide ? 56 : 40, alignItems: "center", paddingTop: wide ? 48 : 16, paddingBottom: wide ? 96 : 64 }]}>
           <View style={{ flex: wide ? 1.15 : undefined, gap: 22, width: wide ? undefined : "100%" }}>
             <Pop>
-              <View style={s.pill}>
-                <View style={s.pillDot} />
-                <Text style={{ color: t.text, fontWeight: "600", fontSize: 13 }}>Free for organizers · No app for players</Text>
+              <View style={[s.pill, { backgroundColor: t.energy, borderColor: t.energy }]}>
+                <Text style={{ color: INK, fontWeight: "900", fontSize: 13, letterSpacing: 0.6, textTransform: "uppercase" }}>Free for organizers · No app for players</Text>
               </View>
             </Pop>
             <View>
-              <Display level="display" role="heading" aria-level={1} style={[s.h1, { fontSize: wide ? 68 : 44, lineHeight: wide ? 74 : 50 }]}>
-                Stop asking <Text style={{ color: t.accent }}>who's playing.</Text>
+              <Display level="display" role="heading" aria-level={1} style={[s.h1, { color: INK, fontSize: wide ? 92 : 52, lineHeight: wide ? 88 : 52 }]}>
+                Stop asking{"\n"}<Text style={{ color: PAPER }}>who's playing.</Text>
               </Display>
             </View>
-            <Text style={s.lead}>
-              One link for your weekly game. Players tap <Text style={s.leadStrong}>I'm in</Text>. Turnout handles the count, the waitlist,
+            <Text style={[s.lead, { color: INK, opacity: 0.85 }]}>
+              One link for your weekly game. Players tap <Text style={[s.leadStrong, { color: INK }]}>I'm in</Text>. Turnout handles the count, the waitlist,
               reminders, dropouts and teams.
             </Text>
             <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-              <CTA label="Start a group, it's free" onPress={start} />
-              <CTA label="Try the demo, no sign-up" secondary onPress={() => router.push("/demo")} />
+              <CTA label="Start a group, it's free" inverse onPress={start} />
+              <CTA label="Try the demo, no sign-up" secondary inverse onPress={() => router.push("/demo")} />
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
               <AppStoreBadge height={44} />
-              <Text style={{ color: t.muted, fontSize: 14, flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
-            </View>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 16 }}>
-              {["No app for players", "Free for organizers", "Set up in a minute"].map((x) => (
-                <Text key={x} style={{ color: t.muted, fontSize: 14 }}>
-                  <Text style={{ color: t.accent, fontWeight: "800" }}>✓ </Text>
-                  {x}
-                </Text>
-              ))}
+              <Text style={{ color: INK, opacity: 0.8, fontSize: 14, fontWeight: "600", flexShrink: 1 }}>Drop-out alerts and reminders on your iPhone.</Text>
             </View>
           </View>
           <View style={{ flex: wide ? 0.85 : undefined, width: wide ? undefined : "100%", alignItems: "center" }}>
@@ -113,39 +105,40 @@ export function Landing() {
         <View style={{ flexDirection: wide ? "row" : "column", gap: 24, alignItems: wide ? "stretch" : "center" }}>
           <ChatMess />
           <Reveal delay={200} style={wide ? { flex: 1, width: "100%" } : { width: "100%", maxWidth: 520 }}>
-            <View style={[s.panel, { borderColor: t.accent, gap: 14 }, wide && { flex: 1 }]}>
-              <Text style={s.panelLabel}>With Turnout</Text>
+            <View style={[s.panel, { backgroundColor: t.energy, borderColor: t.energy, gap: 14, overflow: "hidden" }, wide && { flex: 1 }]}>
+              <Texture color={INK} opacity={0.12} />
+              <Text style={[s.panelLabel, { color: INK }]}>With Turnout</Text>
               <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-                <Display level="stat" style={{ fontSize: 64, lineHeight: 68 }}>12</Display>
-                <Text style={{ color: t.muted, fontSize: 24, fontWeight: "700" }}>/ 14 in</Text>
+                <Display level="stat" style={{ fontSize: 96, lineHeight: 96, color: INK }}>12</Display>
+                <Text style={{ color: INK, fontSize: 28, fontWeight: "800", opacity: 0.7 }}>/ 14 in</Text>
               </View>
-              <Text style={{ color: t.energy, fontWeight: "800", fontSize: 16 }}>2 spots left · updated just now</Text>
+              <Text style={{ color: INK, fontWeight: "900", fontSize: 16, textTransform: "uppercase", letterSpacing: 0.6 }}>2 spots left · updated just now</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
                 {["Maya", "Priya", "Luis", "Aisha", "Chen", "Sam", "Noor", "Ben", "Kai", "Ivy", "Omar", "Zoe"].map((n) => (
-                  <View key={n} style={[s.chip, { paddingVertical: 5, paddingHorizontal: 11 }]}>
-                    <Text style={{ color: t.text, fontSize: 13, fontWeight: "600" }}>{n}</Text>
+                  <View key={n} style={{ paddingVertical: 5, paddingHorizontal: 11, borderRadius: 999, backgroundColor: "rgba(7,33,15,0.18)" }}>
+                    <Text style={{ color: INK, fontSize: 13, fontWeight: "800" }}>{n}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={{ color: t.muted, fontSize: 15 }}>Always accurate. Nobody has to count.</Text>
+              <Text style={{ color: INK, opacity: 0.8, fontSize: 15, fontWeight: "600" }}>Always accurate. Nobody has to count.</Text>
             </View>
           </Reveal>
         </View>
       </View>
 
       {/* ── How it works ── */}
-      <View ref={howRef} style={[s.band, { backgroundColor: t.card, borderColor: t.border }]}>
-        <View style={[s.section, { gap: 40, paddingVertical: 80 }]}>
+      <View ref={howRef} style={[s.band, { backgroundColor: PAPER, borderColor: PAPER }]}>
+        <View style={[s.section, { gap: 40, paddingVertical: 88 }]}>
           <Reveal style={{ gap: 12 }}>
-            <Text style={s.kicker}>How it works</Text>
-            <Display level="h1" style={s.h2}>Set up once. Runs every week.</Display>
+            <Text style={[s.kicker, { color: "#C2410C" }]}>How it works</Text>
+            <Display level="h1" style={[s.h2, { color: INK, fontSize: wide ? 56 : 40, lineHeight: wide ? 58 : 42 }]}>Set up once.{"\n"}Runs every week.</Display>
           </Reveal>
           <View style={{ flexDirection: wide ? "row" : "column", gap: 28 }}>
             {steps.map((step, i) => (
-              <Reveal key={step.n} delay={i * 140} style={{ flex: 1, gap: 12 }}>
-                <Display level="stat" style={s.stepNumber}>{step.n}</Display>
-                <Text style={s.h3}>{step.title}</Text>
-                <Text style={s.body}>{step.body}</Text>
+              <Reveal key={step.n} delay={i * 140} style={{ flex: 1, gap: 10, borderTopWidth: 4, borderTopColor: i === 1 ? "#EA580C" : "#16A34A", paddingTop: 18 }}>
+                <Display level="stat" style={[s.stepNumber, { color: i === 1 ? "#EA580C" : "#16A34A", fontSize: 96, lineHeight: 96 }]}>{step.n}</Display>
+                <Text style={[s.h3, { color: INK, fontSize: 22 }]}>{step.title}</Text>
+                <Text style={[s.body, { color: "#3F4A44" }]}>{step.body}</Text>
               </Reveal>
             ))}
           </View>
@@ -162,8 +155,8 @@ export function Landing() {
           {features.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 110} style={{ flexBasis: wide ? "31%" : "100%", flexGrow: 1 }}>
               <HoverCard>
-                <View style={[s.iconBubble, i % 2 === 1 && { backgroundColor: t.energySoft }]}>
-                  <Icon name={f.icon as IconName} size={24} color={i % 2 === 1 ? t.energy : t.accent} />
+                <View style={[s.iconBubble, { backgroundColor: i % 2 === 1 ? t.energy : t.accent, width: 56, height: 56, borderRadius: 16 }]}>
+                  <Icon name={f.icon as IconName} size={28} color={INK} strokeWidth={2.2} />
                 </View>
                 <Text style={s.h3}>{f.title}</Text>
                 <Text style={s.body}>{f.body}</Text>
@@ -230,13 +223,13 @@ export function Landing() {
       {/* ── Final CTA ── */}
       <View style={[s.section, { paddingBottom: 80 }]}>
         <Reveal>
-          <View style={s.ctaBand}>
-            <Glow color="rgba(255,255,255,0.18)" size={420} style={{ top: -160, right: -80 }} duration={8000} />
-            <Display level="h1" style={[s.h2, { color: "#fff", textAlign: "center", fontSize: wide ? 44 : 32 }]}>Your next game, sorted in one link.</Display>
-            <Text style={{ color: "rgba(255,255,255,0.85)", fontSize: 18, textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
+          <View style={[s.ctaBand, { backgroundColor: t.energy }]}>
+            <Texture color={INK} opacity={0.12} />
+            <Display level="display" style={[s.h2, { color: INK, textAlign: "center", fontSize: wide ? 64 : 38, lineHeight: wide ? 64 : 40, textTransform: "uppercase" }]}>Your next game,{"\n"}sorted in one link.</Display>
+            <Text style={{ color: INK, opacity: 0.8, fontSize: 18, fontWeight: "600", textAlign: "center" }}>Free for organizers. Set up in under a minute.</Text>
             <Pulse>
-              <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: "0 12px 28px rgba(0,0,0,0.25)" }, pressed && { opacity: 0.9 }]}>
-                <Text style={{ color: "#0B3D1E", fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
+              <Pressable accessibilityRole="button" onPress={start} style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => [s.ctaInverse, { backgroundColor: INK }, webTransition, hovered && { transform: [{ translateY: -2 }], boxShadow: "0 12px 28px rgba(0,0,0,0.35)" }, pressed && { opacity: 0.9 }]}>
+                <Text style={{ color: PAPER, fontSize: 18, fontWeight: "800" }}>Start a group →</Text>
               </Pressable>
             </Pulse>
             <AppStoreBadge height={44} />
@@ -282,24 +275,27 @@ export function Landing() {
   );
 }
 
-function CTA({ label, onPress, secondary }: { label: string; onPress: () => void; secondary?: boolean }) {
+function CTA({ label, onPress, secondary, inverse }: { label: string; onPress: () => void; secondary?: boolean; inverse?: boolean }) {
   const t = useTheme();
+  // On a solid green panel the primary button is ink and the secondary is paper.
+  const bg = inverse ? (secondary ? PAPER : INK) : secondary ? (undefined as string | undefined) : t.accent;
+  const fg = inverse ? (secondary ? INK : PAPER) : secondary ? t.text : t.accentText;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({
-        backgroundColor: secondary ? (hovered ? t.card : "transparent") : t.accent,
+        backgroundColor: bg ?? (hovered ? t.card : "transparent"),
         borderWidth: 1,
-        borderColor: secondary ? t.border : t.accent,
+        borderColor: inverse ? bg : secondary ? t.border : t.accent,
         paddingVertical: 16,
         paddingHorizontal: 24,
         borderRadius: 14,
         transform: [{ translateY: hovered && !pressed ? -2 : 0 }, { scale: pressed ? 0.97 : 1 }],
-        boxShadow: secondary ? undefined : hovered ? `0 12px 30px ${t.accentShadow}` : `0 6px 18px ${t.accentShadow}`,
+        boxShadow: secondary && !inverse ? undefined : hovered ? "0 12px 30px rgba(0,0,0,0.25)" : "0 6px 18px rgba(0,0,0,0.18)",
       })}
     >
-      <Text style={{ color: secondary ? t.text : t.accentText, fontSize: 17, fontWeight: "800" }}>
+      <Text style={{ color: fg, fontSize: 17, fontWeight: "800" }}>
         {label}
         {secondary ? "" : " →"}
       </Text>
@@ -472,9 +468,9 @@ const styles = (t: Theme) =>
       paddingVertical: 7, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: t.border, backgroundColor: t.card,
     },
     pillDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: t.accent },
-    kicker: { color: t.accent, fontWeight: "800", fontSize: 14, letterSpacing: 1, textTransform: "uppercase" },
+    kicker: { color: t.energy, fontWeight: "900", fontSize: 14, letterSpacing: 2, textTransform: "uppercase" },
     h1: { color: t.text, letterSpacing: -2.5 },
-    h2: { color: t.text, fontSize: 36, letterSpacing: -1.2, lineHeight: 42 },
+    h2: { color: t.text, fontSize: 40, letterSpacing: -1, lineHeight: 44, textTransform: "uppercase" },
     h3: { color: t.text, fontSize: 19, fontWeight: "800" },
     lead: { color: t.muted, fontSize: 20, lineHeight: 30, maxWidth: 560 },
     leadStrong: { color: t.text, fontWeight: "800" },
@@ -493,7 +489,7 @@ const styles = (t: Theme) =>
     liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: t.energy },
     ctaBand: {
       borderRadius: 32, paddingVertical: 64, paddingHorizontal: 24, alignItems: "center", gap: 18, overflow: "hidden",
-      backgroundImage: "linear-gradient(135deg, #16A34A 0%, #0E7A5F 60%, #C2410C 130%)",
+
     },
     ctaInverse: { backgroundColor: "#fff", paddingVertical: 17, paddingHorizontal: 30, borderRadius: 16, marginTop: 8 },
   });

@@ -78,20 +78,20 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   let waitlistPos = 0;
   const tone = sportTone(group.activity, t);
   return (
-    <View style={{ backgroundColor: t.card, borderColor: isNext || expanded ? tint(tone, 0.6) : t.border, borderWidth: 1, borderRadius: 20, overflow: "hidden" }}>
-      {isNext && <Texture color={tone} opacity={0.07} />}
+    <View style={{ backgroundColor: isNext ? tone : t.card, borderColor: isNext ? tone : expanded ? tint(tone, 0.6) : t.border, borderWidth: 1, borderRadius: 20, overflow: "hidden" }}>
+      {isNext && <Texture color={t.ink} opacity={0.14} />}
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${group.name}, ${status.text}. ${expanded ? "Hide details" : "Show details"}`}
         onPress={onToggle}
-        style={({ hovered }: { hovered?: boolean }) => ({ padding: 16, gap: 10, backgroundColor: hovered ? t.surface2 : "transparent" })}
+        style={({ hovered }: { hovered?: boolean }) => ({ padding: 16, gap: 10, backgroundColor: hovered && !isNext ? t.surface2 : "transparent" })}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View style={{ flex: 1, gap: 2 }}>
-            {isNext && <Eyebrow color={tone}>Next up · {relativeDay(session.startsAt, group.timezone)}</Eyebrow>}
-            <Display level="h1" style={{ fontSize: 22, lineHeight: 26 }} numberOfLines={1}>{group.name}</Display>
-            <Text style={{ color: t.muted, fontSize: 14 }} numberOfLines={expanded ? 2 : 1}>
+            {isNext && <Eyebrow color={t.ink}>Next up · {relativeDay(session.startsAt, group.timezone)}</Eyebrow>}
+            <Display level="h1" style={{ fontSize: 24, lineHeight: 28, color: isNext ? t.ink : t.text, textTransform: isNext ? "uppercase" : "none" }} numberOfLines={1}>{group.name}</Display>
+            <Text style={{ color: isNext ? t.ink : t.muted, opacity: isNext ? 0.8 : 1, fontSize: 14, fontWeight: isNext ? "600" : "400" }} numberOfLines={expanded ? 2 : 1}>
               {sessionWhen(session.startsAt, group.durationMinutes, group.timezone)}
               {where ? ` · ${where}` : ""}
               {expanded ? ` · ${describeRecurrence(group)}` : ""}
@@ -100,18 +100,18 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
           </View>
           {!session.cancelled && (
             <View style={{ alignItems: "flex-end", gap: 2 }}>
-              <Display level="statSm" style={{ fontSize: 30, lineHeight: 34 }}>{String(item.confirmed)}</Display>
-              <Text style={{ color: t.muted, fontSize: 12, fontWeight: "700" }}>{group.cap ? `of ${group.cap}` : goal ? `of ${goal}` : "in"}</Text>
+              <Display level="statSm" style={{ fontSize: 34, lineHeight: 36, color: isNext ? t.ink : t.text }}>{String(item.confirmed)}</Display>
+              <Text style={{ color: isNext ? t.ink : t.muted, opacity: isNext ? 0.8 : 1, fontSize: 12, fontWeight: "700" }}>{group.cap ? `of ${group.cap}` : goal ? `of ${goal}` : "in"}</Text>
             </View>
           )}
-          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={t.muted} /></View>
+          <View style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}><Icon name="chevronDown" size={18} color={isNext ? t.ink : t.muted} /></View>
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {goal && !session.cancelled ? <View style={{ flex: 1 }}><ProgressBar value={item.confirmed} max={goal} height={6} tone={fill >= 1 ? t.accent : t.energy} /></View> : <View style={{ flex: 1 }} />}
-          <Pill label={status.text} color={status.color} />
+          {goal && !session.cancelled ? <View style={{ flex: 1 }}><ProgressBar value={item.confirmed} max={goal} height={6} tone={isNext ? t.ink : fill >= 1 ? t.accent : t.energy} /></View> : <View style={{ flex: 1 }} />}
+          <Pill label={status.text} color={isNext ? t.ink : status.color} />
         </View>
-        {!expanded && hint && <IconLine icon="sparkles" color={t.text}>{hint}</IconLine>}
+        {!expanded && hint && <IconLine icon="sparkles" color={isNext ? t.ink : t.text}>{hint}</IconLine>}
       </Pressable>
 
       {expanded && (
