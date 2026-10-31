@@ -9,7 +9,7 @@ import { ActionGrid, ActionTile } from "./ActionTile";
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
 import { Pop } from "./motion";
-import { Chip, Display, Eyebrow, IconLine, Pill, Ring, Texture } from "./ui";
+import { Chip, Display, Eyebrow, IconLine, Pill, Ring } from "./ui";
 
 /**
  * One group on the dashboard. Collapsed: when, how full, and anything that needs attention.
@@ -78,8 +78,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
   let waitlistPos = 0;
   const tone = sportTone(group.activity, t);
   return (
-    <View style={{ backgroundColor: isNext ? tint(tone, 0.1) : t.card, borderColor: isNext ? tint(tone, 0.3) : t.border, borderWidth: 1, borderRadius: 22, overflow: "hidden", boxShadow: t.shadow.card }}>
-      {isNext && <Texture color={tone} opacity={0.07} />}
+    <View style={{ backgroundColor: t.card, borderColor: isNext ? tint(tone, 0.35) : t.border, borderWidth: 1, borderRadius: 22, overflow: "hidden", boxShadow: t.shadow.card }}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}

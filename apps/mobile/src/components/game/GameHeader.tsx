@@ -4,7 +4,7 @@ import { Linking, Pressable, Text, View } from "react-native";
 import { calendarUrl } from "@/lib/api";
 import { mapsUrl, relativeDay, sessionWhen } from "@/lib/format";
 import { sportTone, tint, useTheme } from "@/lib/theme";
-import { Display, Eyebrow, IconLine, Pill, Texture } from "../ui";
+import { Display, Eyebrow, IconLine, Pill } from "../ui";
 
 // The top of a group page: what the game is, when, where. The sport sets the colour; a change for this week is one
 // pill that opens, so the page starts with the game and not a warning box.
@@ -20,8 +20,7 @@ export function GameHeader({ page, slug }: { page: GroupPage; slug: string }) {
   const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: group.timezone });
 
   return (
-    <View style={{ borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: tint(tone, 0.1), borderWidth: 1, borderColor: tint(tone, 0.25), padding: 18, gap: 10, boxShadow: t.shadow.card }}>
-      <Texture color={tone} opacity={0.08} />
+    <View style={{ borderRadius: t.radius.lg, overflow: "hidden", backgroundColor: t.card, borderWidth: 1, borderColor: tint(tone, 0.3), padding: 18, gap: 10, boxShadow: t.shadow.card }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: tint(tone, 0.18), alignItems: "center", justifyContent: "center" }}>
           <Text style={{ fontSize: 22 }}>{activityEmoji(group.activity, group.name)}</Text>
