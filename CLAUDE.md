@@ -12,7 +12,7 @@ Weekly in/out headcounts for recurring games. See README.md for layout, routes, 
 ## Environments & deploys
 - test: https://turnout-test.dataeaver.ca (push to `main`) · live: https://turnout.dataeaver.ca (push a `v*` tag, reuses the tested image). The user wants live released only at the very end of a batch of work.
 - The repo is public (since 2026-09-28), so GitHub Actions runs free. If Actions can't run, `./infra/deploy.sh test` does the same deploy from this machine (checks first; the web upload runs in an ACR Linux container because the SWA uploader is x86-only). Live needs `CONFIRM_LIVE=yes`.
-- Demo data on test: `./infra/seed-demo.sh <organizer email>` (two "(demo)" groups with ~3 months of history; re-run replaces them).
+- Demo data: `./infra/seed-demo.sh <organizer email> [test|live]` (two "(demo)" groups with ~3 months of history; re-run replaces them; default test).
 - Live keeps one API replica warm (`apiMinReplicas`); test scales to zero to save cost, so the first sign-in on test after idle can time out (Entra's sign-in code call waits ~2s) — retry it.
 - The container registry is shared with Tally (ai-receipt-app); don't delete it or turn on its admin user.
 - Everything is in resource group `rg-turnout` (canadacentral). `infra/provision.sh` applies `infra/*.bicep` and needs Owner, so it runs locally, never in CI. Don't run it while a deploy workflow is in progress (it reads the running images).
