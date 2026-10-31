@@ -19,7 +19,7 @@ export default function ScheduleScreen() {
 function Schedule() {
   const t = useTheme();
   const api = useApi();
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { slug, at } = useLocalSearchParams<{ slug: string; at?: string }>();
   const [group, setGroup] = useState<Group | null>(null);
   const [weeks, setWeeks] = useState<UpcomingWeek[] | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -30,10 +30,15 @@ function Schedule() {
       ([p, w]) => {
         setGroup(p.group);
         setWeeks(w.weeks);
+        // Opened from a calendar day: start with that week's editor open.
+        if (at) {
+          const match = w.weeks.find((week) => new Date(week.scheduledAt).toLocaleDateString("en-CA", { timeZone: p.group.timezone }) === at);
+          if (match) setEditing(match.scheduledAt);
+        }
       },
       (e: Error) => setError(e.message),
     );
-  }, [api, slug]);
+  }, [api, slug, at]);
 
   const update = async (week: UpcomingWeek, input: Parameters<typeof api.updateWeek>[2]) => {
     setError(null);

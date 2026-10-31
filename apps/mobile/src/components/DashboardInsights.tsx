@@ -197,10 +197,13 @@ function GamePill({ game, large }: { game: DayGame; large?: boolean }) {
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={`${item.group.name} at ${time}${isCurrent ? `, ${item.confirmed} in` : ""}${cancelled ? ", skipped" : ""}${past ? ", past game" : ""}`}
+      // Past: that game in history. This week: the group page. Later weeks: the schedule, opened on that week.
       onPress={() =>
         past
           ? router.push({ pathname: "/history/[slug]", params: { slug: item.group.slug, at: game.day } })
-          : router.push({ pathname: "/g/[slug]", params: { slug: item.group.slug } })
+          : isCurrent
+            ? router.push({ pathname: "/g/[slug]", params: { slug: item.group.slug } })
+            : router.push({ pathname: "/schedule/[slug]", params: { slug: item.group.slug, at: game.day } })
       }
       style={({ hovered }: { hovered?: boolean }) => [s.game, large && { paddingVertical: 8 }, past && { borderLeftColor: t.muted }, hovered && { borderColor: t.accent }, cancelled && { borderLeftColor: t.danger, opacity: 0.6 }]}
     >
