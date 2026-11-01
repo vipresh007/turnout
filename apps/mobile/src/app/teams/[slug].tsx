@@ -2,6 +2,7 @@ import { balanceTeams, DEFAULT_SKILL, teamNames, teamsText, type GroupPage, type
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { Pop } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Button, Card, Muted, Screen } from "@/components/ui";
