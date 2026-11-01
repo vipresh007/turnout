@@ -8,7 +8,8 @@ import { Icon, type IconName } from "../Icon";
 import { Chip } from "../ui";
 import { forecastFor } from "./Organizer";
 
-export const MANAGE_BAR_HEIGHT = 72;
+/** Room the page leaves at the bottom for the bar: the buttons, plus the forecast row when there is one. */
+export const manageBarInset = (page: GroupPage) => (forecastFor(page) ? 150 : 100);
 
 // The organizer's tools, always within reach at the bottom of the group page instead of below the rosters.
 // When autopilot has something to say, it says it here, with the first person to ask.

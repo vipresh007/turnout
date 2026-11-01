@@ -68,6 +68,18 @@ function TeamMaker() {
     }
   };
 
+  /** Tap a name: they move to the next team (A → B → … → A). Strength totals follow. */
+  const move = (memberId: string, from: number) => {
+    if (!teams) return;
+    const to = (from + 1) % teams.length;
+    const player = teams[from]!.players.find((p) => p.memberId === memberId);
+    if (!player) return;
+    setTeams(teams.map((tm, i) => {
+      const players = i === from ? tm.players.filter((p) => p.memberId !== memberId) : i === to ? [...tm.players, player] : tm.players;
+      return { players, total: players.reduce((n, p) => n + p.skill, 0) };
+    }));
+  };
+
   const share = async () => {
     if (!teams) return;
     if (await shareText(teamsText(page.group.name, teams.map((tm) => tm.players.map((p) => p.name))))) {
@@ -157,14 +169,23 @@ function TeamMaker() {
                     <Text style={{ color: t.muted }}>strength {tm.total}</Text>
                   </View>
                   {tm.players.map((p) => (
-                    <Text key={p.memberId} style={{ color: t.text, fontSize: 15 }}>
-                      {p.name}
-                    </Text>
+                    <Pressable
+                      key={p.memberId}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move ${p.name} to ${teamNames[(i + 1) % teams.length]}`}
+                      onPress={() => move(p.memberId, i)}
+                      hitSlop={4}
+                      style={({ pressed, hovered }: { pressed: boolean; hovered?: boolean }) => ({ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4, opacity: pressed ? 0.6 : 1, backgroundColor: hovered ? t.surface2 : "transparent", borderRadius: 8 })}
+                    >
+                      <Text style={{ color: t.text, fontSize: 15 }}>{p.name}</Text>
+                      <Icon name="arrowRight" size={14} color={t.muted} />
+                    </Pressable>
                   ))}
                 </Card>
               </Pop>
             ))}
           </View>
+          <Muted>Tap a name to move them to the next team.</Muted>
           <View style={{ flexDirection: "row", gap: 12 }}>
             <Button label="Save & show everyone" onPress={save} loading={busy === "save"} />
             <Button label="Share" variant="secondary" onPress={share} />

@@ -315,7 +315,7 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
         ) : (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
             {icon && <Icon name={icon} size={sz === "lg" ? 20 : sz === "sm" ? 15 : 17} color={color} strokeWidth={2.2} />}
-            <Text numberOfLines={1} style={[styles.buttonText, sz === "lg" && styles.bigButtonText, sz === "sm" && styles.smallButtonText, { color, flexShrink: 1 }]}>{label}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={[styles.buttonText, sz === "lg" && styles.bigButtonText, sz === "sm" && styles.smallButtonText, { color, flexShrink: 1 }]}>{label}</Text>
           </View>
         );
       }}

@@ -87,7 +87,7 @@ export default function ManageScreen() {
 
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button
-          label="Remind everyone"
+          label="Remind all"
           icon="bell"
           loading={pending === "remind"}
           disabled={session.cancelled}

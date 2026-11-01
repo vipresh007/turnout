@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { GameHeader } from "@/components/game/GameHeader";
 import { Headcount, type IdentityStep } from "@/components/game/Headcount";
-import { ManageBar, MANAGE_BAR_HEIGHT } from "@/components/game/ManageBar";
+import { ManageBar, manageBarInset } from "@/components/game/ManageBar";
 import { Rosters } from "@/components/game/Rosters";
 import { FindSub, InviteFriend, SignInAsk } from "@/components/game/PlayerExtras";
 import { RecapCard } from "@/components/game/RecapCard";
@@ -176,7 +176,7 @@ export default function GroupScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Screen signInLabel="Organizer? Sign in" bottomInset={viewer.isOrganizer ? MANAGE_BAR_HEIGHT + 24 : 0}>
+      <Screen signInLabel="Organizer? Sign in" bottomInset={viewer.isOrganizer && !page.seasonOver ? manageBarInset(page) : 0}>
         {/* The page already shows the name large; the nav bar only needs the back arrow. */}
         <Stack.Screen options={{ title: group.name, headerTitle: "", headerShown: Platform.OS !== "web" }} />
 
