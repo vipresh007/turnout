@@ -32,5 +32,5 @@ test("same seed, same teams; different seeds can differ among equal skills", () 
 
 test("teams text reads as a chat post: header, a block per team with a count, a name per line", () => {
   const text = teamsText("Sunday Soccer", [["Arjun", "Grace"], ["Yusuf"]], "soccer");
-  assert.equal(text, "⚽️ Sunday Soccer · Teams\n\n🟢 Team A (2)\n• Arjun\n• Grace\n\n🔵 Team B (1)\n• Yusuf\n\nGood game, everyone 🙌");
+  assert.equal(text, "⚽ Sunday Soccer · Teams\n\n🟢 Team A (2)\n• Arjun\n• Grace\n\n🔵 Team B (1)\n• Yusuf\n\nGood game, everyone 🙌");
 });
