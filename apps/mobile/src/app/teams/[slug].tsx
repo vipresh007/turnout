@@ -83,7 +83,7 @@ function TeamMaker() {
 
   const share = async () => {
     if (!teams) return;
-    if (await shareText(teamsText(page.group.name, teams.map((tm) => tm.players.map((p) => p.name))))) {
+    if (await shareText(teamsText(page.group.name, teams.map((tm) => tm.players.map((p) => p.name)), page.group.activity))) {
       setNotice("Copied to clipboard");
       setTimeout(() => setNotice(null), 2000);
     }

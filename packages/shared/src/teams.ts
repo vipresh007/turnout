@@ -1,3 +1,4 @@
+import { activityEmoji } from "./share.ts";
 export interface TeamPlayer {
   memberId: string;
   name: string;
@@ -67,7 +68,10 @@ export function balanceTeams(players: readonly TeamPlayer[], count: number, seed
 }
 
 /** Text for sharing teams in the group chat, from each team's player names. */
-export function teamsText(groupName: string, teams: string[][]): string {
-  const lines = teams.map((names, i) => `${teamNames[i]}: ${names.join(", ")}`);
-  return `${groupName} teams 🏁\n${lines.join("\n")}`;
+const teamMarks = ["🟢", "🔵", "🟠", "🟣"];
+
+/** The teams as a chat post: a header, then one block per team with a colour marker, a count and a name per line. */
+export function teamsText(groupName: string, teams: string[][], activity: string | null = null): string {
+  const blocks = teams.map((names, i) => [`${teamMarks[i] ?? "⚪️"} ${teamNames[i]} (${names.length})`, ...names.map((n) => `• ${n}`)].join("\n"));
+  return [`${activityEmoji(activity, groupName)} ${groupName} · Teams`, "", ...blocks.flatMap((b) => [b, ""]), "Good game, everyone 🙌"].join("\n").trimEnd();
 }

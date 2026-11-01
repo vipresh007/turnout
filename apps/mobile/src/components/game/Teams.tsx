@@ -6,12 +6,12 @@ import { Icon } from "../Icon";
 import { Card, SectionHeader } from "../ui";
 
 /** This week's teams, folded to one line until someone wants the full lists. */
-export function Teams({ teams, roster, groupName, onShare }: { teams: string[][]; roster: Rsvp[]; groupName: string; onShare: (text: string) => void }) {
+export function Teams({ teams, roster, groupName, activity, onShare }: { teams: string[][]; roster: Rsvp[]; groupName: string; activity?: string | null; onShare: (text: string) => void }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
   const names = new Map(roster.map((r) => [r.memberId, r.name]));
   const named = teams.map((ids) => ids.map((id) => names.get(id)).filter((n): n is string => !!n));
-  const text = teamsText(groupName, named);
+  const text = teamsText(groupName, named, activity ?? null);
   const summary = named.map((ns, i) => `${teamNames[i]} (${ns.length})`).join(" vs ");
   return (
     <Card>

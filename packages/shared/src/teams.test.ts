@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { balanceTeams, type TeamPlayer } from "./teams.ts";
+import { balanceTeams, type TeamPlayer, teamsText } from "./teams.ts";
 
 const p = (name: string, skill: number): TeamPlayer => ({ memberId: name, name, skill });
 
@@ -28,4 +28,9 @@ test("same seed, same teams; different seeds can differ among equal skills", () 
   assert.equal(JSON.stringify(balanceTeams(players, 2, 1)), a);
   const variants = new Set(Array.from({ length: 10 }, (_, s) => JSON.stringify(balanceTeams(players, 2, s + 100))));
   assert.ok(variants.size > 1);
+});
+
+test("teams text reads as a chat post: header, a block per team with a count, a name per line", () => {
+  const text = teamsText("Sunday Soccer", [["Arjun", "Grace"], ["Yusuf"]], "soccer");
+  assert.equal(text, "⚽️ Sunday Soccer · Teams\n\n🟢 Team A (2)\n• Arjun\n• Grace\n\n🔵 Team B (1)\n• Yusuf\n\nGood game, everyone 🙌");
 });
