@@ -95,6 +95,20 @@ function Metrics() {
       </View>
 
       <Card>
+        <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Where organizers come from</Text>
+        {m.sources.length === 0 ? (
+          <Muted>No tagged visits yet. "Start your own group" links on group pages carry ?ref=, and campaign links can use ?utm_source= and ?utm_campaign=.</Muted>
+        ) : (
+          m.sources.map((r, i) => (
+            <View key={r.source} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderColor: t.border }}>
+              <Text style={{ color: t.text, fontWeight: "600", flexShrink: 1 }} numberOfLines={1}>{r.source.startsWith("group:") ? `Referred by a group (${r.source.slice(6)})` : r.source}</Text>
+              <Text style={{ color: t.muted }}>{r.visits} visits · <Text style={{ color: t.text, fontWeight: "700" }}>{r.groups} groups</Text></Text>
+            </View>
+          ))
+        )}
+      </Card>
+
+      <Card>
         <Text style={{ color: t.text, fontWeight: "800", fontSize: 16 }}>Feedback</Text>
         {m.feedback.length === 0 && <Muted>Nothing yet. Organizers get a check-in after 3 games, and can suggest things from the account menu.</Muted>}
         {m.feedback.map((f, i) => (

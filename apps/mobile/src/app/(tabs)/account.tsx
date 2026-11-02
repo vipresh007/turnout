@@ -1,6 +1,7 @@
+import type { OrganizerNotify } from "@turnout/shared";
 import Constants from "expo-constants";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Switch, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
@@ -28,6 +29,18 @@ function Account() {
   const [push, setPush] = useState(false);
   const [pushNote, setPushNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<OrganizerNotify | null>(null);
+  useEffect(() => {
+    api.notificationPrefs().then(setPrefs, () => {});
+  }, [api]);
+  const setPref = async (key: keyof OrganizerNotify, value: boolean) => {
+    setPrefs((p) => (p ? { ...p, [key]: value } : p)); // optimistic
+    try {
+      setPrefs(await api.setNotificationPrefs({ [key]: value }));
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     if (pushAvailable) Promise.all([pushPermission(), hasPushToken()]).then(([p, has]) => setPush(p === "granted" && has));
@@ -78,11 +91,12 @@ function Account() {
         </View>
       </View>
 
-      {pushAvailable && (
-        <RowGroup>
-          <ListRow first last icon="bell" title="Notifications" subtitle={pushNote ?? "Dropouts and short games"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />
-        </RowGroup>
-      )}
+      <RowGroup>
+        {pushAvailable && <ListRow first icon="bell" title="Notifications on this phone" subtitle={pushNote ?? "Dropouts, short games and the alerts below"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />}
+        <ListRow first={!pushAvailable} icon="mail" title="Weekly digest" subtitle="Monday morning: last week's games, who's on a streak, what's owed" right={<Switch value={prefs?.digest ?? true} disabled={!prefs} onValueChange={(v) => setPref("digest", v)} trackColor={{ true: t.accent }} />} />
+        <ListRow icon="check" title="Game is full" subtitle="Once per game, when the last spot goes" right={<Switch value={prefs?.full ?? true} disabled={!prefs} onValueChange={(v) => setPref("full", v)} trackColor={{ true: t.accent }} />} />
+        <ListRow last icon="user" title="New player joins" subtitle="Someone new found your link" right={<Switch value={prefs?.newPlayer ?? false} disabled={!prefs} onValueChange={(v) => setPref("newPlayer", v)} trackColor={{ true: t.accent }} />} />
+      </RowGroup>
 
       <RowGroup>
         <ListRow first icon="trending" title="Your stats" subtitle="Games played, attendance and streaks" onPress={() => router.push("/stats")} />

@@ -1,8 +1,9 @@
-import { type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
+import { groupShareMessage, type ActivityItem, type Dashboard, type DashboardGroup } from "@turnout/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Platform, RefreshControl, Text, useWindowDimensions, View } from "react-native";
 import { CalendarView, Regulars, StatRow, TurnoutChart } from "@/components/DashboardInsights";
+import { FirstRunChecklist } from "@/components/FirstRun";
 import { GroupTile } from "@/components/GroupTile";
 import { PageGlow, SITE_GUTTER, SITE_WIDTH, SiteHeader } from "@/components/SiteHeader";
 import { FeedbackAsk } from "@/components/FeedbackAsk";
@@ -12,7 +13,8 @@ import { maybeAskForReview } from "@/lib/review";
 import { Reveal, RevealScrollView } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
 import { Button, Display, EmptyState, ListRow, ProgressBar, RowGroup, SectionHeader, StepBadge } from "@/components/ui";
-import { useApi } from "@/lib/api";
+import { shareUrl, useApi } from "@/lib/api";
+import { markShared } from "@/lib/source";
 import { useLive } from "@/lib/live";
 import { greeting, sessionWhen, timeAgo } from "@/lib/format";
 import { shareText } from "@/lib/share";
@@ -114,6 +116,14 @@ function DashboardView() {
           </>
         ) : (
           <>
+            <FirstRunChecklist
+              groups={groups}
+              onShare={() => {
+                if (!next) return;
+                void markShared();
+                share(groupShareMessage({ name: next.group.name, activity: next.group.activity, location: next.session.location ?? next.group.location, timezone: next.group.timezone, cap: next.group.cap, targetPlayers: next.group.targetPlayers, startsAt: next.session.startsAt, confirmed: next.confirmed, link: shareUrl(next.group.slug) }));
+              }}
+            />
             {/* The next game first: what an organizer needs when they open Turnout. */}
             {next && <GroupTile item={next} isNext expanded={expanded} onToggle={() => setExpanded((e) => !e)} onShare={share} onChanged={load} />}
             {notice && <Text style={{ color: t.accent, fontWeight: "600" }}>{notice}</Text>}

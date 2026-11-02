@@ -1,6 +1,7 @@
 import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp, type Session } from "@turnout/shared";
 import { track } from "./analytics.ts";
 import { pushToOrganizers } from "./organizerPush.ts";
+import { notifyPrefs } from "./digest.ts";
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
@@ -170,4 +171,57 @@ export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rs
       .catch((err) => console.warn("organizer alert failed", err));
   }
   await pushToOrganizers(db, organizers.map((o) => o.id), { title, body: `${when} · ${count}. You need ${need} more.`, path: `/g/${group.slug}` });
+}
+
+const organizersOf = (db: Db, group: GroupRow) =>
+  db.query<{ id: string; email: string | null; notify: unknown }>(
+    `SELECT id, email, notify FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
+    [group.organizerId, group.id],
+  );
+
+/** The game just filled up: one push to the organizers who want it (once per game). */
+export async function onGameFull(db: Db, group: GroupRow, session: Session, rsvps: Rsvp[]): Promise<void> {
+  if (!group.cap || session.cancelled) return;
+  const roster = buildRoster(rsvps, group.cap);
+  if (roster.spotsLeft > 0) return;
+  const [claimed] = await db.query(`UPDATE sessions SET full_alerted_at = now() WHERE id = $1 AND full_alerted_at IS NULL RETURNING 1`, [session.id]);
+  if (!claimed) return;
+  const who = (await organizersOf(db, group)).filter((o) => notifyPrefs(o.notify).full).map((o) => o.id);
+  if (!who.length) return;
+  await pushToOrganizers(db, who, { title: `${group.name} is full 🎉`, body: `${group.cap}/${group.cap} in for ${whenLabel(session.startsAt, group.timezone)}. Anyone else joins the waitlist.`, path: `/g/${group.slug}` });
+  await track(db, "full_alert_sent", { groupId: group.id, sessionId: session.id });
+}
+
+/** Someone new joined from the link: a push to organizers who turned this on. */
+export async function onNewPlayer(db: Db, group: GroupRow, name: string): Promise<void> {
+  const who = (await organizersOf(db, group)).filter((o) => notifyPrefs(o.notify).newPlayer).map((o) => o.id);
+  if (!who.length) return;
+  await pushToOrganizers(db, who, { title: `${name} joined ${group.name}`, body: "They found the link and said who they are. Say hi in the group chat.", path: `/g/${group.slug}` });
+  await track(db, "new_player_alert_sent", { groupId: group.id });
+}
+
+/**
+ * The organizer cancelled, restored, moved or relocated a week: tell the players who said in (or are waiting),
+ * once per kind of change, so nobody shows up to an empty gym.
+ */
+export async function onWeekChanged(db: Db, group: GroupRow, session: Session, change: "cancelled" | "restored" | "moved"): Promise<number> {
+  if (new Date(session.startsAt).getTime() < Date.now()) return 0;
+  const when = whenLabel(session.startsAt, group.timezone);
+  const where = session.location ?? group.location;
+  const message =
+    change === "cancelled" ? { title: `No ${group.name} this week`, body: `${when} is cancelled.${session.note ? ` “${session.note}”` : ""} See you next time.` }
+    : change === "restored" ? { title: `${group.name} is back on`, body: `${when} is happening after all. Tap to say if you're in.` }
+    : { title: `${group.name} changed this week`, body: `Now ${when}${where ? ` at ${where}` : ""}.${session.note ? ` “${session.note}”` : ""}` };
+  const ids = await db.query<{ id: string }>(`SELECT member_id AS id FROM rsvps WHERE session_id = $1 AND status = 'in'`, [session.id]);
+  let sent = 0;
+  for (const { id } of ids) {
+    const [claimed] = await db.query(
+      `INSERT INTO notifications_sent (session_id, member_id, kind) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING 1`,
+      [session.id, id, `week_${change}_${session.startsAt}`],
+    );
+    if (!claimed) continue;
+    sent += (await notifyMember(db, id, { ...message, url: `${webUrl()}/g/${group.slug}?from=change`, rsvpActions: change === "restored" }).catch(() => 0)) > 0 ? 1 : 0;
+  }
+  if (sent) await track(db, "change_notified", { groupId: group.id, sessionId: session.id, props: { change, sent } });
+  return sent;
 }

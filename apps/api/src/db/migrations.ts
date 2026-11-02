@@ -220,4 +220,12 @@ export const migrations: string[] = [
   );
   CREATE INDEX shoutouts_session_idx ON shoutouts (session_id);
   `,
+  // Organizer alert preferences, the weekly digest's once-a-week guard, "game is full" once per game, and where a
+  // group's organizer came from (a referral or campaign).
+  `
+  ALTER TABLE organizers ADD COLUMN notify jsonb NOT NULL DEFAULT '{}';
+  ALTER TABLE organizers ADD COLUMN digest_sent_for date;
+  ALTER TABLE sessions ADD COLUMN full_alerted_at timestamptz;
+  ALTER TABLE groups ADD COLUMN source text;
+  `,
 ];

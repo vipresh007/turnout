@@ -2,6 +2,7 @@ import { ASK_WINDOW_HOURS, badges, groupShareMessage, inviteMessage, newlyEarned
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Text, View } from "react-native";
+import { PlayerTip } from "@/components/FirstRun";
 import { GameHeader } from "@/components/game/GameHeader";
 import { Headcount, type IdentityStep } from "@/components/game/Headcount";
 import { ManageBar, manageBarInset } from "@/components/game/ManageBar";
@@ -183,6 +184,7 @@ export default function GroupScreen() {
         {created && viewer.isOrganizer && <ReadyCard page={page} shareInput={shareInput} onDone={() => router.setParams({ created: undefined })} />}
 
         <GameHeader page={page} slug={slug} />
+        {!me && !viewer.isOrganizer && !page.seasonOver && !session.cancelled && <PlayerTip />}
 
         <Headcount
           page={page}
@@ -257,7 +259,7 @@ export default function GroupScreen() {
 
         {!viewer.isOrganizer && (
           <View style={{ alignItems: "center", marginTop: 16 }}>
-            <Link href="/new">
+            <Link href={{ pathname: "/new", params: { ref: slug } }}>
               <Text style={{ color: t.muted }}>
                 Run a weekly game? <Text style={{ color: t.accent, fontWeight: "700" }}>Start your own group on Turnout</Text>
               </Text>

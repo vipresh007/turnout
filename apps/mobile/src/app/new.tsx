@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import { GroupFields } from "@/components/GroupFields";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Button, Card, Field, Muted, Screen } from "@/components/ui";
+import { readSource, clearSource } from "@/lib/source";
 import { useApi } from "@/lib/api";
 import { applyDraft, emptyGroupForm, toGroupInput } from "@/lib/groupForm";
 import { useTheme } from "@/lib/theme";
@@ -45,7 +46,8 @@ function NewGroup() {
     setSaving(true);
     setError(null);
     try {
-      const { group } = await api.createGroup(result.input);
+      const { group } = await api.createGroup(result.input, await readSource());
+      void clearSource();
       router.replace({ pathname: "/g/[slug]", params: { slug: group.slug, created: "1" } });
     } catch (e) {
       setError((e as Error).message);

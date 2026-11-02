@@ -1,4 +1,4 @@
-import type { ActivityItem, CreateGroupInput, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, LinkedMembership, MemberSelf, MyPlayerStats, MemberSummary, Recap, RsvpStatus, SessionUpdateInput, ShoutoutInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
+import type { ActivityItem, CreateGroupInput, OrganizerNotify, Dashboard, GameRecord, Group, GroupDraft, GroupInsights, GroupOrganizer, GroupPage, GroupRole, LinkedMembership, MemberSelf, MyPlayerStats, MemberSummary, Recap, RsvpStatus, SessionUpdateInput, ShoutoutInput, UpcomingWeek, UpdateGroupInput } from "@turnout/shared";
 import { useMemo } from "react";
 import { useAuth } from "./auth";
 import { config } from "./config";
@@ -55,7 +55,7 @@ const membershipKey = (slug: string) => `membership:${slug}`;
 const JOINED_KEY = "joinedGroups";
 
 /** Events only the browser sees. Fire-and-forget: never blocks or breaks what the person is doing. */
-export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest" | "friend_invited" | "sub_requested" | "signin_prompt_shown" | "signin_prompt_accepted" | "recap_shared";
+export type ClientEvent = "link_shared" | "invite_asked" | "reminder_opened" | "pricing_interest" | "friend_invited" | "sub_requested" | "signin_prompt_shown" | "signin_prompt_accepted" | "recap_shared" | "landing_visit";
 export function trackEvent(kind: ClientEvent, slug?: string, props?: Record<string, string | number | boolean>): void {
   (async () => {
     const membership = slug ? await memberships.get(slug) : null;
@@ -107,7 +107,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
     // Organizer
     draftGroup: async (sentence: string) =>
       request<{ draft: GroupDraft; source: "ai" | "rules" }>("/ai/group-draft", await asOrganizer({ method: "POST", body: { sentence } })),
-    createGroup: async (input: CreateGroupInput) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: input })),
+    createGroup: async (input: CreateGroupInput, source?: string | null) => request<{ group: Group }>("/groups", await asOrganizer({ method: "POST", body: source ? { ...input, source } : input })),
     myGroups: async () => request<{ groups: Group[] }>("/me/groups", await asOrganizer()),
     me: async () => request<Account>("/me", await asOrganizer()),
     activity: async (limit = 50) => request<{ activity: ActivityItem[] }>(`/me/activity?limit=${limit}`, await asOrganizer()),
@@ -117,6 +117,8 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<{ memberships: LinkedMembership[] }>("/me/memberships", await asOrganizer({ method: "POST", body: { links } })),
     unlinkMembership: async (memberId: string) => request<{ ok: true }>(`/me/memberships/${memberId}`, await asOrganizer({ method: "DELETE" })),
     removePushToken: async (token: string) => request<{ ok: true }>("/me/push-token", await asOrganizer({ method: "DELETE", body: { token } })),
+    notificationPrefs: async () => request<OrganizerNotify>("/me/notifications", await asOrganizer()),
+    setNotificationPrefs: async (input: Partial<OrganizerNotify>) => request<OrganizerNotify>("/me/notifications", await asOrganizer({ method: "PUT", body: input })),
     deleteAccount: async () => request<{ deletedGroups: number; handedOverGroups: number }>("/me", await asOrganizer({ method: "DELETE" })),
     dashboard: async () => request<Dashboard>("/me/dashboard", await asOrganizer()),
     dashboardLive: async () => request<{ url: string | null }>("/me/live", await asOrganizer()),
@@ -238,6 +240,8 @@ export interface Account {
 /** /admin/metrics: product metrics across all groups (admins only). */
 export interface ProductMetrics {
   days: number;
+  /** Landing visits and first groups per source (a referring group or a UTM campaign). */
+  sources: { source: string; visits: number; groups: number }[];
   trackingSince: string | null;
   northStar: { gamesRun: number; weeks: { start: string; games: number }[] };
   groups: { created: number; total: number; active: number };

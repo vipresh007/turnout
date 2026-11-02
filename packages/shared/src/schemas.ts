@@ -147,3 +147,16 @@ export const pushTokenSchema = z.object({ token: z.string().min(10).max(300), pl
 /** A post-game shout-out: one MVP vote and one thanks per player per game. */
 export const shoutoutSchema = z.object({ toMemberId: z.string().uuid(), kind: z.enum(["mvp", "thanks"]) });
 export type ShoutoutInput = z.infer<typeof shoutoutSchema>;
+
+/** Which optional alerts an organizer wants. Missing keys use the defaults in ORGANIZER_NOTIFY_DEFAULTS. */
+export const organizerNotifySchema = z.object({
+  digest: z.boolean().optional(),
+  full: z.boolean().optional(),
+  newPlayer: z.boolean().optional(),
+}).strict();
+export type OrganizerNotify = { digest: boolean; full: boolean; newPlayer: boolean };
+/** The weekly digest and "your game is full" are on by default; a ping per new player is opt-in. */
+export const ORGANIZER_NOTIFY_DEFAULTS: OrganizerNotify = { digest: true, full: true, newPlayer: false };
+
+/** Where a new organizer came from (see referralSource), sent with their group. */
+export const groupSourceSchema = z.object({ source: z.string().trim().max(80).regex(/^[a-z0-9_.:/-]+$/).optional() });

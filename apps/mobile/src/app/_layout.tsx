@@ -1,10 +1,12 @@
 import { Stack } from "expo-router";
 import Head from "expo-router/head";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import { Platform } from "react-native";
 import { NotificationRouter } from "@/components/NotificationRouter";
 import { PlayerSync } from "@/components/PlayerSync";
 import { AuthProvider } from "@/lib/auth";
+import { captureSource } from "@/lib/source";
 import { useTheme } from "@/lib/theme";
 
 // A screen opened from a link (a group page, say) always has home underneath, so the back arrow
@@ -13,6 +15,7 @@ export const unstable_settings = { initialRouteName: "index" };
 
 export default function RootLayout() {
   const t = useTheme();
+  useEffect(() => void captureSource(), []);
   return (
     <AuthProvider>
       {Platform.OS === "web" && (

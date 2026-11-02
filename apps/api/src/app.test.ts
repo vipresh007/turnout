@@ -802,3 +802,47 @@ test("recap after a game: who played, shout-outs from players only, a card image
   assert.equal(png.headers["content-type"], "image/png");
   assert.ok((await db.query(`SELECT 1 FROM events WHERE kind = 'shoutout_given' AND group_id = $1`, [id])).length >= 3);
 });
+
+test("organizer alerts: preferences, game full once, players told about a cancelled week, first-group source", async () => {
+  const org = { "x-dev-user": "alerts-org" };
+  // Defaults, then a change that keeps the other keys.
+  assert.deepEqual((await app.inject({ url: "/me/notifications", headers: org })).json(), { digest: true, full: true, newPlayer: false });
+  assert.deepEqual((await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { newPlayer: true } })).json(), { digest: true, full: true, newPlayer: true });
+  assert.equal((await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { nope: true } })).statusCode, 400);
+
+  const created = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Alert Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 2, source: "group:abc123" } })).json().group;
+  const [row] = await db.query<{ source: string | null }>(`SELECT source FROM groups WHERE id = $1`, [created.id]);
+  assert.equal(row!.source, "group:abc123");
+  const second = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Alert Two", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 2, source: "reddit" } })).json().group;
+  assert.equal((await db.query<{ source: string | null }>(`SELECT source FROM groups WHERE id = $1`, [second.id]))[0]!.source, null); // only the first group
+
+  const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${created.slug}/members`, payload: { name } })).json() as { member: { id: string }; token: string };
+  const [a, b] = [await join("Ana"), await join("Bo")];
+  for (const p of [a, b]) await app.inject({ method: "PUT", url: `/groups/${created.slug}/rsvp`, headers: { "x-member-token": p.token }, payload: { status: "in" } });
+  const [full] = await db.query<{ at: string | null }>(`SELECT full_alerted_at AS at FROM sessions WHERE group_id = $1 ORDER BY starts_at DESC LIMIT 1`, [created.id]);
+  assert.ok(full!.at, "full alert recorded once the cap is reached");
+
+  // Cancelling this week records a notice for each player who was in.
+  await app.inject({ method: "PUT", url: `/groups/${created.slug}/session/cancelled`, headers: org, payload: { cancelled: true } });
+  const notices = await db.query<{ kind: string }>(`SELECT kind FROM notifications_sent n JOIN sessions s ON s.id = n.session_id WHERE s.group_id = $1`, [created.id]);
+  assert.equal(notices.filter((n) => n.kind.startsWith("week_cancelled")).length, 2);
+});
+
+test("weekly digest: Monday morning, once, only for organizers who want it", async () => {
+  const { runWeeklyDigest } = await import("./digest.ts");
+  const org = { "x-dev-user": "digest-org" };
+  await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Digest Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 8 } });
+  const monday = new Date("2026-11-02T10:00:00Z"); // a Monday, 10am UTC
+  const sunday = new Date("2026-11-01T10:00:00Z");
+  assert.equal((await runWeeklyDigest(db, sunday)).sent >= 0, true);
+  const [before] = await db.query<{ at: string | null }>(`SELECT digest_sent_for AS at FROM organizers WHERE external_id = 'dev:digest-org'`);
+  assert.equal(before!.at, null, "nothing on a Sunday");
+  await runWeeklyDigest(db, monday);
+  const [after] = await db.query<{ at: string | Date | null }>(`SELECT digest_sent_for AS at FROM organizers WHERE external_id = 'dev:digest-org'`);
+  assert.equal(String(after!.at instanceof Date ? after!.at.toISOString() : after!.at).slice(0, 10), "2026-11-02");
+  // Opting out stops it the next week.
+  await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { digest: false } });
+  await runWeeklyDigest(db, new Date("2026-11-09T10:00:00Z"));
+  const [later] = await db.query<{ at: string | Date | null }>(`SELECT digest_sent_for AS at FROM organizers WHERE external_id = 'dev:digest-org'`);
+  assert.equal(String(later!.at instanceof Date ? later!.at.toISOString() : later!.at).slice(0, 10), "2026-11-02");
+});

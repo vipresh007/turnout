@@ -22,6 +22,8 @@ import {
   membershipLinksSchema,
   contactSchema,
   reportSchema,
+  organizerNotifySchema,
+  groupSourceSchema,
   recapSummary,
   shoutoutSchema,
   type LinkedMembership,
@@ -52,7 +54,8 @@ import { events, liveUrl, liveUrlForGroups } from "./events.ts";
 import { currentSession, findGroupBySlug, gameHistory, lastPlayedGame, memberStats, groupColumns, groupInsightsFor, groupPage, groupRole, managedBy, organizerActivity, seasonOf, listOrganizerGroups, organizerDashboard, publicGroup, sessionRsvps, upcomingWeeks, type GroupRow } from "./groups.ts";
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { APP_PUSH_PREFIX, emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
-import { LATE_DROP_HOURS, notifyPromoted, onSpotOpened, remindNow } from "./reminders.ts";
+import { LATE_DROP_HOURS, notifyPromoted, onGameFull, onNewPlayer, onSpotOpened, onWeekChanged, remindNow } from "./reminders.ts";
+import { notifyPrefs } from "./digest.ts";
 import { atLocal, currentSessionStart, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
 /** Games run before the one-time "how's it working?" check-in, and before asking whether they'd keep it for $49/year. */
@@ -151,6 +154,7 @@ export async function buildApp(db: Db) {
   app.post("/groups", strict(20), async (req, reply) => {
     const organizer = await requireOrganizer(db, req);
     const input = createGroupSchema.parse(req.body);
+    const { source } = groupSourceSchema.parse(req.body);
     if (!isValidTimezone(input.timezone)) throw new HttpError(400, "Unknown timezone");
     const [group] = await db.query<Group>(
       `INSERT INTO groups (slug, organizer_id, name, activity, location, weekday, weekdays, interval_weeks, starts_on, ends_on,
@@ -162,7 +166,10 @@ export async function buildApp(db: Db) {
        input.startTime, input.durationMinutes, input.timezone, input.cap, JSON.stringify(input.reminders),
        input.feeCents ?? null, input.feeSplit ?? false, input.payNote || null, input.seasonFeeCents ?? null, input.targetPlayers ?? null],
     );
-    await track(db, "group_created", { groupId: group!.id, organizerId: organizer.id, props: { cap: input.cap, weekdays: input.weekdays.length, fee: !!input.feeCents } });
+    // Only an organizer's first group carries where they came from.
+    const [{ n: owned }] = (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM groups WHERE organizer_id = $1`, [organizer.id])) as [{ n: number }];
+    if (source && owned === 1) await db.query(`UPDATE groups SET source = $2 WHERE id = $1`, [group!.id, source]);
+    await track(db, "group_created", { groupId: group!.id, organizerId: organizer.id, props: { cap: input.cap, weekdays: input.weekdays.length, fee: !!input.feeCents, ...(source && owned === 1 ? { source } : {}) } });
     return reply.status(201).send({ group });
   });
 
@@ -186,6 +193,19 @@ export async function buildApp(db: Db) {
   });
 
   // The organizer app registers its push token after sign-in (and removes it on sign-out).
+  // Which optional alerts this organizer wants (weekly digest, game full, new player).
+  app.get("/me/notifications", async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const [row] = await db.query<{ notify: unknown }>(`SELECT notify FROM organizers WHERE id = $1`, [organizer.id]);
+    return notifyPrefs(row?.notify);
+  });
+  app.put("/me/notifications", strict(20), async (req) => {
+    const organizer = await requireOrganizer(db, req);
+    const input = organizerNotifySchema.parse(req.body);
+    const [row] = await db.query<{ notify: unknown }>(`UPDATE organizers SET notify = notify || $2::jsonb WHERE id = $1 RETURNING notify`, [organizer.id, JSON.stringify(input)]);
+    return notifyPrefs(row?.notify);
+  });
+
   app.put("/me/push-token", strict(20), async (req) => {
     const organizer = await requireOrganizer(db, req);
     const { token, platform } = pushTokenSchema.parse(req.body);
@@ -427,6 +447,12 @@ export async function buildApp(db: Db) {
       [group.id, scheduled.toISOString(), ...cols.map((c) => set[c])],
     );
     await events.rosterChanged(group.slug); // players looking at this week see the change
+    // This week's game changed: tell the players who said in.
+    const current = await currentSession(db, group);
+    if (current.scheduledAt === scheduled.toISOString()) {
+      const change = input.cancelled === true ? "cancelled" : input.cancelled === false ? "restored" : input.startTime !== undefined || input.location !== undefined ? "moved" : null;
+      if (change) await onWeekChanged(db, group, current, change).catch((err) => req.log.warn({ err }, "week-changed notify failed"));
+    }
     return { weeks: await upcomingWeeks(db, group) };
   });
 
@@ -435,6 +461,7 @@ export async function buildApp(db: Db) {
     const { cancelled } = cancelSessionSchema.parse(req.body);
     const session = await currentSession(db, group);
     await db.query(`UPDATE sessions SET cancelled = $2 WHERE id = $1`, [session.id, cancelled]);
+    if (cancelled !== session.cancelled) await onWeekChanged(db, group, { ...session, cancelled }, cancelled ? "cancelled" : "restored").catch((err) => req.log.warn({ err }, "week-changed notify failed"));
     return changed(group, undefined, organizer.id);
   });
 
@@ -493,6 +520,7 @@ export async function buildApp(db: Db) {
     );
     const token = await issueDeviceToken(member!.id);
     await track(db, "player_joined", { groupId: group.id, memberId: member!.id });
+    await onNewPlayer(db, group, member!.name).catch((err) => req.log.warn({ err }, "new-player alert failed"));
     return reply.status(201).send({ member, token });
   });
 
@@ -665,6 +693,7 @@ export async function buildApp(db: Db) {
     if (status === "in" && page.roster.waitlist.some((r) => r.memberId === member.id) && !before.waitlist.some((r) => r.memberId === member.id)) await track(db, "waitlisted", refs);
     if (status === "in" && nudged!.alerted && page.roster.confirmed.some((r) => r.memberId === member.id)) await track(db, "spot_alert_claimed", refs);
     if (wasConfirmed && status === "out") await track(db, lateDrop ? "late_dropout" : "player_dropped", { ...refs, props: { hoursToGo: Math.round(hoursToGo * 10) / 10 } });
+    if (status === "in" && before.spotsLeft > 0) await onGameFull(db, group, session, await sessionRsvps(db, session.id)).catch((err) => req.log.warn({ err }, "full alert failed"));
     // A confirmed player left and nobody moved up: chase the open spot.
     if (wasConfirmed && status === "out" && promotedMembers(before, page.roster).length === 0) {
       const rsvps = await sessionRsvps(db, session.id);

@@ -3,6 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
 import { Linking, Platform, Pressable, Share, Text, View } from "react-native";
 import { trackEvent } from "@/lib/api";
+import { markShared } from "@/lib/source";
 import { useTheme } from "@/lib/theme";
 import { Card, SectionTitle, webTransition } from "./ui";
 
@@ -42,7 +43,10 @@ export function ShareButtons({ input, message: custom, event = "link_shared", fr
   const [copied, setCopied] = useState(false);
   const message = custom ?? groupShareMessage(input);
   const slug = input.link.split("/g/")[1]?.split(/[?#]/)[0];
-  const shared = (via: string) => trackEvent(event, slug, { via, from });
+  const shared = (via: string) => {
+    trackEvent(event, slug, { via, from });
+    void markShared();
+  };
 
   const copyOrShare = async () => {
     shared(Platform.OS === "web" && typeof navigator.share !== "function" ? "copy" : "share");

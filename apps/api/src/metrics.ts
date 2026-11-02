@@ -59,8 +59,18 @@ export async function productMetrics(db: Db, days = 90, now = new Date()) {
     [from, nowIso],
   );
 
+  // Where new organizers came from: landing visits with a source, and first groups that carried one.
+  const sourceRows = await db.query<{ source: string; visits: number; groups: number }>(
+    `WITH v AS (SELECT props->>'source' AS source, count(*)::int AS n FROM events WHERE kind = 'landing_visit' AND at BETWEEN $1 AND $2 AND props ? 'source' GROUP BY 1),
+          g AS (SELECT source, count(*)::int AS n FROM groups WHERE source IS NOT NULL AND created_at BETWEEN $1 AND $2 GROUP BY 1)
+     SELECT COALESCE(v.source, g.source) AS source, COALESCE(v.n, 0) AS visits, COALESCE(g.n, 0) AS groups
+     FROM v FULL OUTER JOIN g ON g.source = v.source ORDER BY groups DESC, visits DESC LIMIT 20`,
+    [from, nowIso],
+  );
+
   return {
     days,
+    sources: sourceRows,
     trackingSince: trackingSince ? new Date(trackingSince).toISOString() : null,
     northStar: { gamesRun: run.length, weeks },
     groups: { created: groups.created, total: groups.total, active: new Set(run.map((g) => g.groupId)).size },
