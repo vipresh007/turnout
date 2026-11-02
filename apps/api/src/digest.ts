@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { buildRoster, ORGANIZER_NOTIFY_DEFAULTS, playerGoal, weeklyDigest, type DigestGroup, type OrganizerNotify } from "@turnout/shared";
 import { track } from "./analytics.ts";
 import type { Db } from "./db/client.ts";
@@ -17,7 +18,9 @@ export const notifyPrefs = (raw: unknown): OrganizerNotify => ({ ...ORGANIZER_NO
 /** The numbers for one group: last week's game, the next one, streaks and new players. */
 export async function digestGroup(db: Db, group: GroupRow, now = new Date()): Promise<DigestGroup> {
   const history = await gameHistory(db, group, 12, now);
-  const recent = history[0] && now.getTime() - new Date(history[0].startsAt).getTime() <= 7 * DAY ? history[0] : null;
+  // Last week's game, if one actually happened: cancelled, or at least someone answered. A week nobody touched isn't news.
+  const latest = history[0] && now.getTime() - new Date(history[0].startsAt).getTime() <= 7 * DAY ? history[0] : null;
+  const recent = latest && (latest.cancelled || latest.played + latest.out + latest.waitlist > 0) ? latest : null;
   const session = await currentSession(db, group, now);
   const roster = buildRoster(await sessionRsvps(db, session.id), group.cap);
   // Current streaks from the played (not cancelled) games, newest first.
@@ -47,7 +50,7 @@ export async function digestGroup(db: Db, group: GroupRow, now = new Date()): Pr
   };
 }
 
-function digestEmail(digest: ReturnType<typeof weeklyDigest>): { html: string; text: string } {
+function digestEmail(digest: ReturnType<typeof weeklyDigest>, stopUrl: string): { html: string; text: string } {
   const c = EMAIL;
   const url = `${webUrl()}/dashboard?from=digest`;
   const esc = (s: string) => s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
@@ -60,9 +63,27 @@ function digestEmail(digest: ReturnType<typeof weeklyDigest>): { html: string; t
   const title = `<tr><td style="padding:24px 32px 0;font-size:22px;font-weight:800;color:${c.text}">Your week</td></tr>`;
   const button = `<tr><td style="padding:24px 32px 24px"><a href="${url}" style="display:inline-block;background:${c.button};color:#FFFFFF;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">Open Turnout</a></td></tr>`;
   return {
-    html: emailShell(`${title}${rows}${tip}${button}`, "You get this on Monday mornings. Turn it off in Account &rsaquo; Notifications."),
-    text: ["Your week on Turnout", ...digest.lines.map((l) => `${l.group}: ${l.text}`), digest.tip ? `One thing to do: ${digest.tip}` : "", url].filter(Boolean).join("\n\n"),
+    html: emailShell(
+      `${title}${rows}${tip}${button}`,
+      `You get this on Monday mornings because you run a group on Turnout. <a href="${stopUrl}" style="color:${c.muted};font-weight:700">Unsubscribe from the weekly digest</a> (or turn it off in Account &rsaquo; Notifications).`,
+    ),
+    text: ["Your week on Turnout", ...digest.lines.map((l) => `${l.group}: ${l.text}`), digest.tip ? `One thing to do: ${digest.tip}` : "", url, `Unsubscribe from the weekly digest: ${stopUrl}`].filter(Boolean).join("\n\n"),
   };
+}
+
+/** The organizer's unsubscribe token, made the first time it's needed. */
+async function digestToken(db: Db, organizerId: string): Promise<string> {
+  const [row] = await db.query<{ token: string }>(
+    `UPDATE organizers SET email_token = COALESCE(email_token, $2) WHERE id = $1 RETURNING email_token AS token`,
+    [organizerId, randomBytes(18).toString("base64url")],
+  );
+  return row!.token;
+}
+
+/** Turns the digest off for whoever holds this token. Returns false for an unknown token. */
+export async function stopDigest(db: Db, token: string): Promise<boolean> {
+  const rows = await db.query(`UPDATE organizers SET notify = notify || '{"digest": false}'::jsonb WHERE email_token = $1 RETURNING 1`, [token]);
+  return rows.length > 0;
 }
 
 /**
@@ -92,8 +113,10 @@ export async function runWeeklyDigest(db: Db, now = new Date()): Promise<{ sent:
     const digest = weeklyDigest(await Promise.all(groups.map((g) => digestGroup(db, g, now))));
     if (digest.empty) continue;
     if (o.email) {
-      const { html, text } = digestEmail(digest);
-      await sendEmail(o.email, digest.subject, html, text).catch((err) => console.warn("digest email failed", err));
+      const token = await digestToken(db, o.id);
+      const { html, text } = digestEmail(digest, `${webUrl()}/email?digest=${token}`);
+      // One-click unsubscribe (RFC 8058) goes to the web app's function, which forwards to the API.
+      await sendEmail(o.email, digest.subject, html, text, `${webUrl()}/api/unsubscribe?digest=${token}`, { oneClick: true }).catch((err) => console.warn("digest email failed", err));
     }
     await pushToOrganizers(db, [o.id], { title: digest.subject, body: digest.tip ?? digest.lines.map((l) => `${l.group}: ${l.text}`).join(" · ").slice(0, 180), path: "/dashboard" });
     await track(db, "digest_sent", { organizerId: o.id, props: { groups: groups.length, tip: !!digest.tip } });

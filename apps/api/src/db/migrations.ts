@@ -228,4 +228,8 @@ export const migrations: string[] = [
   ALTER TABLE sessions ADD COLUMN full_alerted_at timestamptz;
   ALTER TABLE groups ADD COLUMN source text;
   `,
+  // A per-organizer token for the digest's unsubscribe link (works without signing in).
+  `
+  ALTER TABLE organizers ADD COLUMN email_token text UNIQUE;
+  `,
 ];

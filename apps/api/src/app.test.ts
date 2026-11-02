@@ -846,3 +846,17 @@ test("weekly digest: Monday morning, once, only for organizers who want it", asy
   const [later] = await db.query<{ at: string | Date | null }>(`SELECT digest_sent_for AS at FROM organizers WHERE external_id = 'dev:digest-org'`);
   assert.equal(String(later!.at instanceof Date ? later!.at.toISOString() : later!.at).slice(0, 10), "2026-11-02");
 });
+
+test("weekly digest unsubscribe: the email's token turns it off without signing in", async () => {
+  const { runWeeklyDigest } = await import("./digest.ts");
+  const org = { "x-dev-user": "unsub-org" };
+  await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { digest: true } });
+  await db.query(`UPDATE organizers SET email = 'unsub@example.com' WHERE external_id = 'dev:unsub-org'`);
+  await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Unsub Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 8 } });
+  await runWeeklyDigest(db, new Date("2026-11-02T10:00:00Z"));
+  const [row] = await db.query<{ token: string | null }>(`SELECT email_token AS token FROM organizers WHERE external_id = 'dev:unsub-org'`);
+  assert.ok(row!.token, "token made when the digest went out");
+  assert.equal((await app.inject({ method: "POST", url: "/email/digest-off", payload: { token: "nope-not-a-real-token" } })).statusCode, 404);
+  assert.equal((await app.inject({ method: "POST", url: "/email/digest-off", payload: { token: row!.token } })).statusCode, 200);
+  assert.equal((await app.inject({ url: "/me/notifications", headers: org })).json().digest, false);
+});

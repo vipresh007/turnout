@@ -225,6 +225,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
     mergeMember: async (slug: string, memberId: string, intoId: string) =>
       request<{ ok: true }>(`/groups/${slug}/members/${memberId}/merge`, await asOrganizer({ method: "POST", body: { intoId } })),
     confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),
+    stopDigest: (token: string) => request<{ ok: true }>("/email/digest-off", { method: "POST", body: { token } }),
     unsubscribeEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/unsubscribe", { method: "POST", body: { token } }),
   };
 }

@@ -83,14 +83,14 @@ export async function sendEmail(
   html: string,
   plainText: string,
   unsubscribeUrl?: string,
-  { wait = true, replyTo }: { wait?: boolean; replyTo?: string } = {},
+  { wait = true, replyTo, oneClick }: { wait?: boolean; replyTo?: string; oneClick?: boolean } = {},
 ): Promise<void> {
   if (!email) return;
   const poller = await email.client.beginSend({
     senderAddress: email.sender,
     recipients: { to: [{ address: to }] },
     content: { subject, html, plainText },
-    headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>` } : undefined,
+    headers: unsubscribeUrl ? { "List-Unsubscribe": `<${unsubscribeUrl}>`, ...(oneClick ? { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : {}) } : undefined,
     replyTo: replyTo ? [{ address: replyTo }] : undefined,
   });
   // beginSend returns once the service has accepted the message; waiting confirms delivery started.
