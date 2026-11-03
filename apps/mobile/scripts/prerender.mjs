@@ -114,7 +114,7 @@ const configPath = `${dist}/staticwebapp.config.json`;
 const config = JSON.parse(readFileSync(configPath, "utf8"));
 config.navigationFallback.rewrite = "/app.html";
 const noindex = { "X-Robots-Tag": "noindex" };
-const privateRoutes = ["/dashboard", "/groups", "/activity", "/account", "/stats", "/new", "/sign-in", "/auth", "/email", "/restore", "/organize", "/founding", "/feedback", "/admin", "/edit/*", "/members/*", "/teams/*", "/schedule/*", "/insights/*", "/history/*", "/organizers/*"];
+const privateRoutes = ["/dashboard", "/groups", "/activity", "/account", "/stats", "/notifications", "/play", "/insights", "/new", "/sign-in", "/auth", "/email", "/restore", "/organize", "/founding", "/feedback", "/admin", "/edit/*", "/members/*", "/teams/*", "/schedule/*", "/insights/*", "/history/*", "/organizers/*"];
 config.routes = [
   ...pages.filter((p) => p.path !== "/").map((p) => ({ route: p.path, rewrite: `${p.path}/index.html` })),
   ...config.routes.map((r) => (r.route === "/g/*" ? { ...r, headers: { ...r.headers, ...noindex } } : r)),

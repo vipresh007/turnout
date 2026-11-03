@@ -41,8 +41,8 @@ export default function EmailLink() {
               <Text style={{ color: t.text, fontSize: 22, fontWeight: "900" }}>Unsubscribed</Text>
               <Muted>
                 {organizerKind === "digest"
-                  ? "You won't get the weekly digest anymore. Turn it back on any time in Account, under By email."
-                  : "You won't get emails about dropouts and short games anymore. Notifications on your phone still come through. Turn the emails back on any time in Account, under By email."}
+                  ? "You won't get the weekly digest anymore. Turn it back on any time in Account › Notifications."
+                  : "You won't get emails about dropouts and short games anymore. Notifications on your phone still come through. Turn the emails back on any time in Account › Notifications."}
               </Muted>
             </>
           ) : (

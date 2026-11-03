@@ -61,6 +61,7 @@ export default function RootLayout() {
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ title: "" }} />
         <Stack.Screen name="stats" options={{ title: "Your stats" }} />
+        <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
         <Stack.Screen name="email" options={{ title: "Email reminders" }} />
         <Stack.Screen name="restore" options={{ title: "New phone" }} />
         <Stack.Screen name="members/[slug]" options={{ title: "Members", presentation: "modal" }} />

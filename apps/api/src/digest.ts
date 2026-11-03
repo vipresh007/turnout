@@ -65,7 +65,7 @@ function digestEmail(digest: ReturnType<typeof weeklyDigest>, stopUrl: string): 
   return {
     html: emailShell(
       `${title}${rows}${tip}${button}`,
-      `You get this on Monday mornings because you run a group on Turnout. <a href="${stopUrl}" style="color:${c.muted};font-weight:700">Unsubscribe from the weekly digest</a> (or turn it off in Account, under By email).`,
+      `You get this on Monday mornings because you run a group on Turnout. <a href="${stopUrl}" style="color:${c.muted};font-weight:700">Unsubscribe from the weekly digest</a> (or turn it off in Account &rsaquo; Notifications).`,
     ),
     text: ["Your week on Turnout", ...digest.lines.map((l) => `${l.group}: ${l.text}`), digest.tip ? `One thing to do: ${digest.tip}` : "", url, `Unsubscribe from the weekly digest: ${stopUrl}`].filter(Boolean).join("\n\n"),
   };

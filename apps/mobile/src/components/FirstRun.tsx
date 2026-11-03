@@ -31,7 +31,7 @@ export function FirstRunChecklist({ groups, onShare }: { groups: DashboardGroup[
     { label: "Create your group", done: true },
     { label: "Share the link in your group chat", done: state.shared || groups.some((g) => g.players.length > 0), action: onShare },
     { label: "Get your first 3 players in", done: players >= 3, hint: `${Math.min(players, 3)} of 3` },
-    ...(pushAvailable ? [{ label: "Turn on notifications for dropouts", done: state.push, action: () => router.push("/account") }] : []),
+    ...(pushAvailable ? [{ label: "Turn on notifications for dropouts", done: state.push, action: () => router.push("/notifications") }] : []),
   ];
   const done = steps.filter((s) => s.done).length;
   const dismiss = () => {
