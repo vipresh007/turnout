@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // App Store Connect without the website: create a version, attach a processed build, set What's New, submit for review.
 //   node scripts/asc.mjs status                      builds and versions for the app
+//   node scripts/asc.mjs create <version>               create the version only (to add screenshots before release)
 //   node scripts/asc.mjs release <version> <build> "<what's new>"   create/update the version, attach the build, submit
 //   node scripts/asc.mjs promo <version> "<promotional text>"      set the promotional text on every locale (no review needed)
 // Needs ASC_KEY_ID / ASC_ISSUER_ID in infra/.env.infra and infra/AuthKey_<ID>.p8 (role App Manager). App id from eas.json.
@@ -13,6 +14,18 @@ async function builds() {
 }
 
 const [cmd, versionString, buildNumber, whatsNew] = process.argv.slice(2);
+
+async function ensureVersion(v) {
+  const found = (await versions()).find((x) => x.version === v);
+  if (found) {
+    console.log("Version exists:", found);
+    return found;
+  }
+  const r = await api("POST", "/appStoreVersions", { data: { type: "appStoreVersions", attributes: { versionString: v, platform: "IOS", releaseType: "AFTER_APPROVAL" }, relationships: { app: rel("apps", appId) } } });
+  console.log("Created version", v);
+  return { id: r.data.id, version: v, state: r.data.attributes.appVersionState };
+}
+
 if (cmd === "status") {
   console.log("Builds:", await builds());
   console.log("Versions:", await versions());
@@ -21,12 +34,7 @@ if (cmd === "status") {
   const build = (await builds()).find((b) => b.version === versionString && b.build === buildNumber);
   if (!build) throw new Error(`No build ${buildNumber} for ${versionString} found`);
   if (build.state !== "VALID") throw new Error(`Build ${buildNumber} is ${build.state}; wait for processing to finish`);
-  let version = (await versions()).find((v) => v.version === versionString);
-  if (!version) {
-    const r = await api("POST", "/appStoreVersions", { data: { type: "appStoreVersions", attributes: { versionString, platform: "IOS", releaseType: "AFTER_APPROVAL" }, relationships: { app: rel("apps", appId) } } });
-    version = { id: r.data.id, version: versionString, state: r.data.attributes.appVersionState };
-    console.log("Created version", versionString);
-  } else console.log("Version exists:", version);
+  const version = await ensureVersion(versionString);
   // What's New on every localization the version has (App Store Connect copies the rest of the text from the last version).
   const locs = await api("GET", `/appStoreVersions/${version.id}/appStoreVersionLocalizations?fields[appStoreVersionLocalizations]=locale,whatsNew`);
   for (const l of locs.data) {
@@ -47,6 +55,9 @@ if (cmd === "status") {
     await api("PATCH", `/reviewSubmissions/${sub.id}`, { data: { type: "reviewSubmissions", id: sub.id, attributes: { submitted: true } } });
     console.log(`Submitted ${versionString} (build ${buildNumber}) for review`);
   } else console.log("Submission already", sub.attributes.state);
+} else if (cmd === "create") {
+  if (!versionString) throw new Error("usage: create <version>");
+  await ensureVersion(versionString);
 } else if (cmd === "promo") {
   const [, v, text] = process.argv.slice(2);
   if (!v || !text) throw new Error("usage: promo <version> \"<text>\"");

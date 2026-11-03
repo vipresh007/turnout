@@ -28,9 +28,9 @@ const DEVICES = {
 
 // In App Store order. `page` is built once the demo slugs are known; `as` picks who's looking.
 const SLIDES = [
-  { name: "01-group", as: "player", group: "soccer", eyebrow: "One link", headline: "Players tap<br>I'm in. Done." },
+  { name: "01-group", as: "player", group: "basketball", eyebrow: "One link", headline: "Players tap<br>I'm in. Done." },
   { name: "02-home", as: "organizer", path: "/dashboard", eyebrow: "Your week", headline: "Every game,<br>one glance." },
-  { name: "03-manage", as: "organizer", group: "soccer", eyebrow: "Autopilot", headline: "Short? It knows<br>who to ask." },
+  { name: "03-manage", as: "organizer", group: "basketball", eyebrow: "Autopilot", headline: "Short? It knows<br>who to ask." },
   { name: "04-insights", as: "organizer", path: "/insights", eyebrow: "Insights", headline: "Know your<br>regulars." },
   { name: "05-play", as: "player", path: "/play", eyebrow: "For players", headline: "Your games,<br>your record." },
 ];
