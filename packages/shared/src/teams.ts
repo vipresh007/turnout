@@ -1,4 +1,4 @@
-import { activityEmoji } from "./share.ts";
+import { activityEmoji, shortWhen } from "./share.ts";
 export interface TeamPlayer {
   memberId: string;
   name: string;
@@ -70,8 +70,42 @@ export function balanceTeams(players: readonly TeamPlayer[], count: number, seed
 /** Text for sharing teams in the group chat, from each team's player names. */
 const teamMarks = ["🟢", "🔵", "🟠", "🟣"];
 
-/** The teams as a chat post: a header, then one block per team with a colour marker, a count and a name per line. */
-export function teamsText(groupName: string, teams: string[][], activity: string | null = null): string {
-  const blocks = teams.map((names, i) => [`${teamMarks[i] ?? "⚪️"} ${teamNames[i]} (${names.length})`, ...names.map((n) => `• ${n}`)].join("\n"));
-  return [`${activityEmoji(activity, groupName)} ${groupName} · Teams`, "", ...blocks.flatMap((b) => [b, ""]), "Good game, everyone 🙌"].join("\n").trimEnd();
+/**
+ * This week's saved teams against who's in now: players who dropped are left out, and anyone who said in since the
+ * teams were saved joins the smallest team (then the weaker one). `added` lists those newcomers.
+ */
+export function keepTeams(saved: readonly (readonly string[])[], players: readonly TeamPlayer[]): { teams: Team[]; added: TeamPlayer[] } {
+  const byId = new Map(players.map((p) => [p.memberId, p]));
+  const teams: Team[] = saved.map((ids) => {
+    const members = ids.map((id) => byId.get(id)).filter((p): p is TeamPlayer => !!p);
+    return { players: members, total: members.reduce((n, p) => n + p.skill, 0) };
+  });
+  const placed = new Set(saved.flat());
+  const added = players.filter((p) => !placed.has(p.memberId));
+  for (const p of added) {
+    const team = [...teams].sort((a, b) => a.players.length - b.players.length || a.total - b.total)[0]!;
+    team.players.push(p);
+    team.total += p.skill;
+  }
+  return { teams, added };
+}
+
+/** When and where the game is, for the line under the teams post's title, and the group link to end it. */
+export interface TeamsPostGame {
+  startsAt: string;
+  timezone: string;
+  location?: string | null;
+  link?: string;
+}
+
+/**
+ * The teams as a chat post: a bold title, when and where, then one block per team (colour marker, bold name, count,
+ * a numbered name per line), and the group link. `*bold*` renders in WhatsApp and Signal; elsewhere it reads fine.
+ */
+export function teamsText(groupName: string, teams: string[][], activity: string | null = null, game?: TeamsPostGame): string {
+  const title = `${activityEmoji(activity, groupName)} *${groupName} · Teams*`;
+  const details = game ? [shortWhen(game.startsAt, game.timezone), game.location].filter(Boolean).join(" · ") : "";
+  const blocks = teams.map((names, i) => [`${teamMarks[i] ?? "⚪️"} *${teamNames[i]}* (${names.length})`, ...names.map((n, k) => `${k + 1}. ${n}`)].join("\n"));
+  const end = game?.link ? ["See you there 🙌", game.link] : ["See you there 🙌"];
+  return [details ? `${title}\n${details}` : title, ...blocks, end.join("\n")].join("\n\n");
 }

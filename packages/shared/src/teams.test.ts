@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { balanceTeams, type TeamPlayer, teamsText } from "./teams.ts";
+import { balanceTeams, keepTeams, type TeamPlayer, teamsText } from "./teams.ts";
 
 const p = (name: string, skill: number): TeamPlayer => ({ memberId: name, name, skill });
 
@@ -30,7 +30,20 @@ test("same seed, same teams; different seeds can differ among equal skills", () 
   assert.ok(variants.size > 1);
 });
 
-test("teams text reads as a chat post: header, a block per team with a count, a name per line", () => {
-  const text = teamsText("Sunday Soccer", [["Arjun", "Grace"], ["Yusuf"]], "soccer");
-  assert.equal(text, "⚽ Sunday Soccer · Teams\n\n🟢 Team A (2)\n• Arjun\n• Grace\n\n🔵 Team B (1)\n• Yusuf\n\nGood game, everyone 🙌");
+test("teams text reads as a chat post: title, when and where, a block per team, the link", () => {
+  assert.equal(
+    teamsText("Sunday Soccer", [["Arjun", "Grace"], ["Yusuf"]], "soccer"),
+    "⚽ *Sunday Soccer · Teams*\n\n🟢 *Team A* (2)\n1. Arjun\n2. Grace\n\n🔵 *Team B* (1)\n1. Yusuf\n\nSee you there 🙌",
+  );
+  const text = teamsText("Sunday Soccer", [["Arjun"], ["Yusuf"]], "soccer", { startsAt: "2026-11-08T15:00:00Z", timezone: "America/Toronto", location: "Lamport Stadium", link: "https://turnout.dataeaver.ca/g/s1" });
+  assert.equal(text.split("\n")[1], "Sun, Nov 8 · 10:00 AM · Lamport Stadium");
+  assert.ok(text.endsWith("See you there 🙌\nhttps://turnout.dataeaver.ca/g/s1"));
+});
+
+test("saved teams follow who's in: leavers drop out, newcomers join the smallest team", () => {
+  const p = (memberId: string, skill = 3): TeamPlayer => ({ memberId, name: memberId, skill });
+  const { teams, added } = keepTeams([["a", "b", "c"], ["d", "e", "f"]], [p("a"), p("b"), p("d", 5), p("e"), p("f"), p("g", 2)]);
+  assert.deepEqual(teams.map((t) => t.players.map((x) => x.memberId)), [["a", "b", "g"], ["d", "e", "f"]]);
+  assert.deepEqual(teams.map((t) => t.total), [8, 11]);
+  assert.deepEqual(added.map((x) => x.memberId), ["g"]);
 });

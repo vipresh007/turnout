@@ -1,9 +1,10 @@
-import { formatMoney, teamNames, type GameRecord } from "@turnout/shared";
+import { formatMoney, type GameRecord } from "@turnout/shared";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { SignInGate } from "@/components/SignInGate";
+import { TeamBoard } from "@/components/TeamBoard";
 import { BackLink, Muted, Pill, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
 import { useTheme } from "@/lib/theme";
@@ -100,14 +101,7 @@ function GameRow({ game: g, open, onToggle }: { game: GameRecord; open: boolean;
             {g.expectedCents !== null && <Stat label="Collected" value={`${formatMoney(g.collectedCents!)} / ${formatMoney(g.expectedCents)}`} />}
           </View>
           {g.teams && (
-            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-              {g.teams.map((team, i) => (
-                <View key={i} style={{ flexGrow: 1, flexBasis: "45%", backgroundColor: t.bg, borderRadius: 12, padding: 10, gap: 2 }}>
-                  <Text style={{ color: t.accent, fontWeight: "900" }}>{teamNames[i]}</Text>
-                  <Text style={{ color: t.text }}>{team.join(" · ")}</Text>
-                </View>
-              ))}
-            </View>
+            <TeamBoard size="sm" teams={g.teams.map((team) => team.map((n, k) => ({ key: `${k}-${n}`, name: n })))} />
           )}
           <View style={{ gap: 4 }}>
             {g.players.map((p) => (

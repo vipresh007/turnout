@@ -220,7 +220,7 @@ export default function GroupScreen() {
 
         <RecapCard page={page} me={me} slug={slug} />
 
-        {session.teams && <Teams teams={session.teams.teams} roster={everyone} onShare={share} groupName={group.name} activity={group.activity} />}
+        {session.teams && <Teams teams={session.teams.teams} roster={everyone} onShare={share} groupName={group.name} activity={group.activity} game={{ startsAt: session.startsAt, timezone: group.timezone, location: session.location ?? group.location, link }} />}
 
         <Rosters
           roster={roster}

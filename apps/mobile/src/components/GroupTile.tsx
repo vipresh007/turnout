@@ -1,4 +1,4 @@
-import { ASK_WINDOW_HOURS, describeForecast, describeRecurrence, formatMoney, groupShareMessage, inviteMessage, LATE_WARNING_HOURS, playerGoal, shareCents, shortWhen, teamNames, type DashboardGroup } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, describeForecast, describeRecurrence, formatMoney, groupShareMessage, inviteMessage, LATE_WARNING_HOURS, playerGoal, shareCents, shortWhen, type DashboardGroup } from "@turnout/shared";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -8,6 +8,7 @@ import { sportTone, tint, useTheme } from "@/lib/theme";
 import { ActionGrid, ActionTile } from "./ActionTile";
 import { Avatar } from "./Avatar";
 import { Icon } from "./Icon";
+import { TeamBoard } from "./TeamBoard";
 import { Pop } from "./motion";
 import { Chip, Display, Eyebrow, IconLine, Pill, Ring } from "./ui";
 
@@ -192,14 +193,7 @@ export function GroupTile({ item, isNext, expanded, onToggle, onShare, onChanged
       {players.length === 0 && <Text style={{ color: t.muted }}>No answers yet. Share the link to get people in.</Text>}
 
       {session.teams && (
-        <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
-          {session.teams.teams.map((ids, i) => (
-            <View key={i} style={{ flexGrow: 1, flexBasis: "45%", backgroundColor: t.bg, borderRadius: 12, padding: 12, gap: 2 }}>
-              <Text style={{ color: t.accent, fontWeight: "900" }}>{teamNames[i]}</Text>
-              <Text style={{ color: t.text }}>{ids.map((id) => names.get(id)).filter(Boolean).join(" · ")}</Text>
-            </View>
-          ))}
-        </View>
+        <TeamBoard size="sm" teams={session.teams.teams.map((ids) => ids.flatMap((id) => (names.get(id) ? [{ key: id, name: names.get(id)! }] : [])))} />
       )}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
       </View>
