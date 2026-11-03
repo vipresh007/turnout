@@ -129,8 +129,8 @@ function Members() {
               <Text style={{ color: t.danger, fontWeight: "700" }}>Remove</Text>
             </Pressable>
             <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: 38 }}>
-              <Text style={{ color: t.muted, fontSize: 13 }}>{m.skill === null ? "Rating for teams" : `Rated ${m.skill} for teams`}</Text>
-              <SkillDots name={m.name} value={m.skill} onChange={(n) => rate(m.id, n)} />
+              <Text style={{ color: t.muted, fontSize: 13 }}>{m.skill == null ? "Rating for teams" : `Rated ${m.skill} for teams`}</Text>
+              <SkillDots name={m.name} value={m.skill ?? null} onChange={(n) => rate(m.id, n)} />
             </View>
           </View>
         ))}
