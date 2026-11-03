@@ -3,7 +3,7 @@ import { buildRoster, ORGANIZER_NOTIFY_DEFAULTS, playerGoal, weeklyDigest, type 
 import { track } from "./analytics.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, gameHistory, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
-import { EMAIL, emailShell, sendEmail, webUrl } from "./notify.ts";
+import { EMAIL, emailHtml, emailShell, sendEmail, webUrl } from "./notify.ts";
 import { pushToOrganizers } from "./organizerPush.ts";
 import { whenLabel } from "./reminders.ts";
 import { localDate } from "./schedule.ts";
@@ -71,8 +71,8 @@ function digestEmail(digest: ReturnType<typeof weeklyDigest>, stopUrl: string): 
   };
 }
 
-/** The organizer's unsubscribe token, made the first time it's needed. */
-async function digestToken(db: Db, organizerId: string): Promise<string> {
+/** The organizer's unsubscribe token (digest and game alert emails), made the first time it's needed. */
+async function organizerEmailToken(db: Db, organizerId: string): Promise<string> {
   const [row] = await db.query<{ token: string }>(
     `UPDATE organizers SET email_token = COALESCE(email_token, $2) WHERE id = $1 RETURNING email_token AS token`,
     [organizerId, randomBytes(18).toString("base64url")],
@@ -80,10 +80,28 @@ async function digestToken(db: Db, organizerId: string): Promise<string> {
   return row!.token;
 }
 
-/** Turns the digest off for whoever holds this token. Returns false for an unknown token. */
-export async function stopDigest(db: Db, token: string): Promise<boolean> {
-  const rows = await db.query(`UPDATE organizers SET notify = notify || '{"digest": false}'::jsonb WHERE email_token = $1 RETURNING 1`, [token]);
+/** Emails an organizer can stop from the email itself, without signing in. */
+export type OrganizerEmail = "digest" | "alertEmails";
+
+/** Turns that kind of email off for whoever holds this token. Returns false for an unknown token. */
+export async function stopOrganizerEmail(db: Db, token: string, kind: OrganizerEmail): Promise<boolean> {
+  const rows = await db.query(`UPDATE organizers SET notify = notify || jsonb_build_object($2::text, false) WHERE email_token = $1 RETURNING 1`, [token, kind]);
   return rows.length > 0;
+}
+
+/**
+ * A game alert by email (may be short, someone dropped out), unless the organizer turned those off. Carries a
+ * one-click unsubscribe; push for the same alert is sent separately.
+ */
+export async function sendOrganizerAlertEmail(
+  db: Db,
+  o: { id: string; email: string | null; notify: unknown },
+  m: { subject: string; title: string; body: string; url: string; button: string },
+): Promise<void> {
+  if (!o.email || !notifyPrefs(o.notify).alertEmails) return;
+  const token = await organizerEmailToken(db, o.id);
+  const html = emailHtml(m, `${webUrl()}/email?alerts=${token}`, m.button, "You get game alerts because you run this group on Turnout. Push notifications on your phone are separate.");
+  await sendEmail(o.email, m.subject, html, `${m.title}. ${m.body} ${m.url}\n\nUnsubscribe from game alert emails: ${webUrl()}/email?alerts=${token}`, `${webUrl()}/api/unsubscribe?alerts=${token}`, { oneClick: true });
 }
 
 /**
@@ -113,7 +131,7 @@ export async function runWeeklyDigest(db: Db, now = new Date()): Promise<{ sent:
     const digest = weeklyDigest(await Promise.all(groups.map((g) => digestGroup(db, g, now))));
     if (digest.empty) continue;
     if (o.email) {
-      const token = await digestToken(db, o.id);
+      const token = await organizerEmailToken(db, o.id);
       const { html, text } = digestEmail(digest, `${webUrl()}/email?digest=${token}`);
       // One-click unsubscribe (RFC 8058) goes to the web app's function, which forwards to the API.
       await sendEmail(o.email, digest.subject, html, text, `${webUrl()}/api/unsubscribe?digest=${token}`, { oneClick: true }).catch((err) => console.warn("digest email failed", err));

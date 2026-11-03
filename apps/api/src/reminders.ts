@@ -1,11 +1,11 @@
 import { buildRoster, dueReminders, groupChatReminder, placeOf, reminderText, type Rsvp, type Session } from "@turnout/shared";
 import { track } from "./analytics.ts";
 import { pushToOrganizers } from "./organizerPush.ts";
-import { notifyPrefs } from "./digest.ts";
+import { notifyPrefs, sendOrganizerAlertEmail } from "./digest.ts";
 import { HttpError } from "./auth.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, sessionRsvps, type GroupRow } from "./groups.ts";
-import { emailHtml, notifyMember, sendEmail, webUrl, type Message } from "./notify.ts";
+import { notifyMember, webUrl, type Message } from "./notify.ts";
 
 /** "Wed 8:00 PM" in the group's timezone. */
 export function whenLabel(startsAt: string, timezone: string): string {
@@ -158,16 +158,15 @@ export async function onSpotOpened(db: Db, group: GroupRow, session: Session, rs
     }
   }
 
-  const organizers = await db.query<{ id: string; email: string | null }>(
-    `SELECT id, email FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
+  const organizers = await db.query<{ id: string; email: string | null; notify: unknown }>(
+    `SELECT id, email, notify FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
     [group.organizerId, group.id],
   );
   const need = roster.spotsLeft;
   const title = `${droppedName} dropped out of ${group.name}`;
   const body = `${when} · ${count}. You need ${need} more. Share the link in your group chat to fill the spot${need === 1 ? "" : "s"}.`;
   for (const organizer of organizers) {
-    if (!organizer.email) continue;
-    await sendEmail(organizer.email, `${title} · need ${need}`, emailHtml({ title, body, url }, undefined, "Open the group"), `${title}. ${body} ${url}`)
+    await sendOrganizerAlertEmail(db, organizer, { subject: `${title} · need ${need}`, title, body, url, button: "Open the group" })
       .catch((err) => console.warn("organizer alert failed", err));
   }
   await pushToOrganizers(db, organizers.map((o) => o.id), { title, body: `${when} · ${count}. You need ${need} more.`, path: `/g/${group.slug}` });

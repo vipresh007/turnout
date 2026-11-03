@@ -96,6 +96,8 @@ export const membershipLinksSchema = z.object({
 export const appPushSchema = z.object({ token: z.string().max(200).regex(/^Expo(nent)?PushToken\[[^\]]+\]$/) });
 export const emailSchema = z.object({ email: z.string().trim().toLowerCase().email().max(200) });
 export const tokenSchema = z.object({ token: z.string().min(10).max(100) });
+/** Unsubscribing an organizer from one kind of email by the token in that email. */
+export const organizerEmailOffSchema = tokenSchema.extend({ kind: z.enum(["digest", "alertEmails"]) });
 export const paidSchema = z.object({ paid: z.boolean() });
 export const skillSchema = z.object({ skill: z.number().int().min(1).max(5) });
 export const saveTeamsSchema = z.object({ teams: z.array(z.array(z.string().uuid()).max(100)).min(2).max(4).nullable() });
@@ -153,10 +155,14 @@ export const organizerNotifySchema = z.object({
   digest: z.boolean().optional(),
   full: z.boolean().optional(),
   newPlayer: z.boolean().optional(),
+  alertEmails: z.boolean().optional(),
 }).strict();
-export type OrganizerNotify = { digest: boolean; full: boolean; newPlayer: boolean };
-/** The weekly digest and "your game is full" are on by default; a ping per new player is opt-in. */
-export const ORGANIZER_NOTIFY_DEFAULTS: OrganizerNotify = { digest: true, full: true, newPlayer: false };
+export type OrganizerNotify = { digest: boolean; full: boolean; newPlayer: boolean; alertEmails: boolean };
+/**
+ * The weekly digest and "your game is full" are on by default; a ping per new player is opt-in. `alertEmails` covers
+ * the email copy of game alerts (may be short, someone dropped out); their push notifications follow the phone switch.
+ */
+export const ORGANIZER_NOTIFY_DEFAULTS: OrganizerNotify = { digest: true, full: true, newPlayer: false, alertEmails: true };
 
 /** Where a new organizer came from (see referralSource), sent with their group. */
 export const groupSourceSchema = z.object({ source: z.string().trim().max(80).regex(/^[a-z0-9_.:/-]+$/).optional() });

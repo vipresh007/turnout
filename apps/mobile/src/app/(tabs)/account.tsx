@@ -95,7 +95,8 @@ function Account() {
         {pushAvailable && <ListRow first icon="bell" title="Notifications on this phone" subtitle={pushNote ?? "Dropouts, short games and the alerts below"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />}
         <ListRow first={!pushAvailable} icon="mail" title="Weekly digest" subtitle="Monday morning: last week's games, who's on a streak, what's owed" right={<Switch value={prefs?.digest ?? true} disabled={!prefs} onValueChange={(v) => setPref("digest", v)} trackColor={{ true: t.accent }} />} />
         <ListRow icon="check" title="Game is full" subtitle="Once per game, when the last spot goes" right={<Switch value={prefs?.full ?? true} disabled={!prefs} onValueChange={(v) => setPref("full", v)} trackColor={{ true: t.accent }} />} />
-        <ListRow last icon="user" title="New player joins" subtitle="Someone new found your link" right={<Switch value={prefs?.newPlayer ?? false} disabled={!prefs} onValueChange={(v) => setPref("newPlayer", v)} trackColor={{ true: t.accent }} />} />
+        <ListRow icon="user" title="New player joins" subtitle="Someone new found your link" right={<Switch value={prefs?.newPlayer ?? false} disabled={!prefs} onValueChange={(v) => setPref("newPlayer", v)} trackColor={{ true: t.accent }} />} />
+        <ListRow last icon="mail" title="Game alert emails" subtitle="May be short, someone dropped out. Push is separate" right={<Switch value={prefs?.alertEmails ?? true} disabled={!prefs} onValueChange={(v) => setPref("alertEmails", v)} trackColor={{ true: t.accent }} />} />
       </RowGroup>
 
       <RowGroup>

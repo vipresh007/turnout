@@ -34,6 +34,7 @@ import {
   sessionUpdateSchema,
   skillSchema,
   tokenSchema,
+  organizerEmailOffSchema,
   transferOwnerSchema,
   updateGroupSchema,
   type Group,
@@ -55,7 +56,7 @@ import { currentSession, findGroupBySlug, gameHistory, lastPlayedGame, memberSta
 import { hashToken, newMemberToken, randomSlug } from "./ids.ts";
 import { APP_PUSH_PREFIX, emailEnabled, emailHtml, notifyMember, pushPublicKey, sendEmail, webUrl } from "./notify.ts";
 import { LATE_DROP_HOURS, notifyPromoted, onGameFull, onNewPlayer, onSpotOpened, onWeekChanged, remindNow } from "./reminders.ts";
-import { notifyPrefs, stopDigest } from "./digest.ts";
+import { notifyPrefs, stopOrganizerEmail } from "./digest.ts";
 import { atLocal, currentSessionStart, isValidTimezone, localDate, scheduledStarts, todayIn } from "./schedule.ts";
 
 /** Games run before the one-time "how's it working?" check-in, and before asking whether they'd keep it for $49/year. */
@@ -1077,10 +1078,16 @@ export async function buildApp(db: Db) {
     return { groupName: row.groupName, slug: row.slug };
   });
 
-  // The weekly digest's unsubscribe: the email's link (via the web page) and one-click from the mail app.
+  // Organizer email unsubscribes (weekly digest, game alerts): the email's link (via the web page) and one-click from
+  // the mail app. `digest-off` is the original digest-only path, kept for emails already sent.
   app.post("/email/digest-off", strict(20), async (req) => {
     const { token } = tokenSchema.parse(req.body);
-    if (!(await stopDigest(db, token))) throw new HttpError(404, "This link has expired");
+    if (!(await stopOrganizerEmail(db, token, "digest"))) throw new HttpError(404, "This link has expired");
+    return { ok: true };
+  });
+  app.post("/email/organizer-off", strict(20), async (req) => {
+    const { token, kind } = organizerEmailOffSchema.parse(req.body);
+    if (!(await stopOrganizerEmail(db, token, kind))) throw new HttpError(404, "This link has expired");
     return { ok: true };
   });
 

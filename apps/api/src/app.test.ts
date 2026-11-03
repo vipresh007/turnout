@@ -128,7 +128,7 @@ test("organizer dashboard: groups with this week's counts and recent activity", 
 
   const { slug } = (await app.inject({
     method: "POST", url: "/groups", headers: me,
-    payload: { name: "Dash Hoops", weekday: 1, startTime: "19:00", timezone: "America/Toronto", cap: 1 },
+    payload: { name: "Dash Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "America/Toronto", cap: 1 },
   })).json().group;
   const join = async (name: string) => (await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } })).json();
   const a = await join("Ana");
@@ -806,8 +806,8 @@ test("recap after a game: who played, shout-outs from players only, a card image
 test("organizer alerts: preferences, game full once, players told about a cancelled week, first-group source", async () => {
   const org = { "x-dev-user": "alerts-org" };
   // Defaults, then a change that keeps the other keys.
-  assert.deepEqual((await app.inject({ url: "/me/notifications", headers: org })).json(), { digest: true, full: true, newPlayer: false });
-  assert.deepEqual((await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { newPlayer: true } })).json(), { digest: true, full: true, newPlayer: true });
+  assert.deepEqual((await app.inject({ url: "/me/notifications", headers: org })).json(), { digest: true, full: true, newPlayer: false, alertEmails: true });
+  assert.deepEqual((await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { newPlayer: true } })).json(), { digest: true, full: true, newPlayer: true, alertEmails: true });
   assert.equal((await app.inject({ method: "PUT", url: "/me/notifications", headers: org, payload: { nope: true } })).statusCode, 400);
 
   const created = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Alert Hoops", weekdays: [laterDay], startTime: "19:00", timezone: "UTC", cap: 2, source: "group:abc123" } })).json().group;
@@ -859,4 +859,8 @@ test("weekly digest unsubscribe: the email's token turns it off without signing 
   assert.equal((await app.inject({ method: "POST", url: "/email/digest-off", payload: { token: "nope-not-a-real-token" } })).statusCode, 404);
   assert.equal((await app.inject({ method: "POST", url: "/email/digest-off", payload: { token: row!.token } })).statusCode, 200);
   assert.equal((await app.inject({ url: "/me/notifications", headers: org })).json().digest, false);
+  // The same token stops game alert emails, one kind at a time.
+  assert.equal((await app.inject({ method: "POST", url: "/email/organizer-off", payload: { token: row!.token, kind: "other" } })).statusCode, 400);
+  assert.equal((await app.inject({ method: "POST", url: "/email/organizer-off", payload: { token: row!.token, kind: "alertEmails" } })).statusCode, 200);
+  assert.deepEqual((await app.inject({ url: "/me/notifications", headers: org })).json(), { digest: false, full: true, newPlayer: false, alertEmails: false });
 });

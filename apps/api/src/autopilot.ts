@@ -3,7 +3,8 @@ import { pushToOrganizers } from "./organizerPush.ts";
 import { track } from "./analytics.ts";
 import type { Db } from "./db/client.ts";
 import { currentSession, groupColumns, groupInsightsFor, sessionRsvps, type GroupRow } from "./groups.ts";
-import { emailHtml, sendEmail, webUrl } from "./notify.ts";
+import { sendOrganizerAlertEmail } from "./digest.ts";
+import { webUrl } from "./notify.ts";
 import { whenLabel } from "./reminders.ts";
 
 /** Too close to the start to do anything useful about it. */
@@ -34,13 +35,13 @@ export async function runForecastAlerts(db: Db, now = new Date()): Promise<{ che
     const title = `${group.name} may be ${forecast.short} short`;
     const body = `${whenLabel(session.startsAt, group.timezone)}. ${detail} Open the group to ask them with one tap.`;
     const url = `${webUrl()}/dashboard?from=forecast`;
-    const organizers = await db.query<{ id: string; email: string | null }>(
-      `SELECT id, email FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
+    const organizers = await db.query<{ id: string; email: string | null; notify: unknown }>(
+      `SELECT id, email, notify FROM organizers WHERE id = $1 OR id IN (SELECT organizer_id FROM group_admins WHERE group_id = $2)`,
       [group.organizerId, group.id],
     );
     await pushToOrganizers(db, organizers.map((o) => o.id), { title, body: detail, path: "/dashboard" });
     for (const o of organizers) {
-      if (o.email) await sendEmail(o.email, title, emailHtml({ title, body, url }, undefined, "See who to ask"), `${title}. ${body} ${url}`)
+      await sendOrganizerAlertEmail(db, o, { subject: title, title, body, url, button: "See who to ask" })
         .catch((err) => console.warn("forecast alert failed", err));
       await track(db, "forecast_alert_sent", { groupId: group.id, sessionId: session.id, organizerId: o.id, props: { short: forecast.short, hoursToGo: Math.round(hoursToGo) } });
     }

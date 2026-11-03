@@ -123,12 +123,17 @@ export function emailShell(rows: string, footer = ""): string {
 /** Writes every non-ASCII character (·, “ ”, emoji) as an HTML entity, so no mail app can garble it ("Â·"). */
 const asciiHtml = (html: string) => html.replace(/[^\x00-\x7F]/gu, (ch) => `&#${ch.codePointAt(0)};`);
 
-export function emailHtml(m: { title: string; body: string; url: string }, unsubscribeUrl?: string, buttonLabel = "Open Turnout"): string {
+/** `footer` replaces the default small print next to the unsubscribe link (which is written for player reminders). */
+export function emailHtml(m: { title: string; body: string; url: string }, unsubscribeUrl?: string, buttonLabel = "Open Turnout", footer?: string): string {
   const c = EMAIL;
   return emailShell(
     `<tr><td style="padding:24px 32px 0;font-size:22px;font-weight:800;color:${c.text}">${escape(m.title)}</td></tr>
       <tr><td style="padding:8px 32px 0;font-size:16px;line-height:24px;color:${c.muted}">${escape(m.body)}</td></tr>
       <tr><td style="padding:24px 32px 24px"><a href="${escape(m.url)}" style="display:inline-block;background:${c.button};color:#FFFFFF;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:12px">${escape(buttonLabel)}</a></td></tr>`,
-    unsubscribeUrl ? `Sent by Turnout because this address was entered for reminders on the group's page. <a href="${escape(unsubscribeUrl)}" style="color:${c.muted};font-weight:700">Stop these emails</a>` : "",
+    unsubscribeUrl
+      ? footer
+        ? `${footer} <a href="${escape(unsubscribeUrl)}" style="color:${c.muted};font-weight:700">Unsubscribe from these emails</a>`
+        : `Sent by Turnout because this address was entered for reminders on the group's page. <a href="${escape(unsubscribeUrl)}" style="color:${c.muted};font-weight:700">Stop these emails</a>`
+      : "",
   );
 }
