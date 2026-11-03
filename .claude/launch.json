@@ -49,6 +49,23 @@
         "/private/tmp/claude-502/-Users-vipre-Code-turnout/e5568aab-4cfb-443c-aff8-c04b9b04953d/scratchpad/mock"
       ],
       "port": 8096
+    },
+    {
+      "name": "native-local",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "EXPO_PUBLIC_DEV_USER=seed",
+        "EXPO_PUBLIC_ENTRA_AUTHORITY=",
+        "EXPO_PUBLIC_API_URL=http://localhost:4000",
+        "EXPO_PUBLIC_WEB_URL=http://localhost:8082",
+        "npx",
+        "expo",
+        "start",
+        "--port",
+        "8081"
+      ],
+      "cwd": "apps/mobile",
+      "port": 8081
     }
   ]
 }

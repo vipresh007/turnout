@@ -1,11 +1,11 @@
-import { ASK_WINDOW_HOURS, badges, groupShareMessage, inviteMessage, newlyEarned, placeOf, playerGoal, playersNeeded, shortWhen, type Badge, type GroupPage, type MyPlayerStats, type Rsvp, type RsvpStatus } from "@turnout/shared";
+import { ASK_WINDOW_HOURS, badges, inviteMessage, newlyEarned, placeOf, playerGoal, playersNeeded, shortWhen, type Badge, type GroupPage, type MyPlayerStats, type Rsvp, type RsvpStatus } from "@turnout/shared";
 import { Link, router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { PlayerTip } from "@/components/FirstRun";
 import { GameHeader } from "@/components/game/GameHeader";
 import { Headcount, type IdentityStep } from "@/components/game/Headcount";
-import { ManageBar, manageBarInset } from "@/components/game/ManageBar";
+import { AutopilotRow, MANAGE_FAB_INSET, ManageFab } from "@/components/game/ManageFab";
 import { Rosters } from "@/components/game/Rosters";
 import { FindSub, InviteFriend, SignInAsk } from "@/components/game/PlayerExtras";
 import { RecapCard } from "@/components/game/RecapCard";
@@ -175,9 +175,14 @@ export default function GroupScreen() {
   // A player who's in can look for a sub when the game is short and close.
   const canFindSub = player && place.kind === "confirmed" && needed > 0 && !session.cancelled && hoursUntil(session.startsAt) > 0 && hoursUntil(session.startsAt) <= ASK_WINDOW_HOURS;
 
+  const askToPlay = (who: string) => {
+    trackEvent("invite_asked", slug, { status: page.organizer?.forecast?.status ?? "none", from: "group" });
+    share(inviteMessage(who.split(" ")[0]!, group.name, page.organizer?.forecast?.short || roster.spotsLeft, shortWhen(session.startsAt, group.timezone), link));
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      <Screen signInLabel="Organizer? Sign in" bottomInset={viewer.isOrganizer && !page.seasonOver ? manageBarInset(page) : 0}>
+      <Screen signInLabel="Organizer? Sign in" bottomInset={viewer.isOrganizer && !page.seasonOver ? MANAGE_FAB_INSET : 0}>
         {/* The page already shows the name large; the nav bar only needs the back arrow. */}
         <Stack.Screen options={{ title: group.name, headerTitle: "", headerShown: Platform.OS !== "web" }} />
 
@@ -214,6 +219,7 @@ export default function GroupScreen() {
         />
         {error && <Text style={{ color: t.danger }}>{error}</Text>}
         {notice && <Muted>{notice}</Muted>}
+        {viewer.isOrganizer && <AutopilotRow page={page} onAsk={askToPlay} />}
         {earned.map((b) => <BadgeEarned key={b.id} badge={b} />)}
         {canFindSub && <View style={{ flexDirection: "row" }}><FindSub input={shareInput} needed={needed} /></View>}
         {player && <SignInAsk stats={mine?.stats ?? null} slug={slug} />}
@@ -269,20 +275,7 @@ export default function GroupScreen() {
       </Screen>
 
       {viewer.isOrganizer && !page.seasonOver && (
-        <ManageBar
-          page={page}
-          slug={slug}
-          remindBusy={pending === "remind"}
-          onAsk={(who) => {
-            trackEvent("invite_asked", slug, { status: page.organizer?.forecast?.status ?? "none", from: "group" });
-            share(inviteMessage(who.split(" ")[0]!, group.name, page.organizer?.forecast?.short || roster.spotsLeft, shortWhen(session.startsAt, group.timezone), link));
-          }}
-          onRemind={() => router.push({ pathname: "/manage/[slug]", params: { slug } })}
-          onShare={() => {
-            trackEvent("link_shared", slug, { via: "share", from: "bar" });
-            share(groupShareMessage(shareInput));
-          }}
-        />
+        <ManageFab page={page} slug={slug} />
       )}
     </View>
   );

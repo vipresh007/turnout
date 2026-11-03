@@ -55,7 +55,6 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false, title: "Turnout" }} />
         <Stack.Screen name="new" options={{ title: "New group", presentation: "modal" }} />
         <Stack.Screen name="edit/[slug]" options={{ title: "Edit group", presentation: "modal" }} />
-        <Stack.Screen name="g/[slug]" options={{ title: "", headerShown: Platform.OS !== "web" }} />
         {/* Sheets over the group page: the organizer's tools, and a player's reminder settings. */}
         <Stack.Screen name="manage/[slug]" options={{ title: "Manage", presentation: "formSheet", sheetAllowedDetents: [0.7, 1], sheetGrabberVisible: true, headerShown: false }} />
         <Stack.Screen name="remind/[slug]" options={{ title: "Reminders", presentation: "formSheet", sheetAllowedDetents: [0.55, 1], sheetGrabberVisible: true, headerShown: false }} />

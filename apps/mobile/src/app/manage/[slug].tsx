@@ -1,4 +1,4 @@
-import { inviteMessage, shareCents, shortWhen, type GroupPage } from "@turnout/shared";
+import { groupShareMessage, inviteMessage, shareCents, shortWhen, type GroupPage } from "@turnout/shared";
 import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
@@ -104,6 +104,15 @@ export default function ManageScreen() {
           }}
         />
         <Button label="Teams" icon="teams" variant="secondary" disabled={roster.confirmed.length < 2} onPress={go("/teams/[slug]")} />
+        <Button
+          label="Share"
+          icon="megaphone"
+          variant="secondary"
+          onPress={() => {
+            trackEvent("link_shared", slug, { via: "share", from: "manage" });
+            share(groupShareMessage(shareInput));
+          }}
+        />
       </View>
       {reminder && (
         <Pop style={{ gap: 8 }}>

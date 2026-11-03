@@ -8,12 +8,13 @@ import Svg, { Circle, Path, Rect } from "react-native-svg";
 export type IconName =
   | "edit" | "bell" | "teams" | "calendar" | "people" | "chart" | "clock" | "key" | "refresh" | "cash"
   | "pin" | "megaphone" | "check" | "x" | "hourglass" | "warning" | "link" | "sparkles" | "mail" | "bulb"
-  | "trending" | "flag" | "shuffle" | "bolt" | "eye" | "user" | "plus" | "chevronDown" | "chevronRight" | "arrowRight" | "trophy" | "note";
+  | "trending" | "flag" | "shuffle" | "bolt" | "eye" | "user" | "plus" | "chevronDown" | "chevronRight" | "arrowRight" | "trophy" | "note" | "sliders";
 
 export function Icon({ name, size = 20, color, strokeWidth = 1.8 }: { name: IconName; size?: number; color: ColorValue; strokeWidth?: number }) {
   const p = { stroke: color, strokeWidth, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
   const paths: Record<IconName, ReactNode> = {
     edit: <Path {...p} d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />,
+    sliders: <><Path {...p} d="M4 7h9M17 7h3M4 17h3M11 17h9" /><Circle {...p} cx="15" cy="7" r="2" /><Circle {...p} cx="9" cy="17" r="2" /></>,
     bell: <Path {...p} d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />,
     teams: <><Path {...p} d="M4 7h11M4 7l3-3M4 7l3 3" /><Path {...p} d="M20 17H9m11 0-3-3m3 3-3 3" /></>,
     calendar: <><Rect {...p} x="3.5" y="5" width="17" height="15" rx="2.5" /><Path {...p} d="M3.5 10h17M8 3v4M16 3v4" /></>,
