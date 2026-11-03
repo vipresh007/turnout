@@ -161,6 +161,8 @@ export interface MemberSummary {
   joinedAt: string;
   seasonMember: boolean;
   seasonPaid: boolean;
+  /** The organizer's 1–5 rating for balancing teams; null until rated. Kept across weeks. */
+  skill: number | null;
 }
 
 /** Owner: created the group (or had it handed over); the only one who manages admins. Admins run everything else. */

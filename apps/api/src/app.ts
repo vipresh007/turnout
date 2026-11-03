@@ -554,6 +554,7 @@ export async function buildApp(db: Db) {
     const [who] = await db.query<{ name: string | null; email: string | null }>(`SELECT name, email FROM organizers WHERE id = $1`, [organizer.id]);
     const addedBy = who?.name || "Your organizer";
     const added: string[] = [];
+    const created: { id: string; name: string }[] = [];
     const skipped: string[] = [];
     for (const p of players) {
       const [dupe] = await db.query(`SELECT 1 FROM members WHERE group_id = $1 AND lower(trim(name)) = lower($2)`, [group.id, p.name]);
@@ -565,9 +566,11 @@ export async function buildApp(db: Db) {
       await track(db, "player_joined", { groupId: group.id, memberId: m!.id, organizerId: organizer.id, props: { addedByOrganizer: true, email: !!p.email } });
       if (p.email) await startEmailReminders(group, m!.id, p.email, addedBy);
       added.push(p.name);
+      created.push({ id: m!.id, name: p.name });
     }
     await events.rosterChanged(group.slug);
-    return { added, skipped };
+    // `players` carries the new IDs so the organizer can rate them straight away.
+    return { added, skipped, players: created };
   });
 
   // A player the organizer added opens the link on their phone: tap your name to claim it.
@@ -623,7 +626,7 @@ export async function buildApp(db: Db) {
       `SELECT m.id, m.name, m.email_confirmed_at IS NOT NULL AS "hasEmail", m.created_at AS "joinedAt",
               (SELECT count(*)::int FROM member_tokens t WHERE t.member_id = m.id) AS devices,
               (SELECT count(*)::int FROM rsvps r WHERE r.member_id = m.id AND r.status = 'in') AS "gamesIn",
-              m.season_member AS "seasonMember", m.season_paid_at IS NOT NULL AS "seasonPaid"
+              m.season_member AS "seasonMember", m.season_paid_at IS NOT NULL AS "seasonPaid", m.skill
        FROM members m WHERE m.group_id = $1 ORDER BY lower(m.name), m.created_at`,
       [group.id],
     );

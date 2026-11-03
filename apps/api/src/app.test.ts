@@ -605,7 +605,11 @@ test("organizer adds players up front; players claim their name on their phone",
   const org = { "x-dev-user": "roster-org" };
   const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Roster Volley", weekdays: [3], startTime: "20:00", timezone: "UTC", cap: null, targetPlayers: 12, seasonFeeCents: 250000 } })).json().group;
   const added = (await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: org, payload: { players: [{ name: "Ann", email: "ann@example.com" }, { name: "Bo" }] } })).json();
-  assert.deepEqual(added, { added: ["Ann", "Bo"], skipped: [] });
+  assert.deepEqual([added.added, added.skipped, added.players.map((p: { name: string }) => p.name)], [["Ann", "Bo"], [], ["Ann", "Bo"]]);
+  // Rate a player as they're added; the members list shows it (unrated stays null).
+  assert.equal((await app.inject({ method: "PUT", url: `/groups/${slug}/members/${added.players[1].id}/skill`, headers: org, payload: { skill: 4 } })).statusCode, 200);
+  const listed = (await app.inject({ url: `/groups/${slug}/members`, headers: org })).json().members as { name: string; skill: number | null }[];
+  assert.deepEqual(listed.filter((m) => m.name === "Ann" || m.name === "Bo").map((m) => [m.name, m.skill]), [["Ann", null], ["Bo", 4]]);
   assert.deepEqual((await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: org, payload: { players: [{ name: "bo" }] } })).json().skipped, ["bo"]);
   assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/add`, headers: { "x-dev-user": "nosy" }, payload: { players: [{ name: "X" }] } })).statusCode, 403);
 

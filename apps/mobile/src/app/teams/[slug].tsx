@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Pop } from "@/components/motion";
 import { SignInGate } from "@/components/SignInGate";
+import { SkillDots } from "@/components/SkillDots";
 import { TeamBoard } from "@/components/TeamBoard";
 import { BackLink, Button, Card, Muted, Screen } from "@/components/ui";
 import { shareUrl, useApi } from "@/lib/api";
@@ -164,23 +165,7 @@ function TeamMaker() {
               {p.name}
               {skills[p.memberId] === undefined && rated > 0 ? <Text style={{ color: t.energy, fontSize: 13 }}>  new</Text> : null}
             </Text>
-            <View style={{ flexDirection: "row", gap: 4 }}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Pressable
-                  key={n}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Rate ${p.name} ${n} of 5`}
-                  onPress={() => rate(p.memberId, n)}
-                  hitSlop={4}
-                  style={({ hovered }: { hovered?: boolean }) => ({
-                    width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center",
-                    backgroundColor: n <= p.skill ? t.accent : hovered ? t.soft : t.bg, borderWidth: 1, borderColor: n <= p.skill || hovered ? t.accent : t.border,
-                  })}
-                >
-                  <Text style={{ color: n <= p.skill ? t.accentText : t.muted, fontSize: 11, fontWeight: "800" }}>{n}</Text>
-                </Pressable>
-              ))}
-            </View>
+            <SkillDots name={p.name} value={skills[p.memberId] ?? null} onChange={(n) => rate(p.memberId, n)} />
           </View>
         ))}
       </Card>

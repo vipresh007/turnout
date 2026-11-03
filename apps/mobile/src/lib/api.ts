@@ -221,7 +221,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
     },
     members: async (slug: string) => request<{ members: MemberSummary[]; season: boolean }>(`/groups/${slug}/members`, await asOrganizer()),
     addPlayers: async (slug: string, players: { name: string; email?: string }[]) =>
-      request<{ added: string[]; skipped: string[] }>(`/groups/${slug}/members/add`, await asOrganizer({ method: "POST", body: { players } })),
+      request<{ added: string[]; skipped: string[]; players?: { id: string; name: string }[] }>(`/groups/${slug}/members/add`, await asOrganizer({ method: "POST", body: { players } })),
     mergeMember: async (slug: string, memberId: string, intoId: string) =>
       request<{ ok: true }>(`/groups/${slug}/members/${memberId}/merge`, await asOrganizer({ method: "POST", body: { intoId } })),
     confirmEmail: (token: string) => request<{ groupName: string; slug: string }>("/email/confirm", { method: "POST", body: { token } }),

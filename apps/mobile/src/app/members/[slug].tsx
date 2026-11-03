@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { SkillDots } from "@/components/SkillDots";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Button, Card, Field, Muted, Screen, webTransition } from "@/components/ui";
 import { useApi } from "@/lib/api";
@@ -35,6 +36,17 @@ function Members() {
     load();
   }, [load]);
 
+  // Ratings save on the player and carry over every week; update in place so the list doesn't jump.
+  const rate = async (memberId: string, skill: number) => {
+    setMembers((ms) => ms && ms.map((m) => (m.id === memberId ? { ...m, skill } : m)));
+    try {
+      await api.setSkill(slug, memberId, skill);
+    } catch (e) {
+      setError((e as Error).message);
+      void load();
+    }
+  };
+
   const act = async (action: () => Promise<unknown>) => {
     setError(null);
     try {
@@ -60,7 +72,7 @@ function Members() {
           </Muted>
         )}
       </View>
-      <AddPlayers slug={slug} season={season} onAdded={load} startOpen={add === "1"} />
+      <AddPlayers slug={slug} season={season} onAdded={load} onRate={rate} startOpen={add === "1"} />
       {merging && (
         <Card>
           <Text style={{ color: t.text, fontWeight: "800" }}>Merge {merging.name} into…</Text>
@@ -116,6 +128,10 @@ function Members() {
             >
               <Text style={{ color: t.danger, fontWeight: "700" }}>Remove</Text>
             </Pressable>
+            <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: 38 }}>
+              <Text style={{ color: t.muted, fontSize: 13 }}>{m.skill === null ? "Rating for teams" : `Rated ${m.skill} for teams`}</Text>
+              <SkillDots name={m.name} value={m.skill} onChange={(n) => rate(m.id, n)} />
+            </View>
           </View>
         ))}
       </Card>
@@ -164,13 +180,15 @@ function parsePlayers(text: string): { name: string; email?: string }[] {
     });
 }
 
-function AddPlayers({ slug, season, onAdded, startOpen }: { slug: string; season: boolean; onAdded: () => void; startOpen?: boolean }) {
+function AddPlayers({ slug, season, onAdded, onRate, startOpen }: { slug: string; season: boolean; onAdded: () => void; onRate: (memberId: string, skill: number) => Promise<void>; startOpen?: boolean }) {
   const t = useTheme();
   const api = useApi();
   const [open, setOpen] = useState(!!startOpen);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  /** Just added: rate them now while they're in mind (optional). */
+  const [fresh, setFresh] = useState<{ id: string; name: string; skill: number | null }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const players = parsePlayers(text);
 
@@ -212,6 +230,7 @@ function AddPlayers({ slug, season, onAdded, startOpen }: { slug: string; season
             try {
               const r = await api.addPlayers(slug, players);
               setResult(`Added ${r.added.length}.${r.skipped.length ? ` Already here: ${r.skipped.join(", ")}.` : ""}`);
+              setFresh((r.players ?? []).map((p) => ({ ...p, skill: null })));
               setText("");
               onAdded();
             } catch (e) {
@@ -221,9 +240,27 @@ function AddPlayers({ slug, season, onAdded, startOpen }: { slug: string; season
             }
           }}
         />
-        <Button label="Done" variant="secondary" onPress={() => { setOpen(false); setResult(null); }} />
+        <Button label="Done" variant="secondary" onPress={() => { setOpen(false); setResult(null); setFresh([]); }} />
       </View>
       {result && <Text style={{ color: t.accent, fontWeight: "700" }}>{result}</Text>}
+      {fresh.length > 0 && (
+        <View style={{ gap: 8 }}>
+          <Muted>Rate them now for balanced teams (optional). It's saved for every week, and only you see it.</Muted>
+          {fresh.map((p) => (
+            <View key={p.id} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <Text style={{ color: t.text, fontSize: 16, flex: 1 }} numberOfLines={1}>{p.name}</Text>
+              <SkillDots
+                name={p.name}
+                value={p.skill}
+                onChange={(n) => {
+                  setFresh((list) => list.map((x) => (x.id === p.id ? { ...x, skill: n } : x)));
+                  void onRate(p.id, n);
+                }}
+              />
+            </View>
+          ))}
+        </View>
+      )}
       {error && <Text style={{ color: t.danger }}>{error}</Text>}
     </Card>
   );
