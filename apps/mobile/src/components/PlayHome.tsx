@@ -5,7 +5,6 @@ import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { BadgeRow } from "./Badges";
 import { StatsStrip } from "./PlayerStats";
 import { Card, Display, Eyebrow } from "./ui";
 import { YourGames } from "./YourGames";
@@ -38,7 +37,6 @@ export function PlayHome({ onEmpty, tab }: { onEmpty?: () => void; tab?: boolean
         <Card>
           <Eyebrow>Your record</Eyebrow>
           <StatsStrip stats={stats} />
-          <BadgeRow stats={stats} />
         </Card>
       )}
       <View style={{ flex: 1 }} />

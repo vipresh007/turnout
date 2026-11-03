@@ -16,7 +16,7 @@ Regenerate after a design change:
 2. Start the dev-auth web: launch.json `web-local` (port 8082) and `api` (port 4000).
 3. `node scripts/store-screenshots.mjs capture` (in apps/mobile), then `node scripts/store-screenshots.mjs compose`.
 
-The capture claims two demo regulars (Carlos in soccer, Mike in basketball) as the device's memberships, so the player slides show a real record and badges. Upload the composed PNGs to App Store Connect → the version → App Previews and Screenshots; the file name carries the size so the Asset Library matches them.
+The capture claims two demo regulars (Carlos in soccer, Mike in basketball) as the device's memberships, so the player slides show a real record. Upload the composed PNGs to App Store Connect → the version → App Previews and Screenshots; the file name carries the size so the Asset Library matches them.
 
 ## Slides
 
@@ -24,4 +24,4 @@ The capture claims two demo regulars (Carlos in soccer, Mike in basketball) as t
 2. Your week: organizer Home with the next game and the calendar.
 3. Autopilot: the organizer's group page with the manage bar and forecast.
 4. Insights: the Insights tab.
-5. For players: the Play home with record and badges.
+5. For players: the Play home with their record.

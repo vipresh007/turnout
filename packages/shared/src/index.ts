@@ -9,7 +9,6 @@ export * from "./cost.ts";
 export * from "./insights.ts";
 export * from "./playerStats.ts";
 export * from "./moderation.ts";
-export * from "./badges.ts";
 export * from "./prompts.ts";
 export * from "./recap.ts";
 export * from "./digest.ts";
