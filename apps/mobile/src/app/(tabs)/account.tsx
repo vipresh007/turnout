@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Switch, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { SignInGate } from "@/components/SignInGate";
-import { Display, ListRow, RowGroup } from "@/components/ui";
+import { Display, Eyebrow, ListRow, RowGroup } from "@/components/ui";
 import { useAccount } from "@/lib/account";
 import { useApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -91,13 +91,23 @@ function Account() {
         </View>
       </View>
 
-      <RowGroup>
-        {pushAvailable && <ListRow first icon="bell" title="Notifications on this phone" subtitle={pushNote ?? "Dropouts, short games and the alerts below"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />}
-        <ListRow first={!pushAvailable} icon="mail" title="Weekly digest" subtitle="Monday morning: last week's games, who's on a streak, what's owed" right={<Switch value={prefs?.digest ?? true} disabled={!prefs} onValueChange={(v) => setPref("digest", v)} trackColor={{ true: t.accent }} />} />
-        <ListRow icon="check" title="Game is full" subtitle="Once per game, when the last spot goes" right={<Switch value={prefs?.full ?? true} disabled={!prefs} onValueChange={(v) => setPref("full", v)} trackColor={{ true: t.accent }} />} />
-        <ListRow icon="user" title="New player joins" subtitle="Someone new found your link" right={<Switch value={prefs?.newPlayer ?? false} disabled={!prefs} onValueChange={(v) => setPref("newPlayer", v)} trackColor={{ true: t.accent }} />} />
-        <ListRow last icon="mail" title="Game alert emails" subtitle="May be short, someone dropped out. Push is separate" right={<Switch value={prefs?.alertEmails ?? true} disabled={!prefs} onValueChange={(v) => setPref("alertEmails", v)} trackColor={{ true: t.accent }} />} />
-      </RowGroup>
+      {/* Phone alerts and emails apart, so each switch says plainly what it stops. */}
+      <View style={{ gap: 8 }}>
+        <View style={{ paddingHorizontal: 4 }}><Eyebrow>{pushAvailable ? "On this phone" : "Alerts"}</Eyebrow></View>
+        <RowGroup>
+          {pushAvailable && <ListRow first icon="bell" title="Notifications" subtitle={pushNote ?? "Dropouts and games that look short, plus the two below"} right={<Switch value={push} onValueChange={togglePush} trackColor={{ true: t.accent }} />} />}
+          <ListRow first={!pushAvailable} icon="check" title="Game is full" subtitle="Once per game, when the last spot goes" right={<Switch value={prefs?.full ?? true} disabled={!prefs} onValueChange={(v) => setPref("full", v)} trackColor={{ true: t.accent }} />} />
+          <ListRow last icon="user" title="New player joins" subtitle="Someone new found your link" right={<Switch value={prefs?.newPlayer ?? false} disabled={!prefs} onValueChange={(v) => setPref("newPlayer", v)} trackColor={{ true: t.accent }} />} />
+        </RowGroup>
+      </View>
+
+      <View style={{ gap: 8 }}>
+        <View style={{ paddingHorizontal: 4 }}><Eyebrow>By email</Eyebrow></View>
+        <RowGroup>
+          <ListRow first icon="mail" title="Weekly digest" subtitle="Monday morning: last week's games and what's coming" right={<Switch value={prefs?.digest ?? true} disabled={!prefs} onValueChange={(v) => setPref("digest", v)} trackColor={{ true: t.accent }} />} />
+          <ListRow last icon="warning" title="Dropouts and short games" subtitle="Also emailed, in case you miss the notification" right={<Switch value={prefs?.alertEmails ?? true} disabled={!prefs} onValueChange={(v) => setPref("alertEmails", v)} trackColor={{ true: t.accent }} />} />
+        </RowGroup>
+      </View>
 
       <RowGroup>
         <ListRow first icon="trending" title="Your stats" subtitle="Games played, attendance and streaks" onPress={() => router.push("/stats")} />
