@@ -1,5 +1,5 @@
 // Demo data for one organizer on the test database. Re-running replaces the previous demo groups.
-// Run with ./infra/seed-demo.sh <email>. Paths are inside the API image.
+// Run with ./infra/seed-demo.sh <email> [test|live] [remove]; `remove` only deletes them. Paths are inside the API image.
 import { createDb } from "/app/apps/api/src/db/client.ts";
 import { randomSlug } from "/app/apps/api/src/ids.ts";
 import { atLocal, localDate, scheduledStarts } from "/app/apps/api/src/schedule.ts";
@@ -10,6 +10,7 @@ const [org] = await db.query<{ id: string }>(`SELECT id FROM organizers WHERE lo
 if (!org) throw new Error("No organizer with that email has signed in to test yet");
 const removed = await db.query(`DELETE FROM groups WHERE organizer_id = $1 AND name LIKE '% (demo)' RETURNING id`, [org.id]);
 console.log(`removed ${removed.length} old demo groups`);
+if (process.env.SEED_MODE === "remove") process.exit(0);
 
 let s = 42;
 const rand = () => ((s = (s * 16807) % 2147483647) / 2147483647);
