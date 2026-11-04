@@ -75,7 +75,12 @@ function Members() {
             <Text style={{ color: t.text, fontSize: 15, fontWeight: "600" }}>
               {paidCount} of {seasonCount} paid · {seasonCount} season {seasonCount === 1 ? "member" : "members"}
             </Text>
-            <Muted>Tap Paid when someone pays; it makes them a season member too. Everyone else plays as a sub.</Muted>
+            <Muted>The season total is split between season members. Tap Paid when someone pays; it makes them a member too. Everyone else plays as a sub.</Muted>
+            {seasonCount < members.length && (
+              <Pressable accessibilityRole="button" onPress={() => act(() => api.seasonAll(slug))} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ alignSelf: "flex-start", marginTop: 2, opacity: hovered ? 0.7 : 1 })}>
+                <Text style={{ color: t.accent, fontWeight: "700" }}>Make all {members.length} season members</Text>
+              </Pressable>
+            )}
           </>
         ) : (
           <Muted>Everyone who has joined. Rate players to balance teams; it's saved for every week.</Muted>

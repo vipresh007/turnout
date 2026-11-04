@@ -399,6 +399,9 @@ export async function buildApp(db: Db) {
       [group.id, ...entries.map(([, v]) => v)],
     );
     const updated = (await findGroupBySlug(db, group.slug))!;
+    // Becoming a season group: everyone already in it starts as a season member (untick the subs), so the fee is
+    // split between the real roster rather than whoever happened to be added after the switch.
+    if (!group.seasonFeeCents && updated.seasonFeeCents) await db.query(`UPDATE members SET season_member = true WHERE group_id = $1`, [group.id]);
     // New day or time for a game that hasn't started: this week's answers move with it.
     const scheduleChanged = ["weekdays", "startTime", "intervalWeeks", "startsOn", "timezone"].some((k) => k in input);
     const answered = before.confirmed.length + before.waitlist.length + before.out.length > 0;
@@ -724,6 +727,15 @@ export async function buildApp(db: Db) {
     if (!row) throw new HttpError(409, "They haven't responded this week");
     if (paid) await track(db, "payment_marked", { groupId: group.id, sessionId: session.id, memberId: req.params.memberId, organizerId: organizer.id });
     return groupPage(db, group, organizer.id);
+  });
+
+  // Season groups: make everyone a season member in one go.
+  app.post<SlugParams>("/groups/:slug/members/season-all", async (req) => {
+    const { group } = await ownedGroup(req, req.params.slug);
+    if (!group.seasonFeeCents) throw new HttpError(400, "Set a season cost first");
+    await db.query(`UPDATE members SET season_member = true WHERE group_id = $1`, [group.id]);
+    await events.rosterChanged(group.slug);
+    return { ok: true };
   });
 
   app.put<{ Params: { slug: string; memberId: string } }>("/groups/:slug/members/:memberId/skill", async (req) => {

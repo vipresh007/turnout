@@ -601,6 +601,25 @@ test("season groups: upfront fee split between members, season payments, subs, t
   assert.equal(dash.groups.find((g: { group: { slug: string } }) => g.group.slug === slug).spotsLeft, 11);
 });
 
+test("switching to a season cost makes the existing players season members; everyone at once on request", async () => {
+  const org = { "x-dev-user": "season-switch-org" };
+  const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Switch Volley", weekdays: [laterDay], startTime: "20:00", timezone: "UTC", cap: 16 } })).json().group;
+  for (const name of ["Ann", "Bo", "Cy"]) await app.inject({ method: "POST", url: `/groups/${slug}/members`, payload: { name } });
+  const members = async () => (await app.inject({ url: `/groups/${slug}/members`, headers: org })).json().members as { name: string; seasonMember: boolean }[];
+  assert.equal((await members()).filter((m) => m.seasonMember).length, 0);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/season-all`, headers: org })).statusCode, 400); // not a season group yet
+  await app.inject({ method: "PATCH", url: `/groups/${slug}`, headers: org, payload: { seasonFeeCents: 300000 } });
+  assert.equal((await members()).filter((m) => m.seasonMember).length, 3);
+  const page = (await app.inject({ url: `/groups/${slug}`, headers: org })).json();
+  assert.equal(page.season.shareCents, 100000); // $3,000 / 3
+  // A sub ticked off, then everyone back in one go.
+  const bo = (await members()).find((m) => m.name === "Bo") as unknown as { id: string };
+  await app.inject({ method: "PUT", url: `/groups/${slug}/members/${bo.id}/season`, headers: org, payload: { member: false } });
+  assert.equal((await members()).filter((m) => m.seasonMember).length, 2);
+  assert.equal((await app.inject({ method: "POST", url: `/groups/${slug}/members/season-all`, headers: org })).statusCode, 200);
+  assert.equal((await members()).filter((m) => m.seasonMember).length, 3);
+});
+
 test("organizer adds players up front; players claim their name on their phone", async () => {
   const org = { "x-dev-user": "roster-org" };
   const { slug } = (await app.inject({ method: "POST", url: "/groups", headers: org, payload: { name: "Roster Volley", weekdays: [3], startTime: "20:00", timezone: "UTC", cap: null, targetPlayers: 12, seasonFeeCents: 250000 } })).json().group;

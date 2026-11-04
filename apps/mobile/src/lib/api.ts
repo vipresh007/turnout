@@ -152,6 +152,7 @@ function createApi(authHeaders: () => Promise<Headers>) {
       request<{ role: GroupRole; organizers: GroupOrganizer[] }>(`/groups/${slug}/owner`, await asOrganizer({ method: "PUT", body: { organizerId } })),
     organizerInvite: (token: string) => request<{ groupName: string }>(`/organizer-invites/${encodeURIComponent(token)}`),
     acceptOrganizerInvite: async (token: string) => request<{ slug: string }>("/organizer-invites/accept", await asOrganizer({ method: "POST", body: { token } })),
+    seasonAll: async (slug: string) => request<{ ok: true }>(`/groups/${slug}/members/season-all`, await asOrganizer({ method: "POST", body: {} })),
     setSeason: async (slug: string, memberId: string, change: { member?: boolean; paid?: boolean }) =>
       request<GroupPage>(`/groups/${slug}/members/${memberId}/season`, await asOrganizer({ method: "PUT", body: change })),
     newSeason: async (slug: string, change: { seasonFeeCents?: number; startsOn?: string; endsOn?: string | null } = {}) =>

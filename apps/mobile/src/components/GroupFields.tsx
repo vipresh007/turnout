@@ -47,7 +47,8 @@ function costSummary(v: GroupFormValues): string {
 }
 
 /** The group form, in sections: Basics, When, Players, then Cost and Reminders (collapsed to a summary). */
-export function GroupFields({ value, onChange, timezone }: { value: GroupFormValues; onChange: (v: GroupFormValues) => void; timezone: string }) {
+/** `seasonMembers`: how many people the season total is split between (Edit group knows; a new group doesn't yet). */
+export function GroupFields({ value, onChange, timezone, seasonMembers }: { value: GroupFormValues; onChange: (v: GroupFormValues) => void; timezone: string; seasonMembers?: number }) {
   const t = useTheme();
   const set = <K extends keyof GroupFormValues>(key: K) => (v: GroupFormValues[K]) => onChange({ ...value, [key]: v });
   const setReminders = (r: Partial<GroupFormValues["reminders"]>) => onChange({ ...value, reminders: { ...value.reminders, ...r } });
@@ -125,6 +126,15 @@ export function GroupFields({ value, onChange, timezone }: { value: GroupFormVal
             <Field label="Season total ($)" placeholder="2500" value={value.seasonFee} onChangeText={amount("seasonFee")} keyboardType="decimal-pad" />
             <Field label="Sub price ($)" placeholder="Optional" value={value.fee} onChangeText={amount("fee")} keyboardType="decimal-pad" />
           </View>
+        )}
+        {value.costMode === "season" && (
+          <Text style={{ color: t.muted, fontSize: 13 }}>
+            {(() => {
+              const total = parseMoney(value.seasonFee);
+              if (!total || !seasonMembers) return "Split evenly between your season members (mark them in Members).";
+              return `${formatMoney(Math.ceil(total / seasonMembers))} each, split between ${seasonMembers} season ${seasonMembers === 1 ? "member" : "members"}. Mark who's a member in Members.`;
+            })()}
+          </Text>
         )}
         {value.costMode !== "none" && <Field label="How to pay" placeholder="e.g. e-Transfer to sam@example.com" value={value.payNote} onChangeText={set("payNote")} />}
       </Section>
