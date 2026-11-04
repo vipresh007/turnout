@@ -68,7 +68,7 @@ function Members() {
         <Muted>Everyone who has joined. Same person twice (like a new phone)? Merge them so their history stays together.</Muted>
         {season && (
           <Muted>
-            Season group: tick who's a season member ({members.filter((m) => m.seasonMember).length} now) and who has paid. Everyone else plays as a sub.
+            Season group: {members.filter((m) => m.seasonMember).length} season members, {members.filter((m) => m.seasonPaid).length} paid. Tap Paid when someone pays (that makes them a member too); everyone else plays as a sub.
           </Muted>
         )}
       </View>
@@ -109,7 +109,8 @@ function Members() {
             {season && (
               <View style={{ flexDirection: "row", gap: 6 }}>
                 <Toggle label="Member" on={m.seasonMember} onPress={() => act(() => api.setSeason(slug, m.id, { member: !m.seasonMember }))} />
-                {m.seasonMember && <Toggle label="Paid" on={m.seasonPaid} onPress={() => act(() => api.setSeason(slug, m.id, { paid: !m.seasonPaid }))} />}
+                {/* Paid on anyone: marking a sub paid makes them a season member too (the API does both). */}
+                <Toggle label="Paid" on={m.seasonPaid} onPress={() => act(() => api.setSeason(slug, m.id, { paid: !m.seasonPaid }))} />
               </View>
             )}
             <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
