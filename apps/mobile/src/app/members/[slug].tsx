@@ -60,6 +60,7 @@ function Members() {
 
   if (!members) return <Screen>{error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator style={{ marginTop: 48 }} />}</Screen>;
 
+  const seasonCount = members.filter((m) => m.seasonMember).length;
   return (
     <Screen>
       <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
@@ -68,7 +69,7 @@ function Members() {
         <Muted>Everyone who has joined. Same person twice (like a new phone)? Merge them so their history stays together.</Muted>
         {season && (
           <Muted>
-            Season group: {members.filter((m) => m.seasonMember).length} season members, {members.filter((m) => m.seasonPaid).length} paid. Tap Paid when someone pays (that makes them a member too); everyone else plays as a sub.
+            Season group: {seasonCount} season {seasonCount === 1 ? "member" : "members"}, {members.filter((m) => m.seasonPaid).length} paid. Tap Paid when someone pays (that makes them a member too); everyone else plays as a sub.
           </Muted>
         )}
       </View>
