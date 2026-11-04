@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { Icon } from "@/components/Icon";
 import { SkillDots } from "@/components/SkillDots";
 import { SignInGate } from "@/components/SignInGate";
 import { BackLink, Button, Card, Field, Muted, Screen, webTransition } from "@/components/ui";
@@ -26,6 +27,8 @@ function Members() {
   const [members, setMembers] = useState<MemberSummary[] | null>(null);
   const [season, setSeason] = useState(false);
   const [merging, setMerging] = useState<MemberSummary | null>(null);
+  /** The row whose Merge / Remove are showing (behind its "…" button). */
+  const [openRow, setOpenRow] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => api.members(slug).then((r) => {
@@ -61,16 +64,21 @@ function Members() {
   if (!members) return <Screen>{error ? <Text style={{ color: t.danger }}>{error}</Text> : <ActivityIndicator style={{ marginTop: 48 }} />}</Screen>;
 
   const seasonCount = members.filter((m) => m.seasonMember).length;
+  const paidCount = members.filter((m) => m.seasonPaid).length;
   return (
     <Screen>
       <BackLink fallback={{ pathname: "/g/[slug]", params: { slug } }} label="Back to group" />
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.text, fontSize: 24, fontWeight: "900" }}>Members · {members.length}</Text>
-        <Muted>Everyone who has joined. Same person twice (like a new phone)? Merge them so their history stays together.</Muted>
-        {season && (
-          <Muted>
-            Season group: {seasonCount} season {seasonCount === 1 ? "member" : "members"}, {members.filter((m) => m.seasonPaid).length} paid. Tap Paid when someone pays (that makes them a member too); everyone else plays as a sub.
-          </Muted>
+        {season ? (
+          <>
+            <Text style={{ color: t.text, fontSize: 15, fontWeight: "600" }}>
+              {paidCount} of {seasonCount} paid · {seasonCount} season {seasonCount === 1 ? "member" : "members"}
+            </Text>
+            <Muted>Tap Paid when someone pays; it makes them a season member too. Everyone else plays as a sub.</Muted>
+          </>
+        ) : (
+          <Muted>Everyone who has joined. Rate players to balance teams; it's saved for every week.</Muted>
         )}
       </View>
       <AddPlayers slug={slug} season={season} onAdded={load} onRate={rate} startOpen={add === "1"} />
@@ -98,42 +106,58 @@ function Members() {
       )}
       <Card>
         {members.map((m, i) => (
-          <View key={m.id} style={[{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, flexWrap: "wrap" }, i > 0 && { borderTopWidth: 1, borderColor: t.border }]}>
-            <Avatar name={m.name} />
-            <View style={{ flex: 1, minWidth: 150 }}>
-              <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }}>{m.name}</Text>
-              <Text style={{ color: t.muted, fontSize: 13 }}>
-                {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices ? `${m.devices} ${m.devices === 1 ? "device" : "devices"}` : "hasn't opened the link yet"}
-                {m.hasEmail ? " · reminders on" : ""}
-              </Text>
-            </View>
-            {season && (
-              <View style={{ flexDirection: "row", gap: 6 }}>
-                <Toggle label="Member" on={m.seasonMember} onPress={() => act(() => api.setSeason(slug, m.id, { member: !m.seasonMember }))} />
-                {/* Paid on anyone: marking a sub paid makes them a season member too (the API does both). */}
-                <Toggle label="Paid" on={m.seasonPaid} onPress={() => act(() => api.setSeason(slug, m.id, { paid: !m.seasonPaid }))} />
+          <View key={m.id} style={[{ gap: 10, paddingVertical: 12 }, i > 0 && { borderTopWidth: 1, borderColor: t.border }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Avatar name={m.name} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontSize: 16, fontWeight: "600" }} numberOfLines={1}>{m.name}</Text>
+                <Text style={{ color: t.muted, fontSize: 13 }} numberOfLines={1}>
+                  {m.gamesIn} {m.gamesIn === 1 ? "game" : "games"} · {m.devices ? `${m.devices} ${m.devices === 1 ? "phone" : "phones"}` : "not opened yet"}
+                  {m.hasEmail ? " · reminders on" : ""}
+                </Text>
               </View>
-            )}
-            <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
-              <Text style={{ color: t.accent, fontWeight: "700" }}>Merge</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Remove ${m.name}`}
-              hitSlop={8}
-              onPress={async () => {
-                if (await confirm(`Remove ${m.name}?`, "They'll be taken off the group, with their answers and payments. They can join again with the link.")) {
-                  await act(() => api.removeMember(slug, m.id));
-                }
-              }}
-              style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}
-            >
-              <Text style={{ color: t.danger, fontWeight: "700" }}>Remove</Text>
-            </Pressable>
-            <View style={{ width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingLeft: 38 }}>
-              <Text style={{ color: t.muted, fontSize: 13 }}>{m.skill == null ? "Rating for teams" : `Rated ${m.skill} for teams`}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`More for ${m.name}`}
+                accessibilityState={{ expanded: openRow === m.id }}
+                onPress={() => setOpenRow(openRow === m.id ? null : m.id)}
+                hitSlop={8}
+                style={({ hovered }: { hovered?: boolean }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: openRow === m.id || hovered ? t.surface2 : "transparent" })}
+              >
+                <Icon name="more" size={18} color={t.muted} />
+              </Pressable>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 38 }}>
+              {season && (
+                <>
+                  <Toggle label="Member" on={m.seasonMember} onPress={() => act(() => api.setSeason(slug, m.id, { member: !m.seasonMember }))} />
+                  {/* Paid on anyone: marking a sub paid makes them a season member too (the API does both). */}
+                  <Toggle label="Paid" on={m.seasonPaid} onPress={() => act(() => api.setSeason(slug, m.id, { paid: !m.seasonPaid }))} />
+                </>
+              )}
+              <View style={{ flex: 1 }} />
               <SkillDots name={m.name} value={m.skill ?? null} onChange={(n) => rate(m.id, n)} />
             </View>
+            {openRow === m.id && (
+              <View style={{ flexDirection: "row", gap: 18, paddingLeft: 38 }}>
+                <Pressable accessibilityRole="button" onPress={() => setMerging(m)} hitSlop={8} style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}>
+                  <Text style={{ color: t.text, fontWeight: "600" }}>Merge with…</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${m.name}`}
+                  hitSlop={8}
+                  onPress={async () => {
+                    if (await confirm(`Remove ${m.name}?`, "They'll be taken off the group, with their answers and payments. They can join again with the link.")) {
+                      await act(() => api.removeMember(slug, m.id));
+                    }
+                  }}
+                  style={({ hovered }: { hovered?: boolean }) => ({ opacity: hovered ? 0.7 : 1 })}
+                >
+                  <Text style={{ color: t.danger, fontWeight: "600" }}>Remove</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         ))}
       </Card>
