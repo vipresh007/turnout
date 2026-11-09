@@ -86,6 +86,8 @@ export async function sendEmail(
   { wait = true, replyTo, oneClick }: { wait?: boolean; replyTo?: string; oneClick?: boolean } = {},
 ): Promise<void> {
   if (!email) return;
+  // Test sends to the same real inboxes as live; mark its emails so nobody mistakes one for the real thing.
+  if (process.env.TURNOUT_ENV === "test") subject = `[Test] ${subject}`;
   const poller = await email.client.beginSend({
     senderAddress: email.sender,
     recipients: { to: [{ address: to }] },

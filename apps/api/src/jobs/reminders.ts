@@ -10,8 +10,11 @@ try {
   console.info(`[reminders] checked ${result.groups} groups, sent ${result.sent}`);
   const forecast = await runForecastAlerts(db);
   console.info(`[autopilot] checked ${forecast.checked} games, alerted ${forecast.alerted}`);
-  const digest = await runWeeklyDigest(db);
-  if (digest.sent) console.info(`[digest] sent ${digest.sent}`);
+  // The digest is a weekly email to real organizers; test shares their addresses, so it only goes out from live.
+  if (process.env.TURNOUT_ENV !== "test") {
+    const digest = await runWeeklyDigest(db);
+    if (digest.sent) console.info(`[digest] sent ${digest.sent}`);
+  }
 } finally {
   await db.close();
 }
